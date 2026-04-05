@@ -1,0 +1,12 @@
+# Obsidian ワークスペース設定（個人環境依存のため除外）
+Vault/.obsidian/workspace.json
+Vault/.obsidian/workspace-mobile.json
+
+# OS生成ファイル
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 一時ファイル
+*.tmp
+*.bak
