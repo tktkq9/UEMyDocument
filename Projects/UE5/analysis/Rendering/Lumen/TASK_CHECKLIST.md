@@ -11,7 +11,7 @@
 Rendering/Lumen/
 ├── 02_lumen_overview.md
 ├── Details/
-│   ├── a_lumen_surface_cache.md    ← リンク追加済み？ [ ]
+│   ├── a_lumen_surface_cache.md    ← リンク追加済み？ [x]
 │   ├── b_lumen_scene_lighting.md   ← リンク追加済み？ [ ]
 │   ├── c_lumen_tracing.md          ← リンク追加済み？ [ ]
 │   ├── d_lumen_radiance_cache.md   ← リンク追加済み？ [ ]
@@ -44,13 +44,13 @@ Rendering/Lumen/
 
 | # | ファイル名 | 対象ソース | 状態 |
 |---|-----------|-----------|------|
-| A-1 | `Reference/a_SurfaceCache/ref_lumen_scene_data.md` | `LumenSceneData.h` | [ ] 未着手 |
-| A-2 | `Reference/a_SurfaceCache/ref_lumen_mesh_cards.md` | `LumenMeshCards.h/cpp` | [ ] 未着手 |
-| A-3 | `Reference/a_SurfaceCache/ref_lumen_surface_cache.md` | `LumenSurfaceCache.cpp` | [ ] 未着手 |
-| A-4 | `Reference/a_SurfaceCache/ref_lumen_surface_cache_feedback.md` | `LumenSurfaceCacheFeedback.h/cpp` | [ ] 未着手 |
-| A-5 | `Reference/a_SurfaceCache/ref_lumen_scene.md` | `LumenScene.cpp` | [ ] 未着手 |
-| A-6 | `Reference/a_SurfaceCache/ref_lumen_scene_gpu_driven_update.md` | `LumenSceneGPUDrivenUpdate.h/cpp` | [ ] 未着手 |
-| A-7 | `Reference/a_SurfaceCache/ref_lumen_utils.md` | `LumenSparseSpanArray.h` / `LumenUniqueList.h` | [ ] 未着手 |
+| A-1 | `Reference/a_SurfaceCache/ref_lumen_scene_data.md` | `LumenSceneData.h` | [x] 完了 |
+| A-2 | `Reference/a_SurfaceCache/ref_lumen_mesh_cards.md` | `LumenMeshCards.h/cpp` | [x] 完了 |
+| A-3 | `Reference/a_SurfaceCache/ref_lumen_surface_cache.md` | `LumenSurfaceCache.cpp` | [x] 完了 |
+| A-4 | `Reference/a_SurfaceCache/ref_lumen_surface_cache_feedback.md` | `LumenSurfaceCacheFeedback.h/cpp` | [x] 完了 |
+| A-5 | `Reference/a_SurfaceCache/ref_lumen_scene.md` | `LumenScene.cpp` | [x] 完了 |
+| A-6 | `Reference/a_SurfaceCache/ref_lumen_scene_gpu_driven_update.md` | `LumenSceneGPUDrivenUpdate.h/cpp` | [x] 完了 |
+| A-7 | `Reference/a_SurfaceCache/ref_lumen_utils.md` | `LumenSparseSpanArray.h` / `LumenUniqueList.h` | [x] 完了 |
 
 ---
 
@@ -124,7 +124,7 @@ Rendering/Lumen/
 | グループ | 合計 | 完了 | 残り |
 |---------|------|------|------|
 | Common  | 3    | 3    | 0    |
-| a: Surface Cache | 7 | 0 | 7 |
+| a: Surface Cache | 7 | 7 | 0 |
 | b: Scene Lighting | 6 | 0 | 6 |
 | c: Tracing | 6 | 0 | 6 |
 | d: Radiance Cache | 5 | 0 | 5 |

@@ -226,3 +226,18 @@ uint32 SurfaceCacheFeedbackBufferTileWrapMask
 | `LumenSceneRendering.cpp` | フレームごとの更新オーケストレーション |
 | `LumenSceneCardCapture.h/cpp` | アトラスへの実際のキャプチャ描画 |
 | `LumenTracingUtils.h` | FLumenCardTracingParameters（シェーダーバインド）|
+
+
+---
+
+## 関連リファレンス（ソースファイル別）
+
+| リファレンス | 対象ソース | 主な内容 |
+|------------|---------|---------|
+| [[ref_lumen_scene_data]] | `LumenSceneData.h` | FLumenCard / FLumenPrimitiveGroup / FLumenPageTableEntry / FLumenSurfaceCacheAllocator |
+| [[ref_lumen_mesh_cards]] | `LumenMeshCards.h/cpp` | FLumenMeshCards / CardLookup / UpdateCardSceneBuffer |
+| [[ref_lumen_surface_cache]] | `LumenSurfaceCache.cpp` | ページアロケーション・更新スケジューリング・CVar 一覧 |
+| [[ref_lumen_surface_cache_feedback]] | `LumenSurfaceCacheFeedback.h/cpp` | FLumenSurfaceCacheFeedback / フィードバックループ |
+| [[ref_lumen_scene]] | `LumenScene.cpp` | プリミティブ登録/削除・フレーム更新フロー・CVar 一覧 |
+| [[ref_lumen_scene_gpu_driven_update]] | `LumenSceneGPUDrivenUpdate.h/cpp` | FLumenSceneReadback / GPU Driven Update |
+| [[ref_lumen_utils]] | `LumenSparseSpanArray.h` / `LumenUniqueList.h` | TSparseSpanArray / FUniqueIndexList |
