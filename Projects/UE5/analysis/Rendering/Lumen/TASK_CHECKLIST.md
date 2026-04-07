@@ -34,9 +34,9 @@ Rendering/Lumen/
 
 | # | ファイル名 | 対象ソース | 状態 |
 |---|-----------|-----------|------|
-| C-1 | `Reference/Common/ref_lumen_core.md` | `Lumen.h` / `Lumen.cpp` | [ ] 未着手 |
-| C-2 | `Reference/Common/ref_lumen_view_state.md` | `LumenViewState.h` | [ ] 未着手 |
-| C-3 | `Reference/Common/ref_lumen_visualize.md` | `LumenVisualize.h/cpp` / `LumenVisualizeHardwareRayTracing.cpp` / `LumenVisualizeRadianceCache.cpp` | [ ] 未着手 |
+| C-1 | `Reference/Common/ref_lumen_core.md` | `Lumen.h` / `Lumen.cpp` | [x] 完了 |
+| C-2 | `Reference/Common/ref_lumen_view_state.md` | `LumenViewState.h` | [x] 完了 |
+| C-3 | `Reference/Common/ref_lumen_visualize.md` | `LumenVisualize.h/cpp` / `LumenVisualizeHardwareRayTracing.cpp` / `LumenVisualizeRadianceCache.cpp` | [x] 完了 |
 
 ---
 
@@ -123,7 +123,7 @@ Rendering/Lumen/
 
 | グループ | 合計 | 完了 | 残り |
 |---------|------|------|------|
-| Common  | 3    | 0    | 3    |
+| Common  | 3    | 3    | 0    |
 | a: Surface Cache | 7 | 0 | 7 |
 | b: Scene Lighting | 6 | 0 | 6 |
 | c: Tracing | 6 | 0 | 6 |
