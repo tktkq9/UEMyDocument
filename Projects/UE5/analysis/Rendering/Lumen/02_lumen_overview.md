@@ -11,12 +11,13 @@
 **完全動的なグローバルイルミネーション（GI）と反射** をリアルタイムで実現するシステム。  
 従来の Lightmap（静的）や SSAO（Screen Space のみ）に代わるもの。
 
-| 従来の問題 | Lumen の解法 |
-|-----------|-------------|
-| Lightmap は静的しか対応できない | 全てランタイム計算 |
-| SSR は画面外の情報がない | Surface Cache で画面外もカバー |
-| Ray Tracing は全ピクセル打つとコストが高い | 低解像度 Probe でキャッシュして補間 |
-| 移動するライトに GI が追随しない | Surface Cache を差分更新（dirty だけ再キャプチャ）|
+| 従来の問題                       | Lumen の解法                           |
+| --------------------------- | ----------------------------------- |
+| Lightmap は静的しか対応できない        | 全てランタイム計算                           |
+| SSR は画面外の情報がない              | Surface Cache で画面外もカバー              |
+| Ray Tracing は全ピクセル打つとコストが高い | 低解像度 Probe でキャッシュして補間               |
+| 移動するライトに GI が追随しない          | Surface Cache を差分更新（dirty だけ再キャプチャ） |
+|                             |                                     |
 
 ---
 
@@ -74,12 +75,12 @@ graph TD
 
 | # | コンポーネント | 役割 | 詳細記事 |
 |---|--------------|------|---------|
-| ① | Lumen Scene / Surface Cache | シーンをCardで近似・ライティング情報を焼く | [[lumen_surface_cache]] |
-| ② | Surface Cache Lighting | 直接光・Radiosityを Surface Cache に書き込む | [[lumen_scene_lighting]] |
-| ③ | Tracing | Mesh SDF / Global SDF / HW RT でレイトレース | [[lumen_tracing]] |
-| ④ | Diffuse GI | Screen Probe Gather + Radiance Cache で間接光 | [[lumen_diffuse_gi]] |
-| ⑤ | Reflections | Roughness別トレース + ReSTIR | [[lumen_reflections]] |
-| ⑥ | Radiance Cache | 遠距離用プローブキャッシュ | [[lumen_radiance_cache]] |
+| ① | Lumen Scene / Surface Cache | シーンをCardで近似・ライティング情報を焼く | [[a_lumen_surface_cache]] |
+| ② | Surface Cache Lighting | 直接光・Radiosityを Surface Cache に書き込む | [[b_lumen_scene_lighting]] |
+| ③ | Tracing | Mesh SDF / Global SDF / HW RT でレイトレース | [[c_lumen_tracing]] |
+| ④ | Radiance Cache | 遠距離用プローブキャッシュ（Tracing から更新） | [[d_lumen_radiance_cache]] |
+| ⑤ | Diffuse GI | Screen Probe Gather + Radiance Cache で間接光 | [[e_lumen_diffuse_gi]] |
+| ⑥ | Reflections | Roughness別トレース + ReSTIR | [[f_lumen_reflections]] |
 
 ---
 

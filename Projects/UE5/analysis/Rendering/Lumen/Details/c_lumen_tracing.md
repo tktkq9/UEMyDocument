@@ -1,7 +1,7 @@
 # Lumen Tracing（ライトトレース）
 
 - 上位: [[02_lumen_overview]]
-- 関連: [[lumen_surface_cache]] | [[lumen_diffuse_gi]] | [[lumen_reflections]]
+- 関連: [[a_lumen_surface_cache]] | [[e_lumen_diffuse_gi]] | [[f_lumen_reflections]]
 
 ---
 
@@ -10,7 +10,7 @@
 「あるピクセル（または Probe）からある方向にレイを飛ばすと何が見えるか」を解決する層。  
 Lumen は **3種類のトレース方法** を持ち、距離・設定・ハードウェア対応に応じて使い分ける。
 
-ヒットした地点のライティング情報は **[[lumen_surface_cache]] の FinalLightingAtlas** から取得する。
+ヒットした地点のライティング情報は **[[a_lumen_surface_cache]] の FinalLightingAtlas** から取得する。
 
 ---
 
@@ -39,7 +39,7 @@ enum class ETracingPermutation {
 ```
 近距離: MeshSDF → Cards（Surface Cache ヒット）
 中距離: GlobalSDF → VoxelsAfterCards
-遠距離: Radiance Cache からサンプリング（→ [[lumen_radiance_cache]]）
+遠距離: Radiance Cache からサンプリング（→ [[d_lumen_radiance_cache]]）
 ```
 
 ---
@@ -193,7 +193,7 @@ END_SHADER_PARAMETER_STRUCT()
   → ヒット地点の Card ページを特定
   → FinalLightingAtlas の対応テクセルをサンプリング
   → 法線・距離に応じた重みで輝度を取得
-  → RWSurfaceCacheFeedbackBuffer に参照記録（→ [[lumen_surface_cache]] の Feedback）
+  → RWSurfaceCacheFeedbackBuffer に参照記録（→ [[a_lumen_surface_cache]] の Feedback）
 ```
 
 ---

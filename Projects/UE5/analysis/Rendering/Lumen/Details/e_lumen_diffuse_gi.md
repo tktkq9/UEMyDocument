@@ -1,7 +1,7 @@
 # Lumen Diffuse GI（拡散間接照明）
 
 - 上位: [[02_lumen_overview]]
-- 関連: [[lumen_tracing]] | [[lumen_radiance_cache]]
+- 関連: [[c_lumen_tracing]] | [[d_lumen_radiance_cache]]
 
 ---
 
@@ -9,7 +9,7 @@
 
 Lumen の拡散 GI（Global Illumination）は **Screen Probe Gather** を中核とする。  
 画面を低解像度グリッドに分割してプローブを配置し、各プローブから半球方向にレイをトレースして  
-間接照明を計算する。遠距離は [[lumen_radiance_cache]] で補間してコストを抑える。
+間接照明を計算する。遠距離は [[d_lumen_radiance_cache]] で補間してコストを抑える。
 
 ---
 

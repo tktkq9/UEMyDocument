@@ -1,13 +1,13 @@
 # Lumen Radiance Cache（放射輝度キャッシュ）
 
 - 上位: [[02_lumen_overview]]
-- 関連: [[lumen_diffuse_gi]] | [[lumen_reflections]] | [[lumen_tracing]]
+- 関連: [[e_lumen_diffuse_gi]] | [[f_lumen_reflections]] | [[c_lumen_tracing]]
 
 ---
 
 ## 概要
 
-Screen Probe（[[lumen_diffuse_gi]]）や反射（[[lumen_reflections]]）から飛ばしたレイが  
+Screen Probe（[[e_lumen_diffuse_gi]]）や反射（[[f_lumen_reflections]]）から飛ばしたレイが  
 **遠距離**に到達した場合、毎フレーム全てをトレースするとコストが高い。
 
 Radiance Cache は **ワールド空間に3Dプローブを格子配置** し、  

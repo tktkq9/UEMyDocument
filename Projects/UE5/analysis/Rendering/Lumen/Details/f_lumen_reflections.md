@@ -1,7 +1,7 @@
 # Lumen Reflections（反射）
 
 - 上位: [[02_lumen_overview]]
-- 関連: [[lumen_tracing]] | [[lumen_radiance_cache]]
+- 関連: [[c_lumen_tracing]] | [[d_lumen_radiance_cache]]
 
 ---
 
@@ -25,7 +25,7 @@ Roughness ≈ 0.3〜0.6（光沢面）
   → ダウンスケール大きめ + テンポラル蓄積多め
 
 Roughness > MaxRoughnessToTrace（例: 0.6）
-  → Radiance Cache からサンプリング（→ [[lumen_radiance_cache]]）
+  → Radiance Cache からサンプリング（→ [[d_lumen_radiance_cache]]）
   → トレースしない（コスト ≈ 0）
 ```
 

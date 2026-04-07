@@ -1,7 +1,7 @@
 # Lumen Surface Cache（サーフェスキャッシュ）
 
 - 上位: [[02_lumen_overview]]
-- 関連: [[lumen_scene_lighting]] | [[lumen_tracing]]
+- 関連: [[b_lumen_scene_lighting]] | [[c_lumen_tracing]]
 
 ---
 
@@ -170,7 +170,7 @@ union FLumenCardId {
 3. Surface Cache キャプチャ（FRasterizeToCardsVS）
    └─ Albedo/Normal/Emissive/Depth アトラスへ書き込み
 
-4. 照明計算（→ [[lumen_scene_lighting]] へ）
+4. 照明計算（→ [[b_lumen_scene_lighting]] へ）
    └─ DirectLightingAtlas / IndirectLightingAtlas → FinalLightingAtlas
 ```
 

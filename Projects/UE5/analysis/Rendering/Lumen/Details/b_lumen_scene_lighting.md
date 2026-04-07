@@ -1,17 +1,17 @@
 # Lumen Scene Lighting（Surface Cache への照明焼き込み）
 
 - 上位: [[02_lumen_overview]]
-- 関連: [[lumen_surface_cache]] | [[lumen_tracing]]
+- 関連: [[a_lumen_surface_cache]] | [[c_lumen_tracing]]
 
 ---
 
 ## 概要
 
-[[lumen_surface_cache]] で構築された Surface Cache に  
+[[a_lumen_surface_cache]] で構築された Surface Cache に  
 **直接光（Direct Lighting）** と **Radiosity（間接光のバウンス）** を書き込む段階。  
 
 ここで各 Card が「どう照らされているか」が確定し、  
-[[lumen_tracing]] がレイをヒットさせたとき Surface Cache からライティング情報を読み出せるようになる。
+[[c_lumen_tracing]] がレイをヒットさせたとき Surface Cache からライティング情報を読み出せるようになる。
 
 ---
 
@@ -142,7 +142,7 @@ graph LR
 FinalLightingAtlas = DirectLightingAtlas + IndirectLightingAtlas
 ```
 
-これが [[lumen_tracing]] でレイがヒットした後に参照するアトラス。  
+これが [[c_lumen_tracing]] でレイがヒットした後に参照するアトラス。  
 トレーシングシェーダーは `FLumenCardTracingParameters::FinalLightingAtlas` から  
 ヒット地点のライティング情報を取得する。
 
