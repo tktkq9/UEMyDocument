@@ -198,3 +198,17 @@ r.Lumen.ShortRangeAO.Enable = 1
 | `LumenViewState.h` | FScreenProbeGatherTemporalState の定義 |
 | `LumenTracingUtils.h` | FHemisphereDirectionSampleGenerator |
 | `LumenShortRangeAOHardwareRayTracing.cpp` | 短距離 AO の HW RT バリアント |
+
+---
+
+## 関連リファレンス
+
+| リファレンス | 対象ソース |
+|------------|----------|
+| [[ref_lumen_diffuse_indirect]] | `LumenDiffuseIndirect.cpp` |
+| [[ref_lumen_screen_probe_gather]] | `LumenScreenProbeGather.h/cpp` |
+| [[ref_lumen_screen_probe_tracing]] | `LumenScreenProbeTracing.cpp` |
+| [[ref_lumen_screen_probe_filtering]] | `LumenScreenProbeFiltering.cpp` |
+| [[ref_lumen_screen_probe_importance]] | `LumenScreenProbeImportanceSampling.cpp` |
+| [[ref_lumen_screen_probe_hwrt]] | `LumenScreenProbeHardwareRayTracing.cpp` |
+| [[ref_lumen_short_range_ao]] | `LumenShortRangeAO.h` / `LumenShortRangeAOHardwareRayTracing.cpp` / `LumenScreenSpaceBentNormal.cpp` |

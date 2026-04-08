@@ -15,7 +15,7 @@ Rendering/Lumen/
 │   ├── b_lumen_scene_lighting.md   ← リンク追加済み？ [x]
 │   ├── c_lumen_tracing.md          ← リンク追加済み？ [x]
 │   ├── d_lumen_radiance_cache.md   ← リンク追加済み？ [x]
-│   ├── e_lumen_diffuse_gi.md       ← リンク追加済み？ [ ]
+│   ├── e_lumen_diffuse_gi.md       ← リンク追加済み？ [x]
 │   └── f_lumen_reflections.md      ← リンク追加済み？ [ ]
 ├── Reference/
 │   ├── Common/
@@ -96,13 +96,13 @@ Rendering/Lumen/
 
 | # | ファイル名 | 対象ソース | 状態 |
 |---|-----------|-----------|------|
-| E-1 | `Reference/e_DiffuseGI/ref_lumen_diffuse_indirect.md` | `LumenDiffuseIndirect.cpp` | [ ] 未着手 |
-| E-2 | `Reference/e_DiffuseGI/ref_lumen_screen_probe_gather.md` | `LumenScreenProbeGather.h/cpp` | [ ] 未着手 |
-| E-3 | `Reference/e_DiffuseGI/ref_lumen_screen_probe_tracing.md` | `LumenScreenProbeTracing.cpp` | [ ] 未着手 |
-| E-4 | `Reference/e_DiffuseGI/ref_lumen_screen_probe_filtering.md` | `LumenScreenProbeFiltering.cpp` | [ ] 未着手 |
-| E-5 | `Reference/e_DiffuseGI/ref_lumen_screen_probe_importance.md` | `LumenScreenProbeImportanceSampling.cpp` | [ ] 未着手 |
-| E-6 | `Reference/e_DiffuseGI/ref_lumen_screen_probe_hwrt.md` | `LumenScreenProbeHardwareRayTracing.cpp` | [ ] 未着手 |
-| E-7 | `Reference/e_DiffuseGI/ref_lumen_short_range_ao.md` | `LumenShortRangeAO.h` / `LumenShortRangeAOHardwareRayTracing.cpp` / `LumenScreenSpaceBentNormal.cpp` | [ ] 未着手 |
+| E-1 | `Reference/e_DiffuseGI/ref_lumen_diffuse_indirect.md` | `LumenDiffuseIndirect.cpp` | [x] 完了 |
+| E-2 | `Reference/e_DiffuseGI/ref_lumen_screen_probe_gather.md` | `LumenScreenProbeGather.h/cpp` | [x] 完了 |
+| E-3 | `Reference/e_DiffuseGI/ref_lumen_screen_probe_tracing.md` | `LumenScreenProbeTracing.cpp` | [x] 完了 |
+| E-4 | `Reference/e_DiffuseGI/ref_lumen_screen_probe_filtering.md` | `LumenScreenProbeFiltering.cpp` | [x] 完了 |
+| E-5 | `Reference/e_DiffuseGI/ref_lumen_screen_probe_importance.md` | `LumenScreenProbeImportanceSampling.cpp` | [x] 完了 |
+| E-6 | `Reference/e_DiffuseGI/ref_lumen_screen_probe_hwrt.md` | `LumenScreenProbeHardwareRayTracing.cpp` | [x] 完了 |
+| E-7 | `Reference/e_DiffuseGI/ref_lumen_short_range_ao.md` | `LumenShortRangeAO.h` / `LumenShortRangeAOHardwareRayTracing.cpp` / `LumenScreenSpaceBentNormal.cpp` | [x] 完了 |
 
 ---
 
@@ -128,9 +128,9 @@ Rendering/Lumen/
 | b: Scene Lighting | 6 | 6 | 0 |
 | c: Tracing | 6 | 6 | 0 |
 | d: Radiance Cache | 5 | 5 | 0 |
-| e: Diffuse GI | 7 | 0 | 7 |
+| e: Diffuse GI | 7 | 7 | 0 |
 | f: Reflections | 6 | 0 | 6 |
-| **合計** | **40** | **27** | **13** |
+| **合計** | **40** | **34** | **6** |
 
 ---
 
