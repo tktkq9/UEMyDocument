@@ -245,3 +245,16 @@ r.Lumen.GlobalSDF.Resolution
 | `NaniteRayTracing.h/cpp` | Nanite の HW RT 対応 |
 | `GlobalDistanceField.cpp` | Global SDF の更新管理 |
 | `DistanceFieldAmbientOcclusion.cpp` | Global SDF トレース |
+
+---
+
+## 関連リファレンス
+
+| リファレンス | 対象ソース |
+|------------|----------|
+| [[ref_lumen_tracing_utils]] | `LumenTracingUtils.h/cpp` |
+| [[ref_lumen_mesh_sdf_culling]] | `LumenMeshSDFCulling.cpp` |
+| [[ref_lumen_hwrt_common]] | `LumenHardwareRayTracingCommon.h/cpp` |
+| [[ref_lumen_hwrt_materials]] | `LumenHardwareRayTracingMaterials.cpp` |
+| [[ref_lumen_heightfields]] | `LumenHeightfields.h/cpp` |
+| [[ref_lumen_irradiance_field]] | `LumenIrradianceFieldGather.cpp` |

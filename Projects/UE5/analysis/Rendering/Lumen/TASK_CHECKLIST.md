@@ -13,7 +13,7 @@ Rendering/Lumen/
 ├── Details/
 │   ├── a_lumen_surface_cache.md    ← リンク追加済み？ [x]
 │   ├── b_lumen_scene_lighting.md   ← リンク追加済み？ [x]
-│   ├── c_lumen_tracing.md          ← リンク追加済み？ [ ]
+│   ├── c_lumen_tracing.md          ← リンク追加済み？ [x]
 │   ├── d_lumen_radiance_cache.md   ← リンク追加済み？ [ ]
 │   ├── e_lumen_diffuse_gi.md       ← リンク追加済み？ [ ]
 │   └── f_lumen_reflections.md      ← リンク追加済み？ [ ]
@@ -71,12 +71,12 @@ Rendering/Lumen/
 
 | # | ファイル名 | 対象ソース | 状態 |
 |---|-----------|-----------|------|
-| C-1 | `Reference/c_Tracing/ref_lumen_tracing_utils.md` | `LumenTracingUtils.h/cpp` | [ ] 未着手 |
-| C-2 | `Reference/c_Tracing/ref_lumen_mesh_sdf_culling.md` | `LumenMeshSDFCulling.cpp` | [ ] 未着手 |
-| C-3 | `Reference/c_Tracing/ref_lumen_hwrt_common.md` | `LumenHardwareRayTracingCommon.h/cpp` | [ ] 未着手 |
-| C-4 | `Reference/c_Tracing/ref_lumen_hwrt_materials.md` | `LumenHardwareRayTracingMaterials.cpp` | [ ] 未着手 |
-| C-5 | `Reference/c_Tracing/ref_lumen_heightfields.md` | `LumenHeightfields.h/cpp` | [ ] 未着手 |
-| C-6 | `Reference/c_Tracing/ref_lumen_irradiance_field.md` | `LumenIrradianceFieldGather.cpp` | [ ] 未着手 |
+| C-1 | `Reference/c_Tracing/ref_lumen_tracing_utils.md` | `LumenTracingUtils.h/cpp` | [x] 完了 |
+| C-2 | `Reference/c_Tracing/ref_lumen_mesh_sdf_culling.md` | `LumenMeshSDFCulling.cpp` | [x] 完了 |
+| C-3 | `Reference/c_Tracing/ref_lumen_hwrt_common.md` | `LumenHardwareRayTracingCommon.h/cpp` | [x] 完了 |
+| C-4 | `Reference/c_Tracing/ref_lumen_hwrt_materials.md` | `LumenHardwareRayTracingMaterials.cpp` | [x] 完了 |
+| C-5 | `Reference/c_Tracing/ref_lumen_heightfields.md` | `LumenHeightfields.h/cpp` | [x] 完了 |
+| C-6 | `Reference/c_Tracing/ref_lumen_irradiance_field.md` | `LumenIrradianceFieldGather.cpp` | [x] 完了 |
 
 ---
 
@@ -126,11 +126,11 @@ Rendering/Lumen/
 | Common  | 3    | 3    | 0    |
 | a: Surface Cache | 7 | 7 | 0 |
 | b: Scene Lighting | 6 | 6 | 0 |
-| c: Tracing | 6 | 0 | 6 |
+| c: Tracing | 6 | 6 | 0 |
 | d: Radiance Cache | 5 | 0 | 5 |
 | e: Diffuse GI | 7 | 0 | 7 |
 | f: Reflections | 6 | 0 | 6 |
-| **合計** | **40** | **16** | **24** |
+| **合計** | **40** | **22** | **18** |
 
 ---
 
