@@ -222,3 +222,15 @@ r.Lumen.RadianceCache.FarField.Enable = 1
 | `LumenRadianceCacheHardwareRayTracing.cpp` | HW RT バリアント |
 | `LumenViewState.h` | FRadianceCacheState / FRadianceCacheClipmap の定義 |
 | `LumenTranslucencyRadianceCache.cpp` | 半透明オブジェクト用の Radiance Cache |
+
+---
+
+## 関連リファレンス
+
+| リファレンス | 対象ソース |
+|------------|----------|
+| [[ref_lumen_radiance_cache]] | `LumenRadianceCache.h/cpp` |
+| [[ref_lumen_radiance_cache_internal]] | `LumenRadianceCacheInternal.h` / `LumenRadianceCacheInterpolation.h` |
+| [[ref_lumen_radiance_cache_hwrt]] | `LumenRadianceCacheHardwareRayTracing.cpp` |
+| [[ref_lumen_translucency_radiance_cache]] | `LumenTranslucencyRadianceCache.cpp` |
+| [[ref_lumen_translucency_volume]] | `LumenTranslucencyVolumeLighting.h/cpp` / `LumenTranslucencyVolumeHardwareRayTracing.cpp` |

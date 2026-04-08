@@ -14,7 +14,7 @@ Rendering/Lumen/
 │   ├── a_lumen_surface_cache.md    ← リンク追加済み？ [x]
 │   ├── b_lumen_scene_lighting.md   ← リンク追加済み？ [x]
 │   ├── c_lumen_tracing.md          ← リンク追加済み？ [x]
-│   ├── d_lumen_radiance_cache.md   ← リンク追加済み？ [ ]
+│   ├── d_lumen_radiance_cache.md   ← リンク追加済み？ [x]
 │   ├── e_lumen_diffuse_gi.md       ← リンク追加済み？ [ ]
 │   └── f_lumen_reflections.md      ← リンク追加済み？ [ ]
 ├── Reference/
@@ -84,11 +84,11 @@ Rendering/Lumen/
 
 | # | ファイル名 | 対象ソース | 状態 |
 |---|-----------|-----------|------|
-| D-1 | `Reference/d_RadianceCache/ref_lumen_radiance_cache.md` | `LumenRadianceCache.h/cpp` | [ ] 未着手 |
-| D-2 | `Reference/d_RadianceCache/ref_lumen_radiance_cache_internal.md` | `LumenRadianceCacheInternal.h` / `LumenRadianceCacheInterpolation.h` | [ ] 未着手 |
-| D-3 | `Reference/d_RadianceCache/ref_lumen_radiance_cache_hwrt.md` | `LumenRadianceCacheHardwareRayTracing.cpp` | [ ] 未着手 |
-| D-4 | `Reference/d_RadianceCache/ref_lumen_translucency_radiance_cache.md` | `LumenTranslucencyRadianceCache.cpp` | [ ] 未着手 |
-| D-5 | `Reference/d_RadianceCache/ref_lumen_translucency_volume.md` | `LumenTranslucencyVolumeLighting.h/cpp` / `LumenTranslucencyVolumeHardwareRayTracing.cpp` | [ ] 未着手 |
+| D-1 | `Reference/d_RadianceCache/ref_lumen_radiance_cache.md` | `LumenRadianceCache.h/cpp` | [x] 完了 |
+| D-2 | `Reference/d_RadianceCache/ref_lumen_radiance_cache_internal.md` | `LumenRadianceCacheInternal.h` / `LumenRadianceCacheInterpolation.h` | [x] 完了 |
+| D-3 | `Reference/d_RadianceCache/ref_lumen_radiance_cache_hwrt.md` | `LumenRadianceCacheHardwareRayTracing.cpp` | [x] 完了 |
+| D-4 | `Reference/d_RadianceCache/ref_lumen_translucency_radiance_cache.md` | `LumenTranslucencyRadianceCache.cpp` | [x] 完了 |
+| D-5 | `Reference/d_RadianceCache/ref_lumen_translucency_volume.md` | `LumenTranslucencyVolumeLighting.h/cpp` / `LumenTranslucencyVolumeHardwareRayTracing.cpp` | [x] 完了 |
 
 ---
 
@@ -127,10 +127,10 @@ Rendering/Lumen/
 | a: Surface Cache | 7 | 7 | 0 |
 | b: Scene Lighting | 6 | 6 | 0 |
 | c: Tracing | 6 | 6 | 0 |
-| d: Radiance Cache | 5 | 0 | 5 |
+| d: Radiance Cache | 5 | 5 | 0 |
 | e: Diffuse GI | 7 | 0 | 7 |
 | f: Reflections | 6 | 0 | 6 |
-| **合計** | **40** | **22** | **18** |
+| **合計** | **40** | **27** | **13** |
 
 ---
 
