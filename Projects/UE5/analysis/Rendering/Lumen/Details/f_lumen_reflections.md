@@ -235,3 +235,16 @@ r.Lumen.Reflections.Temporal.MaxFramesAccumulated
 | `LumenReSTIRGather.h/cpp` | ReSTIR 実装 |
 | `LumenFrontLayerTranslucency.h/cpp` | 半透明前面レイヤーの反射 |
 | `LumenViewState.h` | FReflectionTemporalState / FReSTIRGatherTemporalState |
+
+---
+
+## 関連リファレンス
+
+| リファレンス | 対象ソース |
+|------------|----------|
+| [[ref_lumen_reflections]] | `LumenReflections.h/cpp` |
+| [[ref_lumen_reflection_tracing]] | `LumenReflectionTracing.cpp` |
+| [[ref_lumen_reflection_hwrt]] | `LumenReflectionHardwareRayTracing.cpp` |
+| [[ref_lumen_restir]] | `LumenReSTIRGather.h/cpp` |
+| [[ref_lumen_front_layer]] | `LumenFrontLayerTranslucency.h/cpp` |
+| [[ref_ray_traced_translucency]] | `RayTracedTranslucency.h` |

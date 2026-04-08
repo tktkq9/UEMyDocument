@@ -16,7 +16,7 @@ Rendering/Lumen/
 │   ├── c_lumen_tracing.md          ← リンク追加済み？ [x]
 │   ├── d_lumen_radiance_cache.md   ← リンク追加済み？ [x]
 │   ├── e_lumen_diffuse_gi.md       ← リンク追加済み？ [x]
-│   └── f_lumen_reflections.md      ← リンク追加済み？ [ ]
+│   └── f_lumen_reflections.md      ← リンク追加済み？ [x]
 ├── Reference/
 │   ├── Common/
 │   ├── a_SurfaceCache/
@@ -110,12 +110,12 @@ Rendering/Lumen/
 
 | # | ファイル名 | 対象ソース | 状態 |
 |---|-----------|-----------|------|
-| F-1 | `Reference/f_Reflections/ref_lumen_reflections.md` | `LumenReflections.h/cpp` | [ ] 未着手 |
-| F-2 | `Reference/f_Reflections/ref_lumen_reflection_tracing.md` | `LumenReflectionTracing.cpp` | [ ] 未着手 |
-| F-3 | `Reference/f_Reflections/ref_lumen_reflection_hwrt.md` | `LumenReflectionHardwareRayTracing.cpp` | [ ] 未着手 |
-| F-4 | `Reference/f_Reflections/ref_lumen_restir.md` | `LumenReSTIRGather.h/cpp` | [ ] 未着手 |
-| F-5 | `Reference/f_Reflections/ref_lumen_front_layer.md` | `LumenFrontLayerTranslucency.h/cpp` | [ ] 未着手 |
-| F-6 | `Reference/f_Reflections/ref_ray_traced_translucency.md` | `RayTracedTranslucency.h` | [ ] 未着手 |
+| F-1 | `Reference/f_Reflections/ref_lumen_reflections.md` | `LumenReflections.h/cpp` | [x] 完了 |
+| F-2 | `Reference/f_Reflections/ref_lumen_reflection_tracing.md` | `LumenReflectionTracing.cpp` | [x] 完了 |
+| F-3 | `Reference/f_Reflections/ref_lumen_reflection_hwrt.md` | `LumenReflectionHardwareRayTracing.cpp` | [x] 完了 |
+| F-4 | `Reference/f_Reflections/ref_lumen_restir.md` | `LumenReSTIRGather.h/cpp` | [x] 完了 |
+| F-5 | `Reference/f_Reflections/ref_lumen_front_layer.md` | `LumenFrontLayerTranslucency.h/cpp` | [x] 完了 |
+| F-6 | `Reference/f_Reflections/ref_lumen_front_layer.md` | `RayTracedTranslucency.h` | [x] 完了 |
 
 ---
 
@@ -129,8 +129,8 @@ Rendering/Lumen/
 | c: Tracing | 6 | 6 | 0 |
 | d: Radiance Cache | 5 | 5 | 0 |
 | e: Diffuse GI | 7 | 7 | 0 |
-| f: Reflections | 6 | 0 | 6 |
-| **合計** | **40** | **34** | **6** |
+| f: Reflections | 6 | 6 | 0 |
+| **合計** | **40** | **40** | **0** |
 
 ---
 
