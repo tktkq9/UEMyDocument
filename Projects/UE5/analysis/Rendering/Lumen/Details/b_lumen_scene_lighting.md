@@ -170,3 +170,16 @@ r.LumenScene.Radiosity.Allow = 1
 | `LumenSceneLighting.h` | FLumenCardUpdateContext・FRasterizeToCardsVS |
 | `LumenRadiosity.cpp/h` | 間接光バウンス計算 |
 | `LumenSceneLighting.cpp` | ライティング全体のオーケストレーション |
+
+---
+
+## 関連リファレンス
+
+| リファレンス | 対象ソース |
+|------------|----------|
+| [[ref_lumen_scene_lighting]] | `LumenSceneLighting.h/cpp` |
+| [[ref_lumen_scene_card_capture]] | `LumenSceneCardCapture.h/cpp` |
+| [[ref_lumen_scene_direct_lighting]] | `LumenSceneDirectLighting.cpp` |
+| [[ref_lumen_scene_direct_lighting_hwrt]] | `LumenSceneDirectLightingHardwareRayTracing.cpp` |
+| [[ref_lumen_radiosity]] | `LumenRadiosity.h/cpp` |
+| [[ref_lumen_scene_rendering]] | `LumenSceneRendering.cpp` |

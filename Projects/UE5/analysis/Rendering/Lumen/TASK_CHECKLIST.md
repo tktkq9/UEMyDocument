@@ -12,7 +12,7 @@ Rendering/Lumen/
 ├── 02_lumen_overview.md
 ├── Details/
 │   ├── a_lumen_surface_cache.md    ← リンク追加済み？ [x]
-│   ├── b_lumen_scene_lighting.md   ← リンク追加済み？ [ ]
+│   ├── b_lumen_scene_lighting.md   ← リンク追加済み？ [x]
 │   ├── c_lumen_tracing.md          ← リンク追加済み？ [ ]
 │   ├── d_lumen_radiance_cache.md   ← リンク追加済み？ [ ]
 │   ├── e_lumen_diffuse_gi.md       ← リンク追加済み？ [ ]
@@ -58,12 +58,12 @@ Rendering/Lumen/
 
 | # | ファイル名 | 対象ソース | 状態 |
 |---|-----------|-----------|------|
-| B-1 | `Reference/b_SceneLighting/ref_lumen_scene_lighting.md` | `LumenSceneLighting.h/cpp` | [ ] 未着手 |
-| B-2 | `Reference/b_SceneLighting/ref_lumen_scene_card_capture.md` | `LumenSceneCardCapture.h/cpp` | [ ] 未着手 |
-| B-3 | `Reference/b_SceneLighting/ref_lumen_scene_direct_lighting.md` | `LumenSceneDirectLighting.cpp` / `LumenSceneDirectLightingStochastic.inl` | [ ] 未着手 |
-| B-4 | `Reference/b_SceneLighting/ref_lumen_scene_direct_lighting_hwrt.md` | `LumenSceneDirectLightingHardwareRayTracing.cpp` | [ ] 未着手 |
-| B-5 | `Reference/b_SceneLighting/ref_lumen_radiosity.md` | `LumenRadiosity.h/cpp` | [ ] 未着手 |
-| B-6 | `Reference/b_SceneLighting/ref_lumen_scene_rendering.md` | `LumenSceneRendering.cpp` | [ ] 未着手 |
+| B-1 | `Reference/b_SceneLighting/ref_lumen_scene_lighting.md` | `LumenSceneLighting.h/cpp` | [x] 完了 |
+| B-2 | `Reference/b_SceneLighting/ref_lumen_scene_card_capture.md` | `LumenSceneCardCapture.h/cpp` | [x] 完了 |
+| B-3 | `Reference/b_SceneLighting/ref_lumen_scene_direct_lighting.md` | `LumenSceneDirectLighting.cpp` / `LumenSceneDirectLightingStochastic.inl` | [x] 完了 |
+| B-4 | `Reference/b_SceneLighting/ref_lumen_scene_direct_lighting_hwrt.md` | `LumenSceneDirectLightingHardwareRayTracing.cpp` | [x] 完了 |
+| B-5 | `Reference/b_SceneLighting/ref_lumen_radiosity.md` | `LumenRadiosity.h/cpp` | [x] 完了 |
+| B-6 | `Reference/b_SceneLighting/ref_lumen_scene_rendering.md` | `LumenSceneRendering.cpp` | [x] 完了 |
 
 ---
 
@@ -125,12 +125,12 @@ Rendering/Lumen/
 |---------|------|------|------|
 | Common  | 3    | 3    | 0    |
 | a: Surface Cache | 7 | 7 | 0 |
-| b: Scene Lighting | 6 | 0 | 6 |
+| b: Scene Lighting | 6 | 6 | 0 |
 | c: Tracing | 6 | 0 | 6 |
 | d: Radiance Cache | 5 | 0 | 5 |
 | e: Diffuse GI | 7 | 0 | 7 |
 | f: Reflections | 6 | 0 | 6 |
-| **合計** | **40** | **0** | **40** |
+| **合計** | **40** | **16** | **24** |
 
 ---
 
