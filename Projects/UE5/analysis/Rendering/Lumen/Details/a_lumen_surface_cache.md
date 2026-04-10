@@ -215,6 +215,122 @@ uint32 SurfaceCacheFeedbackBufferTileWrapMask
 
 ---
 
+## コード実行フロー
+
+### エントリポイント
+
+Surface Cache の更新は **2段階**に分かれる。  
+- **フェーズ1（CPU 非同期）**: `BeginUpdateLumenSceneTasks()` — InitViews 時に CPU タスクで card 選定
+- **フェーズ2（GPU）**: `UpdateLumenScene()` — GBuffer 描画前に GPU でアップロード・キャプチャ
+
+```
+FDeferredShadingSceneRenderer::Render()   (DeferredShadingRenderer.cpp)
+  │
+  ├─ [InitViews フェーズ]
+  │   BeginUpdateLumenSceneTasks(GraphBuilder, FrameTemporaries)
+  │     └─ AddSetupTask([...])  ← CPU 非同期タスク起動
+  │           UpdateLumenScenePrimitives(GPUMask, Scene)
+  │             ├─ PendingRemoveOperations → PrimitiveGroups から削除
+  │             └─ PendingAddOperations   → PrimitiveGroups へ追加
+  │           UpdateSurfaceCacheMeshCards(LumenSceneData, ...)
+  │             └─ MeshCards の距離 / 解像度スコアを計算してキャプチャ候補を列挙
+  │           LumenSceneData.ProcessLumenSurfaceCacheRequests(...)
+  │             └─ CardPageToRender リストを確定（FrameTemporaries に格納）
+  │
+  └─ [GBuffer 描画前]
+      UpdateLumenScene(GraphBuilder, FrameTemporaries)
+        ├─ FrameTemporaries.UpdateSceneTask.Wait()  ← CPU タスク完了待ち
+        ├─ [Atlas 再確保が必要な場合]
+        │   LumenSceneData.AllocateCardAtlases()  → AtlasSizeが変化した場合
+        │   ClearLumenSurfaceCacheAtlas()
+        ├─ LumenSceneData.UploadPageTable()        → GPU へ仮想ページテーブルを転送
+        ├─ Lumen::UpdateCardSceneBuffer()          → カード情報バッファをアップロード
+        ├─ [GPU Driven Update 有効時]
+        │   LumenScene::GPUDrivenUpdate()          → GPU 側でプリミティブ追加/削除を処理
+        └─ [CardPagesToRender が存在する場合]
+            ① ResampleLumenCards()    → 解像度変化したカードのデータを再サンプル
+            ② AllocateCardCaptureAtlas()  → 一時キャプチャアトラスを確保
+            ③ RenderLumenCardCaptures()   → メッシュドローコマンドで Albedo/Normal/Emissive を描画
+            ④ CopyLumenCardCaptures()     → キャプチャ結果を恒久アトラスにコピー
+```
+
+### フロー詳細
+
+1. **UpdateLumenScenePrimitives** — プリミティブの追加/削除（`LumenScene.cpp:873`）
+   ```cpp
+   // BeginUpdateLumenSceneTasks の CPU タスク内
+   UpdateLumenScenePrimitives(GPUMask, Scene);
+   ```
+   - `PendingRemoveOperations` → `FLumenPrimitiveGroup` から Primitive を取り除く
+   - `PendingAddOperations` → `FLumenMeshCards` を生成して `FLumenPrimitiveGroup` に登録
+   - 参照: [[ref_lumen_scene]] | [[ref_lumen_mesh_cards]]
+
+2. **UpdateSurfaceCacheMeshCards** — キャプチャ候補を選定（`LumenSurfaceCache.cpp`）
+   ```cpp
+   UpdateSurfaceCacheMeshCards(
+       LumenSceneData, SurfaceCacheFeedbackData,
+       LumenSceneCameraOrigins, ..., SurfaceCacheRequests, ViewFamily);
+   ```
+   - フィードバックバッファ（前フレームからの `SurfaceCacheFeedbackData`）で参照頻度を参照
+   - 距離・ラフネス・解像度スコアで `SurfaceCacheRequests` を優先度付け
+   - 参照: [[ref_lumen_surface_cache]] | [[ref_lumen_surface_cache_feedback]]
+
+3. **ProcessLumenSurfaceCacheRequests** — `CardPagesToRender` リストを確定（`LumenSurfaceCache.cpp`）
+   ```cpp
+   LumenSceneData.ProcessLumenSurfaceCacheRequests(
+       Views[0], MaxCardUpdateDistanceFromCamera, MaxTileCapturesPerFrame,
+       LumenCardRenderer, GPUMask, SurfaceCacheRequests);
+   ```
+   - `MaxTileCapturesPerFrame`（`r.LumenScene.SurfaceCache.MaxTileCapturesPerFrame`）で上限クランプ
+   - 確定した `FCardPageRenderData` リストを `LumenCardRenderer.CardPagesToRender` に格納
+   - 参照: [[ref_lumen_surface_cache]]
+
+4. **UploadPageTable / UpdateCardSceneBuffer** — GPU へバッファを転送（`LumenSceneRendering.cpp`）
+   ```cpp
+   LumenSceneData.UploadPageTable(GraphBuilder, UploadBuilder, FrameTemporaries);
+   Lumen::UpdateCardSceneBuffer(GraphBuilder, UploadBuilder, FrameTemporaries, ViewFamily, Scene);
+   UploadBuilder.Execute(GraphBuilder);  // まとめて GPU へ送信
+   ```
+   - 仮想ページテーブル・Card 情報（位置 / 向き / 解像度）を GPU バッファへ一括転送
+   - 参照: [[ref_lumen_scene]] | [[ref_lumen_scene_data]]
+
+5. **LumenScene::GPUDrivenUpdate** — GPU 側更新パス（`LumenSceneGPUDrivenUpdate.cpp`）
+   ```cpp
+   if (CVarLumenSceneGPUDrivenUpdate.GetValueOnRenderThread() != 0) {
+       LumenScene::GPUDrivenUpdate(GraphBuilder, Scene, Views, FrameTemporaries);
+   }
+   ```
+   - 前フレームの `SceneReadback` バッファを読んで追加/削除をGPU で処理
+   - 参照: [[ref_lumen_scene_gpu_driven_update]]
+
+6. **RenderLumenCardCaptures** — カードキャプチャ描画（`LumenSceneCardCapture.cpp`）
+   ```cpp
+   // CardPagesToRender.Num() > 0 の場合
+   RenderLumenCardCaptures(GraphBuilder, SharedView, LumenCardRenderer,
+       CardCaptureAtlas, CardCaptureRectBufferSRV, CommonPassParameters, ...);
+   ```
+   - `MeshCardCapture` パスで MeshDrawCommand を Dispatch
+   - 出力先: `CardCaptureAtlas`（Albedo / Normal / Emissive / DepthStencil）
+   - 結果を `CopyLumenCardCaptures()` で恒久アトラスへ転送
+   - 参照: [[ref_lumen_scene_card_capture]] | [[ref_lumen_scene_rendering]]
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|------------|--------|------|
+| `FLumenPrimitiveGroup` | `LumenSceneData.h` | プリミティブの Lumen グループ単位 |
+| `FLumenMeshCards` | `LumenMeshCards.h` | メッシュの Card 集合（方向別6面）|
+| `FLumenCard` | `LumenSceneData.h` | 1枚の平面パッチ（Atlas 上のページを管理）|
+| `FLumenSceneData` | `LumenSceneData.h` | Lumen シーン全体のデータコンテナ |
+| `FLumenCardRenderer` | `LumenSceneRendering.h` | CPU 側のカードキャプチャ情報（MeshDrawCommands 等）|
+| `FCardPageRenderData` | `LumenSceneRendering.h` | 1ページのキャプチャ情報（Rect / DrawCommands）|
+| `UpdateLumenScenePrimitives()` | `LumenScene.cpp` | CPU でプリミティブを PrimitiveGroup に追加/削除 |
+| `UpdateSurfaceCacheMeshCards()` | `LumenSurfaceCache.cpp` | フィードバックとスコアでキャプチャ候補を選定 |
+| `LumenScene::GPUDrivenUpdate()` | `LumenSceneGPUDrivenUpdate.cpp` | GPU 上でのプリミティブ追加/削除処理 |
+| `RenderLumenCardCaptures()` | `LumenSceneCardCapture.cpp` | メッシュ描画で Card をキャプチャ |
+
+---
+
 ## 関連ソースファイル
 
 | ファイル | 役割 |

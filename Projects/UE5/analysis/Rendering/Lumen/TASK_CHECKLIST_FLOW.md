@@ -62,7 +62,7 @@ RenderLumen(GraphBuilder, SceneTextures, ...);
 
 ### 概要ファイル（1件）
 
-- [ ] `02_lumen_overview.md` — Lumen 全体エントリポイント〜サブシステム呼び出しの大局フロー
+- [x] `02_lumen_overview.md` — Lumen 全体エントリポイント〜サブシステム呼び出しの大局フロー
 
 **追記内容**:
 - `FDeferredShadingSceneRenderer::Render()` → `RenderLumen()` → 各サブシステムへの全体コールグラフ
@@ -73,7 +73,7 @@ RenderLumen(GraphBuilder, SceneTextures, ...);
 
 ### a: Surface Cache（1件）
 
-- [ ] `Details/a_lumen_surface_cache.md` — Surface Cache 更新フロー
+- [x] `Details/a_lumen_surface_cache.md` — Surface Cache 更新フロー
 
 **追記内容**:
 - `RenderLumen()` → `UpdateLumenScene()` → `UpdateLumenSurfaceCache()` のコールチェーン
@@ -147,8 +147,8 @@ RenderLumen(GraphBuilder, SceneTextures, ...);
 
 | ファイル | 状態 |
 |---------|------|
-| `02_lumen_overview.md` | [ ] 未着手 |
-| `a_lumen_surface_cache.md` | [ ] 未着手 |
+| `02_lumen_overview.md` | [x] 完了 |
+| `a_lumen_surface_cache.md` | [x] 完了 |
 | `b_lumen_scene_lighting.md` | [ ] 未着手 |
 | `c_lumen_tracing.md` | [ ] 未着手 |
 | `d_lumen_radiance_cache.md` | [ ] 未着手 |
@@ -156,7 +156,7 @@ RenderLumen(GraphBuilder, SceneTextures, ...);
 | `f_lumen_reflections.md` | [ ] 未着手 |
 
 **合計**: 7 ファイル  
-**完了数**: 0 / 7
+**完了数**: 2 / 7
 
 ---
 
