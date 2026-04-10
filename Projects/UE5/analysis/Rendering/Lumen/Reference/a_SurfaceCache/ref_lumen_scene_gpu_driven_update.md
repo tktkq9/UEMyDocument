@@ -223,19 +223,16 @@ const FBuffersRHI* FLumenSceneReadback::GetLatestReadbackBuffers()
 
 ---
 
-<details>
-<summary>GetMaxAddOps / GetMaxRemoveOps / GetXxxBufferSizeInBytes — バッファサイズ定数</summary>
-
-```cpp
-static int32 GetMaxAddOps();             // = 1024
-static int32 GetMaxRemoveOps();          // = 1024
-static int32 GetAddOpsBufferSizeInBytes();    // = sizeof(FAddOp)    * GetMaxAddOps()
-static int32 GetRemoveOpsBufferSizeInBytes(); // = sizeof(FRemoveOp) * GetMaxRemoveOps()
-```
-
-1 フレームあたりの AddOps / RemoveOps の上限はそれぞれ 1024 エントリ。
-
-</details>
+> [!note]- GetMaxAddOps / GetMaxRemoveOps / GetXxxBufferSizeInBytes — バッファサイズ定数
+> 
+> ```cpp
+> static int32 GetMaxAddOps();             // = 1024
+> static int32 GetMaxRemoveOps();          // = 1024
+> static int32 GetAddOpsBufferSizeInBytes();    // = sizeof(FAddOp)    * GetMaxAddOps()
+> static int32 GetRemoveOpsBufferSizeInBytes(); // = sizeof(FRemoveOp) * GetMaxRemoveOps()
+> ```
+> 
+> 1 フレームあたりの AddOps / RemoveOps の上限はそれぞれ 1024 エントリ。
 
 ---
 

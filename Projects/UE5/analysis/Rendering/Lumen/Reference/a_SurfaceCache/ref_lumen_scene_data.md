@@ -259,55 +259,45 @@ void SetTransform(const FMatrix& LocalToWorld, const FLumenMeshCards& MeshCards)
 
 ---
 
-<details>
-<summary>FLumenCard::UpdateMinMaxAllocatedLevel — 割り当て済み解像度範囲を再計算</summary>
+> [!note]- FLumenCard::UpdateMinMaxAllocatedLevel — 割り当て済み解像度範囲を再計算
+> 
+> ```cpp
+> void UpdateMinMaxAllocatedLevel();
+> ```
+> 
+> **説明**: 全 `SurfaceMipMaps` を走査し、`IsAllocated()` が true のミップレベルの最小・最大を `MinAllocatedResLevel` / `MaxAllocatedResLevel` に書き込む。
+> 
+> **使用箇所**
+> - [[ref_lumen_scene_data]] `FLumenSceneData::FreeVirtualSurface()` — ページ解放後に範囲を更新
+> - [[ref_lumen_scene_data]] `FLumenSceneData::ReallocVirtualSurface()` — ページ確保後に範囲を更新
 
-```cpp
-void UpdateMinMaxAllocatedLevel();
-```
+> [!note]- FLumenCard::GetMipMap / GetMipMapDesc — ミップマップ情報取得
+> 
+> ```cpp
+> FLumenSurfaceMipMap& GetMipMap(int32 ResLevel);
+> void GetMipMapDesc(int32 ResLevel, FLumenMipMapDesc& OutDesc) const;
+> ```
+> 
+> **パラメータ**
+> 
+> | 引数 | 型 | 説明 |
+> |------|-----|------|
+> | `ResLevel` | `int32` | 解像度レベル（`Lumen::MinResLevel` 〜 `Lumen::MaxResLevel`）|
+> | `OutDesc` | `FLumenMipMapDesc&` | 出力: テクセル解像度・ページサイズ情報 |
+> 
+> **使用箇所**
+> - [[ref_lumen_scene_data]] `FLumenSceneData::ReallocVirtualSurface()` — ページ確保対象の MipMap を取得
+> - [[ref_lumen_surface_cache]] `BuildCardUpdateList()` — テクセル数計算に使用
 
-### 説明
-全 `SurfaceMipMaps` を走査し、`IsAllocated()` が true のミップレベルの最小・最大を `MinAllocatedResLevel` / `MaxAllocatedResLevel` に書き込む。
-
-### 使用箇所
-- [[ref_lumen_scene_data]] `FLumenSceneData::FreeVirtualSurface()` — ページ解放後に範囲を更新
-- [[ref_lumen_scene_data]] `FLumenSceneData::ReallocVirtualSurface()` — ページ確保後に範囲を更新
-
-</details>
-
-<details>
-<summary>FLumenCard::GetMipMap / GetMipMapDesc — ミップマップ情報取得</summary>
-
-```cpp
-FLumenSurfaceMipMap& GetMipMap(int32 ResLevel);
-void GetMipMapDesc(int32 ResLevel, FLumenMipMapDesc& OutDesc) const;
-```
-
-### パラメータ
-| 引数 | 型 | 説明 |
-|------|-----|------|
-| `ResLevel` | `int32` | 解像度レベル（`Lumen::MinResLevel` 〜 `Lumen::MaxResLevel`）|
-| `OutDesc` | `FLumenMipMapDesc&` | 出力: テクセル解像度・ページサイズ情報 |
-
-### 使用箇所
-- [[ref_lumen_scene_data]] `FLumenSceneData::ReallocVirtualSurface()` — ページ確保対象の MipMap を取得
-- [[ref_lumen_surface_cache]] `BuildCardUpdateList()` — テクセル数計算に使用
-
-</details>
-
-<details>
-<summary>FLumenCard::GetSurfaceStats — テクセル使用統計</summary>
-
-```cpp
-void GetSurfaceStats(
-    const TSparseSpanArray<FLumenPageTableEntry>& PageTable,
-    FSurfaceStats& OutStats) const;
-```
-
-### 使用箇所
-- デバッグ表示（`stat lumen`）でアトラス使用量を集計する際に呼ばれる
-
-</details>
+> [!note]- FLumenCard::GetSurfaceStats — テクセル使用統計
+> 
+> ```cpp
+> void GetSurfaceStats(
+>     const TSparseSpanArray<FLumenPageTableEntry>& PageTable,
+>     FSurfaceStats& OutStats) const;
+> ```
+> 
+> **使用箇所**: デバッグ表示（`stat lumen`）でアトラス使用量を集計する際に呼ばれる
 
 ---
 
@@ -521,24 +511,21 @@ void Free(const FLumenPageTableEntry& Page);
 
 ---
 
-<details>
-<summary>IsSpaceAvailable — 空き容量チェック</summary>
-
-```cpp
-bool IsSpaceAvailable(const FLumenCard& Card, int32 ResLevel, bool bSinglePage) const;
-```
-
-#### パラメータ
-| 引数 | 型 | 説明 |
-|------|-----|------|
-| `Card` | `const FLumenCard&` | 確保を試みる Card |
-| `ResLevel` | `int32` | 確保したい解像度レベル |
-| `bSinglePage` | `bool` | true = 単一物理ページに収まるか確認、false = サブアロケーション可能か確認 |
-
-#### 使用箇所
-- [[ref_lumen_surface_cache]] `UpdateSurfaceCacheAllocationState()` — 解像度を上げるべきか判断する前に空き容量を確認
-
-</details>
+> [!note]- IsSpaceAvailable — 空き容量チェック
+> 
+> ```cpp
+> bool IsSpaceAvailable(const FLumenCard& Card, int32 ResLevel, bool bSinglePage) const;
+> ```
+> 
+> **パラメータ**
+> 
+> | 引数 | 型 | 説明 |
+> |------|-----|------|
+> | `Card` | `const FLumenCard&` | 確保を試みる Card |
+> | `ResLevel` | `int32` | 確保したい解像度レベル |
+> | `bSinglePage` | `bool` | true = 単一物理ページに収まるか確認、false = サブアロケーション可能か確認 |
+> 
+> **使用箇所**: [[ref_lumen_surface_cache]] `UpdateSurfaceCacheAllocationState()` — 解像度を上げるべきか判断する前に空き容量を確認
 
 ---
 
@@ -619,16 +606,13 @@ void Init(const FViewInfo& View);
    OrthoMaxDimension = View.IsPerspectiveProjection() ? 0.0f : View.ViewMatrices.GetOrthoDimension();
    ```
 
-<details>
-<summary>IsPerspectiveProjection</summary>
-
-```cpp
-bool IsPerspectiveProjection() const { return OrthoMaxDimension == 0.0f; }
-```
-
-`OrthoMaxDimension` が 0 かどうかで透視投影 / 正投影を判定する。
-
-</details>
+> [!note]- IsPerspectiveProjection
+> 
+> ```cpp
+> bool IsPerspectiveProjection() const { return OrthoMaxDimension == 0.0f; }
+> ```
+> 
+> `OrthoMaxDimension` が 0 かどうかで透視投影 / 正投影を判定する。
 
 ---
 
@@ -839,124 +823,106 @@ void RemoveMeshCards(int32 PrimitiveGroupIndex, bool bUpdateCullingInfo = true);
 
 ---
 
-<details>
-<summary>FLumenSceneData::UpdateMeshCards — トランスフォーム更新</summary>
+> [!note]- FLumenSceneData::UpdateMeshCards — トランスフォーム更新
+> 
+> ```cpp
+> void UpdateMeshCards(
+>     const FMatrix& LocalToWorld,
+>     int32 MeshCardsIndex,
+>     const FMeshCardsBuildData& MeshCardsBuildData);
+> ```
+> 
+> **パラメータ**
+> 
+> | 引数 | 型 | 説明 |
+> |------|-----|------|
+> | `LocalToWorld` | `const FMatrix&` | 新しいローカル→ワールド変換行列 |
+> | `MeshCardsIndex` | `int32` | 更新対象 MeshCards のインデックス |
+> | `MeshCardsBuildData` | `const FMeshCardsBuildData&` | 新しいビルドデータ（境界更新に使用）|
+> 
+> **使用箇所**: [[ref_lumen_scene]] `UpdateLumenScenePrimitives()` — `PendingUpdateOperations` の処理で呼ばれる
+> 
+> **内部処理フロー**
+> 1. `MeshCardsInstance.SetTransform(LocalToWorld)` で MeshCards の行列を更新
+> 2. 全 Card に対して `Card.SetTransform(LocalToWorld, MeshCardsInstance)` を呼び WorldOBB を更新
+> 3. `CardIndicesToUpdateInBuffer.Add(CardIndex)` で GPU 同期をスケジュール
 
-```cpp
-void UpdateMeshCards(
-    const FMatrix& LocalToWorld,
-    int32 MeshCardsIndex,
-    const FMeshCardsBuildData& MeshCardsBuildData);
-```
+> [!note]- FLumenSceneData::ReallocVirtualSurface — 仮想サーフェス確保
+> 
+> ```cpp
+> void ReallocVirtualSurface(FLumenCard& Card, int32 CardIndex, int32 ResLevel, bool bLockPages);
+> ```
+> 
+> **パラメータ**
+> 
+> | 引数 | 型 | 説明 |
+> |------|-----|------|
+> | `Card` | `FLumenCard&` | 確保対象の Card |
+> | `CardIndex` | `int32` | Card のシーンインデックス |
+> | `ResLevel` | `int32` | 確保する解像度レベル |
+> | `bLockPages` | `bool` | true のとき確保したページを LRU から除外してロック |
+> 
+> **使用箇所**: [[ref_lumen_surface_cache]] `UpdateSurfaceCacheAllocationState()` 内で呼ばれる
 
-### パラメータ
-| 引数 | 型 | 説明 |
-|------|-----|------|
-| `LocalToWorld` | `const FMatrix&` | 新しいローカル→ワールド変換行列 |
-| `MeshCardsIndex` | `int32` | 更新対象 MeshCards のインデックス |
-| `MeshCardsBuildData` | `const FMeshCardsBuildData&` | 新しいビルドデータ（境界更新に使用）|
+> [!note]- FLumenSceneData::FreeVirtualSurface — 仮想サーフェス解放
+> 
+> ```cpp
+> void FreeVirtualSurface(FLumenCard& Card, uint8 FromResLevel, uint8 ToResLevel);
+> ```
+> 
+> **パラメータ**
+> 
+> | 引数 | 型 | 説明 |
+> |------|-----|------|
+> | `Card` | `FLumenCard&` | 解放対象の Card |
+> | `FromResLevel` | `uint8` | 解放開始解像度レベル（含む）|
+> | `ToResLevel` | `uint8` | 解放終了解像度レベル（含まない）|
+> 
+> **使用箇所**: [[ref_lumen_surface_cache]] `FreeSurfaceCacheAllocation()` から呼ばれる
 
-### 使用箇所
-- [[ref_lumen_scene]] `UpdateLumenScenePrimitives()` — `PendingUpdateOperations` の処理で呼ばれる
+> [!note]- FLumenSceneData::EvictOldestAllocation — LRU eviction
+> 
+> ```cpp
+> bool EvictOldestAllocation(
+>     uint32 MaxFramesSinceLastUsed,
+>     TSparseUniqueList<int32, SceneRenderingAllocator>& DirtyCards);
+> ```
+> 
+> **パラメータ**
+> 
+> | 引数 | 型 | 説明 |
+> |------|-----|------|
+> | `MaxFramesSinceLastUsed` | `uint32` | この値より古いページを evict 対象とする |
+> | `DirtyCards` | `TSparseUniqueList<int32>&` | evict によって dirty になった Card インデックスを積む |
+> 
+> **戻り値**: `bool` — evict できたページがあれば true
+> 
+> **使用箇所**: [[ref_lumen_surface_cache]] `UpdateSurfaceCacheAllocationState()` — アトラスが満杯のとき古いページを解放して空きを作る
 
-### 内部処理フロー
-
-1. `MeshCardsInstance.SetTransform(LocalToWorld)` で MeshCards の行列を更新
-2. 全 Card に対して `Card.SetTransform(LocalToWorld, MeshCardsInstance)` を呼び WorldOBB を更新
-3. `CardIndicesToUpdateInBuffer.Add(CardIndex)` で GPU 同期をスケジュール
-
-</details>
-
-<details>
-<summary>FLumenSceneData::ReallocVirtualSurface — 仮想サーフェス確保</summary>
-
-```cpp
-void ReallocVirtualSurface(FLumenCard& Card, int32 CardIndex, int32 ResLevel, bool bLockPages);
-```
-
-### パラメータ
-| 引数 | 型 | 説明 |
-|------|-----|------|
-| `Card` | `FLumenCard&` | 確保対象の Card |
-| `CardIndex` | `int32` | Card のシーンインデックス |
-| `ResLevel` | `int32` | 確保する解像度レベル |
-| `bLockPages` | `bool` | true のとき確保したページを LRU から除外してロック |
-
-### 使用箇所
-- [[ref_lumen_surface_cache]] `UpdateSurfaceCacheAllocationState()` 内で呼ばれる
-
-</details>
-
-<details>
-<summary>FLumenSceneData::FreeVirtualSurface — 仮想サーフェス解放</summary>
-
-```cpp
-void FreeVirtualSurface(FLumenCard& Card, uint8 FromResLevel, uint8 ToResLevel);
-```
-
-### パラメータ
-| 引数 | 型 | 説明 |
-|------|-----|------|
-| `Card` | `FLumenCard&` | 解放対象の Card |
-| `FromResLevel` | `uint8` | 解放開始解像度レベル（含む）|
-| `ToResLevel` | `uint8` | 解放終了解像度レベル（含まない）|
-
-### 使用箇所
-- [[ref_lumen_surface_cache]] `FreeSurfaceCacheAllocation()` から呼ばれる
-
-</details>
-
-<details>
-<summary>FLumenSceneData::EvictOldestAllocation — LRU eviction</summary>
-
-```cpp
-bool EvictOldestAllocation(
-    uint32 MaxFramesSinceLastUsed,
-    TSparseUniqueList<int32, SceneRenderingAllocator>& DirtyCards);
-```
-
-### パラメータ
-| 引数 | 型 | 説明 |
-|------|-----|------|
-| `MaxFramesSinceLastUsed` | `uint32` | この値より古いページを evict 対象とする |
-| `DirtyCards` | `TSparseUniqueList<int32>&` | evict によって dirty になった Card インデックスを積む |
-
-### 戻り値
-`bool` — evict できたページがあれば true
-
-### 使用箇所
-- [[ref_lumen_surface_cache]] `UpdateSurfaceCacheAllocationState()` — アトラスが満杯のとき古いページを解放して空きを作る
-
-</details>
-
-<details>
-<summary>FLumenSceneData::AllocateCardAtlases — アトラス生成</summary>
-
-```cpp
-void AllocateCardAtlases(
-    FRDGBuilder& GraphBuilder,
-    FLumenSceneFrameTemporaries& FrameTemporaries,
-    const FSceneViewFamily* ViewFamily);
-```
-
-### パラメータ
-| 引数 | 型 | 説明 |
-|------|-----|------|
-| `GraphBuilder` | `FRDGBuilder&` | RDG ビルダー（テクスチャ登録用）|
-| `FrameTemporaries` | `FLumenSceneFrameTemporaries&` | 出力: 各アトラスの RDG テクスチャ参照を書き込む |
-| `ViewFamily` | `const FSceneViewFamily*` | 圧縮設定・プラットフォーム情報の参照用 |
-
-### 使用箇所
-- [[ref_lumen_scene]] `UpdateLumenScene()` の冒頭で毎フレーム呼ばれる（`bReallocateAtlas` が true のときのみ実際に再生成）
-
-### 内部処理フロー
-
-1. 物理アトラスサイズを `GetPhysicalAtlasSize()` で取得（`r.LumenScene.SurfaceCache.AtlasSize` 由来）
-2. `ESurfaceCacheCompression` に基づきアルベド・法線・エミッシブのフォーマットを選択
-3. 各アトラステクスチャを `RegisterExternalTexture()` または `CreateTexture()` で RDG に登録
-4. `FrameTemporaries.AlbedoAtlas = AlbedoAtlas;` ... と各フィールドに書き込む
-
-</details>
+> [!note]- FLumenSceneData::AllocateCardAtlases — アトラス生成
+> 
+> ```cpp
+> void AllocateCardAtlases(
+>     FRDGBuilder& GraphBuilder,
+>     FLumenSceneFrameTemporaries& FrameTemporaries,
+>     const FSceneViewFamily* ViewFamily);
+> ```
+> 
+> **パラメータ**
+> 
+> | 引数 | 型 | 説明 |
+> |------|-----|------|
+> | `GraphBuilder` | `FRDGBuilder&` | RDG ビルダー（テクスチャ登録用）|
+> | `FrameTemporaries` | `FLumenSceneFrameTemporaries&` | 出力: 各アトラスの RDG テクスチャ参照を書き込む |
+> | `ViewFamily` | `const FSceneViewFamily*` | 圧縮設定・プラットフォーム情報の参照用 |
+> 
+> **使用箇所**: [[ref_lumen_scene]] `UpdateLumenScene()` の冒頭で毎フレーム呼ばれる（`bReallocateAtlas` が true のときのみ実際に再生成）
+> 
+> **内部処理フロー**
+> 1. 物理アトラスサイズを `GetPhysicalAtlasSize()` で取得（`r.LumenScene.SurfaceCache.AtlasSize` 由来）
+> 2. `ESurfaceCacheCompression` に基づきアルベド・法線・エミッシブのフォーマットを選択
+> 3. 各アトラステクスチャを `RegisterExternalTexture()` または `CreateTexture()` で RDG に登録
+> 4. `FrameTemporaries.AlbedoAtlas = AlbedoAtlas;` ... と各フィールドに書き込む
 
 ---
 

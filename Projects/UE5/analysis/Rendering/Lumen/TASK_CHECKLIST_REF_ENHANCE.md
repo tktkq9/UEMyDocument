@@ -151,22 +151,19 @@ ReturnType FunctionName(
 ### マイナー関数ブロック（折りたたみ）
 
 ```markdown
-<details>
-<summary>MinorFunctionName — 短い説明</summary>
-
-```cpp
-ReturnType MinorFunctionName(ParamType Param);
-```
-
-### パラメータ
-| 引数 | 型 | 説明 |
-|------|-----|------|
-| Param | `ParamType` | 説明 |
-
-### 使用箇所
-- [[ref_xxx]] — `CallerFunction()` から呼ばれる
-
-</details>
+> [!note]- MinorFunctionName — 短い説明
+> 
+> ```cpp
+> ReturnType MinorFunctionName(ParamType Param);
+> ```
+> 
+> **パラメータ**
+> 
+> | 引数 | 型 | 説明 |
+> |------|-----|------|
+> | Param | `ParamType` | 説明 |
+> 
+> **使用箇所**: [[ref_xxx]] — `CallerFunction()` から呼ばれる
 ```
 
 ---

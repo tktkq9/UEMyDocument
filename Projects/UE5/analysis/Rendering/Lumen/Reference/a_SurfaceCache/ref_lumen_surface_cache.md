@@ -289,37 +289,32 @@ void FreeSurfaceCacheAllocation(FLumenCard& Card, FLumenSurfaceCacheAllocator& A
 
 ---
 
-<details>
-<summary>GetSurfaceCacheCompression — 圧縮方式の取得</summary>
-
-```cpp
-ESurfaceCacheCompression GetSurfaceCacheCompression();
-```
-
-### 戻り値
-`ESurfaceCacheCompression` — 現在のプラットフォームとドライバで使用できる圧縮方式
-
-### 内部動作
-```cpp
-ESurfaceCacheCompression GetSurfaceCacheCompression()
-{
-    if (!CVarLumenSurfaceCacheCompress.GetValueOnRenderThread()) {
-        return ESurfaceCacheCompression::Disabled;
-    }
-    // DX12 + UAV エイリアシングサポートなら UAVAliasing
-    if (GRHISupportsUAVAliasing && GRHISupportsBC7Compression) {
-        return ESurfaceCacheCompression::UAVAliasing;
-    }
-    // それ以外は CopyTextureRegion フォールバック
-    return ESurfaceCacheCompression::CopyTextureRegion;
-}
-```
-
-### 使用箇所
-- [[ref_lumen_scene_data]] `FLumenSceneData::AllocateCardAtlases()` — アトラスフォーマット選択
-- [[ref_lumen_scene]] `UpdateLumenSurfaceCacheAtlas()` — コピー方式の選択
-
-</details>
+> [!note]- GetSurfaceCacheCompression — 圧縮方式の取得
+> 
+> ```cpp
+> ESurfaceCacheCompression GetSurfaceCacheCompression();
+> ```
+> 
+> **戻り値**: `ESurfaceCacheCompression` — 現在のプラットフォームとドライバで使用できる圧縮方式
+> 
+> **内部動作**
+> 
+> ```cpp
+> ESurfaceCacheCompression GetSurfaceCacheCompression()
+> {
+>     if (!CVarLumenSurfaceCacheCompress.GetValueOnRenderThread()) {
+>         return ESurfaceCacheCompression::Disabled;
+>     }
+>     if (GRHISupportsUAVAliasing && GRHISupportsBC7Compression) {
+>         return ESurfaceCacheCompression::UAVAliasing;
+>     }
+>     return ESurfaceCacheCompression::CopyTextureRegion;
+> }
+> ```
+> 
+> **使用箇所**
+> - [[ref_lumen_scene_data]] `FLumenSceneData::AllocateCardAtlases()` — アトラスフォーマット選択
+> - [[ref_lumen_scene]] `UpdateLumenSurfaceCacheAtlas()` — コピー方式の選択
 
 ---
 

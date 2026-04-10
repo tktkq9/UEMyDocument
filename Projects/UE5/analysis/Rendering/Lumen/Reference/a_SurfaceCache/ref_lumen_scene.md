@@ -218,77 +218,67 @@ void FDeferredShadingRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder);
 
 ---
 
-<details>
-<summary>UpdateSurfaceCacheAllocationState — ページ解像度・割り当て更新</summary>
+> [!note]- UpdateSurfaceCacheAllocationState — ページ解像度・割り当て更新
+> 
+> ```cpp
+> void UpdateSurfaceCacheAllocationState(
+>     FLumenSceneData& LumenData,
+>     const TArray<FViewInfo>& Views,
+>     FRHIGPUMask GPUMask,
+>     TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests);
+> ```
+> 
+> **パラメータ**
+> 
+> | 引数 | 型 | 説明 |
+> |------|-----|------|
+> | `LumenData` | `FLumenSceneData&` | Lumen シーンデータ（Card の解像度を更新する）|
+> | `Views` | `const TArray<FViewInfo>&` | ビュー一覧（カメラ距離計算に使用）|
+> | `GPUMask` | `FRHIGPUMask` | GPU マスク |
+> | `SurfaceCacheRequests` | `TArray<FSurfaceCacheRequest>&` | 出力: キャプチャが必要な Card のリクエストを積む |
+> 
+> **内部処理フロー（概略）**
+> 1. **フィードバックバッファの読み取り** — GPU から「よく参照されるページ」を取得
+> 2. **解像度の決定** — カメラ距離 → `DesiredLockedResLevel` を計算、空き容量チェック
+> 3. **仮想ページの確保/解放** — `ReallocVirtualSurface()` / `FreeVirtualSurface()`
+> 4. **LRU eviction** — アトラスが満杯の場合 `EvictOldestAllocation()` で古いページを解放
+> 5. **キャプチャリクエストの生成** — 新規・再キャプチャが必要なページを `SurfaceCacheRequests` に追加
 
-```cpp
-void UpdateSurfaceCacheAllocationState(
-    FLumenSceneData& LumenData,
-    const TArray<FViewInfo>& Views,
-    FRHIGPUMask GPUMask,
-    TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests);
-```
+> [!note]- BuildCardUpdateList — 更新対象 Card の選定
+> 
+> ```cpp
+> void BuildCardUpdateList(
+>     FLumenSceneData& LumenData,
+>     const TArray<FViewInfo>& Views,
+>     TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests,
+>     FLumenCardRenderer& LumenCardRenderer);
+> ```
+> 
+> **内部動作（概略）**
+> 1. `SurfaceCacheRequests` を優先度順にソート（新規ページ優先、次に距離近い順）
+> 2. `r.LumenScene.SurfaceCache.CardCapturesPerFrame`（デフォルト 300）でリクエスト数を制限
+> 3. テクセル総数制限（`AtlasTexels / CardCaptureFactor`）も適用
+> 4. 制限内に収まる最終リストを `LumenCardRenderer` に渡す
 
-### パラメータ
-| 引数 | 型 | 説明 |
-|------|-----|------|
-| `LumenData` | `FLumenSceneData&` | Lumen シーンデータ（Card の解像度を更新する）|
-| `Views` | `const TArray<FViewInfo>&` | ビュー一覧（カメラ距離計算に使用）|
-| `GPUMask` | `FRHIGPUMask` | GPU マスク |
-| `SurfaceCacheRequests` | `TArray<FSurfaceCacheRequest>&` | 出力: キャプチャが必要な Card のリクエストを積む |
-
-### 内部処理フロー（概略）
-
-1. **フィードバックバッファの読み取り** — GPU から「よく参照されるページ」を取得
-2. **解像度の決定** — カメラ距離 → `DesiredLockedResLevel` を計算、空き容量チェック
-3. **仮想ページの確保/解放** — `ReallocVirtualSurface()` / `FreeVirtualSurface()`
-4. **LRU eviction** — アトラスが満杯の場合 `EvictOldestAllocation()` で古いページを解放
-5. **キャプチャリクエストの生成** — 新規・再キャプチャが必要なページを `SurfaceCacheRequests` に追加
-
-</details>
-
-<details>
-<summary>BuildCardUpdateList — 更新対象 Card の選定</summary>
-
-```cpp
-void BuildCardUpdateList(
-    FLumenSceneData& LumenData,
-    const TArray<FViewInfo>& Views,
-    TArray<FSurfaceCacheRequest, SceneRenderingAllocator>& SurfaceCacheRequests,
-    FLumenCardRenderer& LumenCardRenderer);
-```
-
-### 内部動作（概略）
-
-1. `SurfaceCacheRequests` を優先度順にソート（新規ページ優先、次に距離近い順）
-2. `r.LumenScene.SurfaceCache.CardCapturesPerFrame`（デフォルト 300）でリクエスト数を制限
-3. テクセル総数制限（`AtlasTexels / CardCaptureFactor`）も適用
-4. 制限内に収まる最終リストを `LumenCardRenderer` に渡す
-
-</details>
-
-<details>
-<summary>LumenScene 名前空間 — LumenSceneGPUDrivenUpdate.h より</summary>
-
-```cpp
-namespace LumenScene {
-    float GetCardMaxDistance(const FViewInfo& View);
-    float GetCardTexelDensity();
-    float GetFarFieldCardTexelDensity();
-    float GetFarFieldCardMaxDistance();
-    int32 GetCardMinResolution(bool bOrthographicCamera);
-}
-```
-
-| 関数 | 説明 |
-|------|------|
-| `GetCardMaxDistance(View)` | カメラ FOV と設定から Card キャプチャの最大距離を返す |
-| `GetCardTexelDensity()` | テクセル/世界単位の密度（近距離 Card 解像度の基準）|
-| `GetFarFieldCardTexelDensity()` | 遠距離フィールド Card のテクセル密度 |
-| `GetFarFieldCardMaxDistance()` | 遠距離フィールド Card の最大距離（`r.LumenScene.FarField.MaxTraceDistance`）|
-| `GetCardMinResolution(bOrtho)` | Card の最小解像度（正投影カメラは異なる値）|
-
-</details>
+> [!note]- LumenScene 名前空間 — LumenSceneGPUDrivenUpdate.h より
+> 
+> ```cpp
+> namespace LumenScene {
+>     float GetCardMaxDistance(const FViewInfo& View);
+>     float GetCardTexelDensity();
+>     float GetFarFieldCardTexelDensity();
+>     float GetFarFieldCardMaxDistance();
+>     int32 GetCardMinResolution(bool bOrthographicCamera);
+> }
+> ```
+> 
+> | 関数 | 説明 |
+> |------|------|
+> | `GetCardMaxDistance(View)` | カメラ FOV と設定から Card キャプチャの最大距離を返す |
+> | `GetCardTexelDensity()` | テクセル/世界単位の密度（近距離 Card 解像度の基準）|
+> | `GetFarFieldCardTexelDensity()` | 遠距離フィールド Card のテクセル密度 |
+> | `GetFarFieldCardMaxDistance()` | 遠距離フィールド Card の最大距離（`r.LumenScene.FarField.MaxTraceDistance`）|
+> | `GetCardMinResolution(bOrtho)` | Card の最小解像度（正投影カメラは異なる値）|
 
 ---
 

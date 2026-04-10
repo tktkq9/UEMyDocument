@@ -194,20 +194,15 @@ WorldToLocalRotation = FMatrix(
 
 ---
 
-<details>
-<summary>FLumenMeshCards::GetWorldSpaceBounds — ワールド空間 AABB 取得</summary>
-
-```cpp
-FBox GetWorldSpaceBounds() const;
-```
-
-### 戻り値
-`FBox` — `LocalBounds` を `LocalToWorld` で変換したワールド空間 AABB
-
-### 使用箇所
-- [[ref_lumen_scene_gpu_driven_update]] `GPUDrivenUpdate()` — プリミティブのワールド AABB をフラスタム判定に使用
-
-</details>
+> [!note]- FLumenMeshCards::GetWorldSpaceBounds — ワールド空間 AABB 取得
+> 
+> ```cpp
+> FBox GetWorldSpaceBounds() const;
+> ```
+> 
+> **戻り値**: `FBox` — `LocalBounds` を `LocalToWorld` で変換したワールド空間 AABB
+> 
+> **使用箇所**: [[ref_lumen_scene_gpu_driven_update]] `GPUDrivenUpdate()` — プリミティブのワールド AABB をフラスタム判定に使用
 
 ---
 

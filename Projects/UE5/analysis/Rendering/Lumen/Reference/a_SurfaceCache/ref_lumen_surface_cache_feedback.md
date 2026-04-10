@@ -272,39 +272,28 @@ const FReadbackBuffer* GetLatestReadbackBuffer();
 
 ---
 
-<details>
-<summary>GetDummyFeedbackAllocatorUAV / GetDummyFeedbackUAV — フィードバック無効時のダミー</summary>
+> [!note]- GetDummyFeedbackAllocatorUAV / GetDummyFeedbackUAV — フィードバック無効時のダミー
+> 
+> ```cpp
+> FRDGBufferUAV* GetDummyFeedbackAllocatorUAV(FRDGBuilder& GraphBuilder);
+> FRDGBufferUAV* GetDummyFeedbackUAV(FRDGBuilder& GraphBuilder);
+> ```
+> 
+> フィードバック機能が無効なプラットフォームや設定の場合、シェーダーバインドを壊さないためのダミー UAV を返す。実際には書き込みが行われても影響がない 1 要素バッファを使用。
+> 
+> **使用箇所**: [[ref_lumen_tracing_utils]] `SetupLumenCardTracingParameters()` — フィードバック無効時のバインド
 
-```cpp
-FRDGBufferUAV* GetDummyFeedbackAllocatorUAV(FRDGBuilder& GraphBuilder);
-FRDGBufferUAV* GetDummyFeedbackUAV(FRDGBuilder& GraphBuilder);
-```
-
-### 説明
-フィードバック機能が無効なプラットフォームや設定の場合、シェーダーバインドを壊さないためのダミー UAV を返す。実際には書き込みが行われても影響がない 1 要素バッファを使用。
-
-### 使用箇所
-- [[ref_lumen_tracing_utils]] `SetupLumenCardTracingParameters()` — フィードバック無効時のバインド
-
-</details>
-
-<details>
-<summary>GetFeedbackBufferTileJitter — ジッター値の取得</summary>
-
-```cpp
-FIntPoint GetFeedbackBufferTileJitter() const;
-```
-
-### 説明
-フレームごとにタイルオフセットをずらすことで、複数フレームにわたって全タイルのフィードバックを収集する（テンポラルカバレッジ向上）。
-
-### 戻り値
-`FIntPoint` — `{FrameIndex % TileSize, FrameIndex / TileSize % TileSize}` から計算したオフセット
-
-### 使用箇所
-- [[ref_lumen_tracing_utils]] `FLumenCardTracingParameters::SurfaceCacheFeedbackBufferTileJitter` にセットされてシェーダーに渡される
-
-</details>
+> [!note]- GetFeedbackBufferTileJitter — ジッター値の取得
+> 
+> ```cpp
+> FIntPoint GetFeedbackBufferTileJitter() const;
+> ```
+> 
+> フレームごとにタイルオフセットをずらすことで、複数フレームにわたって全タイルのフィードバックを収集する（テンポラルカバレッジ向上）。
+> 
+> **戻り値**: `FIntPoint` — `{FrameIndex % TileSize, FrameIndex / TileSize % TileSize}` から計算したオフセット
+> 
+> **使用箇所**: [[ref_lumen_tracing_utils]] `FLumenCardTracingParameters::SurfaceCacheFeedbackBufferTileJitter` にセットされてシェーダーに渡される
 
 ---
 

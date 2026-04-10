@@ -121,22 +121,15 @@ void TSparseSpanArray::RemoveSpan(int32 FirstElementIndex, int32 NumElements)
 
 ---
 
-<details>
-<summary>IsAllocated — 指定インデックスが割り当て済みか</summary>
-
-```cpp
-bool IsAllocated(int32 Index) const;
-```
-
-#### 内部動作
-```cpp
-return AllocationMask[Index];
-```
-
-#### 使用箇所
-- デバッグ検証（`check(IsAllocated(CardIndex))`）や イテレーション時の穴スキップ
-
-</details>
+> [!note]- IsAllocated — 指定インデックスが割り当て済みか
+> 
+> ```cpp
+> bool IsAllocated(int32 Index) const;
+> ```
+> 
+> **内部動作**: `return AllocationMask[Index];`
+> 
+> **使用箇所**: デバッグ検証（`check(IsAllocated(CardIndex))`）やイテレーション時の穴スキップ
 
 ### 使用例
 
@@ -226,30 +219,26 @@ void FUniqueIndexList::Add(int32 Index)
 
 ---
 
-<details>
-<summary>Reset / Empty — リストのリセット</summary>
-
-```cpp
-void Reset();         // 全リセット（メモリ解放なし）
-void Empty(int32 Slack = 0); // クリア（Slack 分の容量を確保）
-```
-
-#### 内部動作
-```cpp
-void Reset()
-{
-    // ビットセットをすべて false に戻す（Indices をクリア）
-    for (int32 Index : Indices) {
-        IndicesMarkedToUpdate[Index] = false;
-    }
-    Indices.Reset();
-}
-```
-
-#### 使用箇所
-- [[ref_lumen_mesh_cards]] `Lumen::UpdateCardSceneBuffer()` — GPU アップロード完了後にリセット
-
-</details>
+> [!note]- Reset / Empty — リストのリセット
+> 
+> ```cpp
+> void Reset();         // 全リセット（メモリ解放なし）
+> void Empty(int32 Slack = 0); // クリア（Slack 分の容量を確保）
+> ```
+> 
+> **内部動作**
+> 
+> ```cpp
+> void Reset()
+> {
+>     for (int32 Index : Indices) {
+>         IndicesMarkedToUpdate[Index] = false;
+>     }
+>     Indices.Reset();
+> }
+> ```
+> 
+> **使用箇所**: [[ref_lumen_mesh_cards]] `Lumen::UpdateCardSceneBuffer()` — GPU アップロード完了後にリセット
 
 ### 使用例
 
