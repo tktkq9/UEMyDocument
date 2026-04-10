@@ -50,11 +50,11 @@
 
 ## d: RadianceCache（5件）
 
-- [ ] `d_RadianceCache/ref_lumen_radiance_cache.md` — FLumenRadianceCache, 更新エントリポイント
-- [ ] `d_RadianceCache/ref_lumen_radiance_cache_internal.md` — キャッシュ内部構造・Probe 管理
-- [ ] `d_RadianceCache/ref_lumen_radiance_cache_hwrt.md` — HW RT 版 Radiance Cache
-- [ ] `d_RadianceCache/ref_lumen_translucency_radiance_cache.md` — 半透明用 Radiance Cache
-- [ ] `d_RadianceCache/ref_lumen_translucency_volume.md` — Translucency Volume 構造体・更新
+- [x] `d_RadianceCache/ref_lumen_radiance_cache.md` — FLumenRadianceCache, 更新エントリポイント
+- [x] `d_RadianceCache/ref_lumen_radiance_cache_internal.md` — キャッシュ内部構造・Probe 管理
+- [x] `d_RadianceCache/ref_lumen_radiance_cache_hwrt.md` — HW RT 版 Radiance Cache
+- [x] `d_RadianceCache/ref_lumen_translucency_radiance_cache.md` — 半透明用 Radiance Cache
+- [x] `d_RadianceCache/ref_lumen_translucency_volume.md` — Translucency Volume 構造体・更新
 
 ---
 
@@ -169,4 +169,4 @@ ReturnType FunctionName(
 ---
 
 **合計**: 40ファイル  
-**完了数**: 19 / 40（a グループ完了 2026-04-10、b グループ完了 2026-04-11、c グループ完了 2026-04-11）
+**完了数**: 24 / 40（a グループ完了 2026-04-10、b グループ完了 2026-04-11、c グループ完了 2026-04-11、d グループ完了 2026-04-11）
