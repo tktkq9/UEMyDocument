@@ -3,6 +3,8 @@
 - 取得日: 2026-04-10
 - 対象: `D:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\VirtualShadowMaps\`
 - 上位: [[01_rendering_overview]]
+- Details: [[a_vsm_array]] | [[b_vsm_cache_manager]] | [[c_vsm_clipmap]] | [[d_vsm_projection]]
+- Reference: [[ref_vsm_array]] | [[ref_vsm_cache_manager]] | [[ref_vsm_clipmap]] | [[ref_vsm_projection]] | [[ref_vsm_shaders]]
 
 ---
 
