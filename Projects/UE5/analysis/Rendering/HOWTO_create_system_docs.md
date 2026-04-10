@@ -255,7 +255,142 @@ Details → Reference（関連リファレンスセクション）:
 
 ---
 
-## 7. 完成後の Obsidian 連携
+## 7. Reference 記事の拡張（第二フェーズ）
+
+初期作成（Step 5）で作った Reference 記事に対し、後から**詳細情報を追記する**フェーズ。  
+Lumen では全 40 ファイルを `TASK_CHECKLIST_REF_ENHANCE.md` で管理し、グループ単位で実施した。
+
+### 追記する内容
+
+| 追記項目 | 形式 | 説明 |
+|---------|------|------|
+| メンバ変数表 | `### メンバ変数` + Markdown テーブル | 各クラス・構造体の全フィールドを一覧化 |
+| パラメータ表 | `### パラメータ` + Markdown テーブル | 主要関数の引数を一覧化 |
+| 内部処理フロー | `### 内部処理フロー` + 番号付きステップ | 処理量の多い関数を段階的に解説 |
+| 使用箇所リンク | `### 使用箇所` + `[[ref_xxx]]` リスト | どのクラス・関数から参照されるかを記載 |
+| マイナー関数 | `> [!note]-` 折りたたみ callout | 頻出度の低い関数を折りたたみで収録 |
+
+> **注意**: `<details>` HTML タグは使わない。Obsidian では `> [!note]-` callout を使うこと。
+
+### 追記フォーマット例
+
+**クラスブロック:**
+
+```markdown
+## ClassName
+
+> **概要**: クラスの1行説明
+
+### メンバ変数
+
+| 変数名 | 型 | 説明 |
+|--------|-----|------|
+| MemberA | `Type` | 説明 |
+
+### 使用箇所
+- [[ref_xxx]] — `OtherClass::Function()` でXX目的に参照される
+```
+
+**主要関数ブロック:**
+
+```markdown
+## FunctionName
+
+```cpp
+ReturnType FunctionName(
+    ParamType1 Param1,
+    ParamType2 Param2);
+```
+
+### パラメータ
+| 引数 | 型 | 説明 |
+|------|-----|------|
+| Param1 | `ParamType1` | 説明 |
+
+### 戻り値
+`ReturnType` — 説明
+
+### 使用箇所
+- [[ref_xxx]] — `CallerFunction()` 内でXX目的に呼ばれる
+
+### 内部処理フロー
+
+1. **ステップ名** — 説明
+   ```cpp
+   // コード概要
+   ```
+```
+
+**マイナー関数（折りたたみ）:**
+
+```markdown
+> [!note]- MinorFunctionName — 短い説明
+>
+> ```cpp
+> ReturnType MinorFunctionName(ParamType Param);
+> ```
+>
+> **パラメータ**
+>
+> | 引数 | 型 | 説明 |
+> |------|-----|------|
+> | Param | `ParamType` | 説明 |
+>
+> **使用箇所**: [[ref_xxx]] — `CallerFunction()` から呼ばれる
+```
+
+### 拡張用チェックリスト（TASK_CHECKLIST_REF_ENHANCE.md）
+
+初期の `TASK_CHECKLIST.md` とは別に、拡張フェーズ専用のチェックリストを作成する。
+
+```markdown
+# {SystemName} Reference 拡張タスクリスト
+
+**方針**: 各 Reference ファイルの関数ブロックに「パラメータ表 / 呼び出し元 / 内部動作」を追加
+**作業開始日**: YYYY-MM-DD
+**優先度**: グループ a → Common の順
+
+## Common（N件）
+- [ ] `Common/ref_{system}_core.md`
+...
+
+## a: {SubsystemName}（N件）
+- [ ] `a_{SubsystemName}/ref_{system}_{file}.md`
+...
+
+## 追記要件（全ファイル共通）
+1. **全関数を網羅** — 主要でない関数も含め `> [!note]-` 折りたたみで収録
+2. **メンバ変数の説明** — 各クラスに `### メンバ変数` テーブルを追加
+3. **使用箇所とリンク** — どのクラス・関数から使われるかを `[[ref_xxx]]` 付きで記載
+4. **内部処理フロー** — 処理量の多い関数はステップごとにコード概要を添付
+
+**合計**: N ファイル
+**完了数**: 0 / N
+```
+
+### 拡張セッションの運用
+
+- **1セッション = 1グループ**（5〜8本）を目安にする
+- セッション開始時は対象ファイルを全件 Read してから一括で Write（全文書き直し）
+- グループ完了後に `git commit` → 次グループへ
+- コンテキストが切れそうなら `/compact` で圧縮してから再開
+- 再開時は TASK_CHECKLIST_REF_ENHANCE.md を確認して未完ファイルを把握する
+
+### Claude への依頼テンプレート（拡張フェーズ）
+
+```
+{SystemName}のReferenceドキュメントを拡張してください。
+
+対象チェックリスト: D:\Learning\Projects\UE5\analysis\Rendering\{SystemName}\TASK_CHECKLIST_REF_ENHANCE.md
+フォーマット例: D:\Learning\Projects\UE5\analysis\Rendering\HOWTO_create_system_docs.md（セクション7）
+Lumenの実例: D:\Learning\Projects\UE5\analysis\Rendering\Lumen\Reference\
+
+{グループ名}グループをお願いします。
+```
+
+---
+
+## 8. 完成後の Obsidian 連携
 
 Reference ファイルの frontmatter（`- 上位:`, `- 関連:`）と  
 Details の `## 関連リファレンス` セクションにより、  
