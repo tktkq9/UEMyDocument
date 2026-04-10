@@ -8,9 +8,9 @@
 
 ## Common（3件）
 
-- [ ] `Common/ref_lumen_core.md` — LumenScene.h の基本型・定数・有効化関数
-- [ ] `Common/ref_lumen_view_state.md` — FLumenViewState, FLumenSceneFrameTemporaries
-- [ ] `Common/ref_lumen_visualize.md` — LumenVisualize.h のデバッグ可視化関数
+- [x] `Common/ref_lumen_core.md` — LumenScene.h の基本型・定数・有効化関数
+- [x] `Common/ref_lumen_view_state.md` — FLumenViewState, FLumenSceneFrameTemporaries
+- [x] `Common/ref_lumen_visualize.md` — LumenVisualize.h のデバッグ可視化関数
 
 ---
 
@@ -169,4 +169,4 @@ ReturnType FunctionName(
 ---
 
 **合計**: 40ファイル  
-**完了数**: 37 / 40（a グループ完了 2026-04-10、b グループ完了 2026-04-11、c グループ完了 2026-04-11、d グループ完了 2026-04-11、e グループ完了 2026-04-11、f グループ完了 2026-04-11）
+**完了数**: 40 / 40（a グループ完了 2026-04-10、b グループ完了 2026-04-11、c グループ完了 2026-04-11、d グループ完了 2026-04-11、e グループ完了 2026-04-11、f グループ完了 2026-04-11、Common グループ完了 2026-04-11）

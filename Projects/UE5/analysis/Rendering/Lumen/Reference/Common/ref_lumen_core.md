@@ -25,6 +25,13 @@ Lumen システム全体の**エントリポイント・グローバル設定・
 | `bool ShouldUseStereoLumenOptimizations()` | ステレオ（VR）用最適化を使うか |
 | `double BoxSurfaceArea(FVector Extent)` | AABB の表面積を計算（Card サイズ判定に使用）|
 
+### 使用箇所
+
+- [[ref_lumen_diffuse_indirect]] — `ShouldRenderLumenDiffuseGI()` でフレーム冒頭の描画可否を判定
+- [[ref_lumen_reflections]] — `ShouldRenderLumenReflections()` でフレーム冒頭の描画可否を判定
+- [[ref_lumen_scene_lighting]] — `ShouldRenderLumenDirectLighting()` で直接光注入パスを制御
+- [[ref_lumen_mesh_cards]] — `BoxSurfaceArea()` で Mesh Card のサイズ優先度を計算
+
 ---
 
 ## Lumen 名前空間
@@ -38,11 +45,19 @@ Lumen システム全体の**エントリポイント・グローバル設定・
 | `MinCardResolution` | 8 | Card の最小解像度（テクセル）|
 | `MinResLevel` | 3 | 最小解像度レベル（2^3 = 8px）|
 | `MaxResLevel` | 11 | 最大解像度レベル（2^11 = 2048px）|
-| `SubAllocationResLevel` | 7 | サブアロケーション境界 (log2(128))  |
+| `SubAllocationResLevel` | 7 | サブアロケーション境界 (log2(128)) |
 | `NumResLevels` | 9 | 解像度レベル総数（11-3+1）|
 | `CardTileSize` | 8 | Card タイルのサイズ（テクセル）|
 | `NumDistanceBuckets` | 16 | 距離バケット数（Global SDF クリップマップ用）|
 | `MaxTraceDistance` | 0.5f * UE_OLD_WORLD_MAX | レイの最大トレース距離 |
+
+### 使用箇所
+
+- [[ref_lumen_scene_data]] — `PhysicalPageSize` / `VirtualPageSize` で Surface Cache ページ計算
+- [[ref_lumen_mesh_cards]] — `MinResLevel` / `MaxResLevel` / `NumResLevels` でCard解像度レベル管理
+- [[ref_lumen_tracing_utils]] — `MaxTraceDistance` でトレースの最大距離上限をクランプ
+
+---
 
 ### enum class ETracingPermutation
 
@@ -55,6 +70,19 @@ enum class ETracingPermutation {
 };
 ```
 
+| 値 | 説明 |
+|----|------|
+| `Cards` | Surface Cache の Card アトラスのみを参照。高精度だが Card 未登録エリアはミス |
+| `VoxelsAfterCards` | Cards でミスした後に Voxel SDF でカバー。標準モード |
+| `Voxels` | Voxel SDF のみ。低品質だが広域カバー（デバッグ・遠距離用）|
+
+### 使用箇所
+
+- [[ref_lumen_screen_probe_tracing]] — Screen Probe トレース時に `ETracingPermutation` でシェーダーパーミュテーションを選択
+- [[ref_lumen_tracing_utils]] — `FLumenCardTraceParameters` の構築時にパーミュテーションを設定
+
+---
+
 ### enum class ESurfaceCacheSampling
 
 ```cpp
@@ -64,6 +92,19 @@ enum class ESurfaceCacheSampling {
     HighResPages,                       // 高解像度ページ優先
 };
 ```
+
+| 値 | 説明 |
+|----|------|
+| `AlwaysResidentPagesWithoutFeedback` | 常駐ページのみ参照・フィードバックループなし（Shadow など副産物トレース用）|
+| `AlwaysResidentPages` | 常駐ページのみ参照・フィードバックあり（Screen Probe 等）|
+| `HighResPages` | 高解像度ページを優先参照（反射など品質重視パス）|
+
+### 使用箇所
+
+- [[ref_lumen_surface_cache_feedback]] — フィードバックループで `ESurfaceCacheSampling` 別に優先度を設定
+- [[ref_lumen_reflections]] — 反射パスは `HighResPages` で高解像度 Card を優先参照
+
+---
 
 ### シーン・ビュー判定関数
 
@@ -76,6 +117,14 @@ enum class ESurfaceCacheSampling {
 | `ShouldUpdateLumenSceneViewOrigin()` | Lumen シーンの視点原点を更新するか |
 | `GetLumenSceneViewOrigin(View, ClipmapIndex)` | クリップマップ段別の視点原点を取得 |
 
+### 使用箇所
+
+- [[ref_lumen_scene]] — `IsLumenFeatureAllowedForView()` でビューごとに Lumen 更新を制御
+- [[ref_lumen_visualize]] — `ShouldVisualizeScene()` / `ShouldVisualizeHardwareRayTracing()` で可視化パスの追加を判定
+- [[ref_lumen_radiance_cache]] — `GetLumenSceneViewOrigin()` でクリップマップの中心座標を取得
+
+---
+
 ### Global Distance Field 関連
 
 | 関数 | 役割 |
@@ -83,6 +132,13 @@ enum class ESurfaceCacheSampling {
 | `GetGlobalDFResolution()` | Global SDF の解像度を返す |
 | `GetGlobalDFClipmapExtent(ClipmapIndex)` | 指定段のクリップマップ半径を返す |
 | `GetNumGlobalDFClipmaps(View)` | 使用するクリップマップ段数を返す |
+
+### 使用箇所
+
+- [[ref_lumen_tracing_utils]] — Global SDF トレース時にクリップマップ解像度・段数を取得
+- [[ref_lumen_screen_probe_tracing]] — Global SDF フォールバックパスで `GetNumGlobalDFClipmaps()` を使用
+
+---
 
 ### GPU 機能フラグ
 
@@ -95,12 +151,26 @@ enum class ESurfaceCacheSampling {
 | `GetLightingQuantizationError()` | 量子化誤差ベクトルを返す |
 | `GetCachedLightingPreExposure()` | キャッシュされた露出値を返す |
 
+### 使用箇所
+
+- [[ref_lumen_scene_lighting]] — `UseAsyncCompute()` で照明パスを AsyncCompute キューに投入するか決定
+- [[ref_lumen_screen_probe_gather]] — `UseWaveOps()` でシェーダーパーミュテーションを選択
+- [[ref_lumen_scene_data]] — `GetLightingDataFormat()` で `FinalLightingAtlas` のフォーマット指定
+
+---
+
 ### Surface Cache 状態確認
 
 | 関数 | 役割 |
 |------|------|
 | `IsSurfaceCacheFrozen()` | Surface Cache 更新が凍結中か |
 | `IsSurfaceCacheUpdateFrameFrozen()` | 更新フレームが凍結中か |
+
+### 使用箇所
+
+- [[ref_lumen_surface_cache]] — `IsSurfaceCacheFrozen()` で `UpdateLumenSurfaceCache()` 内の更新処理をスキップするか判定
+
+---
 
 ### Software Ray Tracing（SDF）判定
 
@@ -116,6 +186,14 @@ enum class ESurfaceCacheSampling {
 | `GetHeightfieldMaxTracingSteps()` | ハイトフィールドの最大ステップ数 |
 | `IsUsingGlobalSDF(ViewFamily)` | Global SDF を使っているか |
 | `IsUsingDistanceFieldRepresentationBit(View)` | DFビットを使っているか |
+
+### 使用箇所
+
+- [[ref_lumen_reflection_tracing]] — `UseMeshSDFTracing()` / `UseGlobalSDFTracing()` でトレースパスの有効化を制御
+- [[ref_lumen_heightfields]] — `UseHeightfieldTracing()` でハイトフィールドパスを制御
+- [[ref_lumen_mesh_sdf_culling]] — `IsSoftwareRayTracingSupported()` でカリングパスの有効化を確認
+
+---
 
 ### Hardware Ray Tracing 判定
 
@@ -135,6 +213,15 @@ enum class ESurfaceCacheSampling {
 | `IsUsingRayTracingLightingGrid(ViewFamily, View, Method)` | RT ライティンググリッドを使うか |
 | `UseHardwareInlineRayTracing(ViewFamily)` | インライン RT を使うか（DXR 1.1 Inline）|
 
+### 使用箇所
+
+- [[ref_lumen_reflections]] — `UseHardwareRayTracedReflections()` で SW / HW RT の分岐を制御
+- [[ref_lumen_screen_probe_hwrt]] — `UseHardwareRayTracedScreenProbeGather()` で Screen Probe HW RT パスを制御
+- [[ref_lumen_restir]] — `UseReSTIRGather()` で ReSTIR パスの有効化を判定
+- [[ref_lumen_hwrt_common]] — `UseHardwareInlineRayTracing()` で Inline RT / RGS の選択に使用
+
+---
+
 ### Far Field / Near Field 設定
 
 | 関数 | 役割 |
@@ -144,6 +231,14 @@ enum class ESurfaceCacheSampling {
 | `GetFarFieldMaxTraceDistance()` | 遠距離の最大トレース距離 |
 | `GetNearFieldMaxTraceDistanceDitherScale(bUseFarField)` | 近距離フェードのスケール |
 | `GetNearFieldSceneRadius(View, bUseFarField)` | 近距離の有効半径 |
+
+### 使用箇所
+
+- [[ref_lumen_reflection_tracing]] — `UseFarField()` で Far Field コンパクト化パスを制御
+- [[ref_lumen_reflection_hwrt]] — `GetFarFieldMaxTraceDistance()` で Far Field TLAS トレース距離を設定
+- [[ref_lumen_tracing_utils]] — `GetNearFieldSceneRadius()` で Near Field コンパクト化の距離上限を決定
+
+---
 
 ### その他ユーティリティ
 
@@ -157,6 +252,12 @@ enum class ESurfaceCacheSampling {
 | `GetMaxTraceDistance(View)` | ビューに応じた最大トレース距離 |
 | `SupportsMultipleClosureEvaluation(Platform/View)` | Substrate 多重クロージャ評価対応か |
 
+### 使用箇所
+
+- [[ref_lumen_scene_gpu_driven_update]] — `GetMeshCardDistanceBin()` でカードの距離バケット分類に使用
+- [[ref_lumen_scene_rendering]] — `WriteWarnings()` でデバッグ情報をビューポートに表示
+- [[ref_lumen_hwrt_materials]] — `SupportsMultipleClosureEvaluation()` で Substrate マルチクロージャ評価を有効化
+
 ---
 
 ## グローバル変数
@@ -165,6 +266,10 @@ enum class ESurfaceCacheSampling {
 extern int32 GLumenFastCameraMode;  // r.LumenScene.FastCameraMode の値
 LLM_DECLARE_TAG(Lumen);             // LLM（Low Level Memory）タグ
 ```
+
+### 使用箇所
+
+- [[ref_lumen_scene]] — `GLumenFastCameraMode` でカメラ高速移動時の品質削減モードを制御
 
 ---
 
