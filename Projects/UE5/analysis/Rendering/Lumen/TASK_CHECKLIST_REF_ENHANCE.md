@@ -60,13 +60,13 @@
 
 ## e: DiffuseGI（7件）
 
-- [ ] `e_DiffuseGI/ref_lumen_diffuse_indirect.md` — RenderLumenDiffuseIndirect(), ShouldRenderLumenDiffuseGI()
-- [ ] `e_DiffuseGI/ref_lumen_screen_probe_gather.md` — Screen Probe 収集パス
-- [ ] `e_DiffuseGI/ref_lumen_screen_probe_tracing.md` — Screen Probe トレースパス
-- [ ] `e_DiffuseGI/ref_lumen_screen_probe_filtering.md` — Screen Probe フィルタリング
-- [ ] `e_DiffuseGI/ref_lumen_screen_probe_importance.md` — Importance Sampling 関数
-- [ ] `e_DiffuseGI/ref_lumen_screen_probe_hwrt.md` — HW RT 版 Screen Probe
-- [ ] `e_DiffuseGI/ref_lumen_short_range_ao.md` — Short Range AO パス
+- [x] `e_DiffuseGI/ref_lumen_diffuse_indirect.md` — RenderLumenDiffuseIndirect(), ShouldRenderLumenDiffuseGI()
+- [x] `e_DiffuseGI/ref_lumen_screen_probe_gather.md` — Screen Probe 収集パス
+- [x] `e_DiffuseGI/ref_lumen_screen_probe_tracing.md` — Screen Probe トレースパス
+- [x] `e_DiffuseGI/ref_lumen_screen_probe_filtering.md` — Screen Probe フィルタリング
+- [x] `e_DiffuseGI/ref_lumen_screen_probe_importance.md` — Importance Sampling 関数
+- [x] `e_DiffuseGI/ref_lumen_screen_probe_hwrt.md` — HW RT 版 Screen Probe
+- [x] `e_DiffuseGI/ref_lumen_short_range_ao.md` — Short Range AO パス
 
 ---
 
@@ -169,4 +169,4 @@ ReturnType FunctionName(
 ---
 
 **合計**: 40ファイル  
-**完了数**: 24 / 40（a グループ完了 2026-04-10、b グループ完了 2026-04-11、c グループ完了 2026-04-11、d グループ完了 2026-04-11）
+**完了数**: 31 / 40（a グループ完了 2026-04-10、b グループ完了 2026-04-11、c グループ完了 2026-04-11、d グループ完了 2026-04-11、e グループ完了 2026-04-11）

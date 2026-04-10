@@ -23,7 +23,7 @@ void TraceScreenProbes(
     const FScene* Scene,
     const FViewInfo& View,
     const FLumenSceneFrameTemporaries& FrameTemporaries,
-    bool bTraceMeshObjects,                // Mesh SDF トレースを行うか
+    bool bTraceMeshObjects,
     const FSceneTextures& SceneTextures,
     FRDGTextureRef LightingChannelsTexture,
     const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
@@ -31,6 +31,95 @@ void TraceScreenProbes(
     FLumenMeshSDFGridParameters& MeshSDFGridParameters,
     ERDGPassFlags ComputePassFlags);
 ```
+
+### パラメータ
+
+| 引数 | 型 | 説明 |
+|------|-----|------|
+| `GraphBuilder` | `FRDGBuilder&` | RDG ビルダー |
+| `Scene` | `const FScene*` | シーン（Global SDF アクセスに使用）|
+| `View` | `const FViewInfo&` | カメラビュー |
+| `FrameTemporaries` | `const FLumenSceneFrameTemporaries&` | Surface Cache アトラス（ヒット時のサンプル先）|
+| `bTraceMeshObjects` | `bool` | Mesh SDF トレースを行うか（`r.Lumen.ScreenProbeGather.TraceMeshSDFs` に対応）|
+| `SceneTextures` | `const FSceneTextures&` | GBuffer / HZB テクスチャ（スクリーントレース用）|
+| `LightingChannelsTexture` | `FRDGTextureRef` | ライティングチャンネルマスク（プリミティブ単位）|
+| `RadianceCacheParameters` | `FRadianceCacheInterpolationParameters` | ミス時に Radiance Cache から補間 |
+| `ScreenProbeParameters` | `FScreenProbeParameters&` | プローブパラメータ（TraceRadiance / TraceHit UAV に書き込み）|
+| `MeshSDFGridParameters` | `FLumenMeshSDFGridParameters&` | フラスタムグリッドカリング結果 |
+| `ComputePassFlags` | `ERDGPassFlags` | AsyncCompute / Compute の選択フラグ |
+
+### 内部処理フロー
+
+1. **重要度サンプリング（IS）パス**
+   ```cpp
+   if (UseImportanceSampling(View)) {
+       // [[ref_lumen_screen_probe_importance]] GenerateImportanceSamplingRays() を呼ぶ
+       // → StructuredImportanceSampledRayInfosForTracing にレイ方向を格納
+   }
+   ```
+
+2. **HZB スクリーントレース**
+   ```cpp
+   // r.Lumen.ScreenProbeGather.ScreenTraces が有効な場合
+   // → 前フレームの Depth / Color バッファを HZB でトレース
+   // → ヒット: PrevSceneColorTexture から Radiance を取得
+   // → TraceRadiance / TraceHit UAV に部分的に書き込み
+   ScreenTraceScreenProbes(GraphBuilder, View, SceneTextures, ScreenProbeParameters, ...);
+   ```
+
+3. **Mesh SDF トレース（bTraceMeshObjects=true の場合）**
+   ```cpp
+   // CompactTraces() でスクリーントレースのミスを集約
+   FCompactedTraceParameters CompactedTraceParameters = LumenScreenProbeGather::CompactTraces(
+       GraphBuilder, View, ScreenProbeParameters,
+       /*bCullByDistance*/ true, CardTraceEndDistanceFromCamera, MaxTraceDistance, ...);
+   // MeshSDFGridParameters から近傍 Mesh SDF オブジェクトをトレース
+   // → ヒット: Surface Cache の FinalLightingAtlas をサンプリング
+   TraceScreenProbesMeshSDFs(GraphBuilder, Scene, View, FrameTemporaries,
+       ScreenProbeParameters, MeshSDFGridParameters, CompactedTraceParameters, ...);
+   ```
+
+4. **Global SDF トレース**
+   ```cpp
+   // さらにミスしたレイを Global SDF（低解像度）でトレース
+   // → ヒット: Surface Cache をサンプリング
+   // → ミス: Radiance Cache または Skylight を使用
+   TraceScreenProbesGlobalSDF(GraphBuilder, Scene, View, FrameTemporaries,
+       ScreenProbeParameters, RadianceCacheParameters, CompactedTraceParameters, ...);
+   ```
+
+### 使用箇所
+
+- [[ref_lumen_screen_probe_gather]] — `RenderLumenScreenProbeGather()` から SW RT パスとして呼ばれる
+- [[ref_lumen_screen_probe_hwrt]] — HW RT が無効または非対応時のフォールバックとして呼ばれる
+
+---
+
+## FCompactedTraceParameters
+
+コンパクト化後のトレースデータバッファ群。  
+`CompactTraces()` が返す構造体で、不要なトレースを除いたリストを格納する。
+
+```cpp
+struct FCompactedTraceParameters {
+    FRDGBufferRef CompactedTraceTexelAllocator; // 有効トレース数カウンタ
+    FRDGBufferRef CompactedTraceTexelData;      // 有効トレースのプローブID・方向インデックス
+    FRDGBufferRef IndirectArgs;                 // Indirect Dispatch Args
+};
+```
+
+### メンバ変数
+
+| 変数名 | 型 | 説明 |
+|--------|-----|------|
+| `CompactedTraceTexelAllocator` | `FRDGBufferRef` | Atomic カウンタ（有効トレースの総数）|
+| `CompactedTraceTexelData` | `FRDGBufferRef` | 各エントリに { ProbeIndex, RayIndex } を格納 |
+| `IndirectArgs` | `FRDGBufferRef` | `CompactedTraceTexelAllocator` から生成した Indirect Dispatch Args |
+
+### 使用箇所
+
+- [[ref_lumen_screen_probe_tracing]] — Mesh SDF / Global SDF トレースの Dispatch に使用
+- [[ref_lumen_screen_probe_hwrt]] — HW RT Dispatch の前にコンパクト化を実行
 
 ---
 
@@ -70,27 +159,10 @@ void TraceScreenProbes(
 
 ---
 
-## FCompactedTraceParameters の役割
-
-```cpp
-// トレースが必要なプローブ・方向を距離でカリングしてコンパクト化
-FCompactedTraceParameters LumenScreenProbeGather::CompactTraces(
-    FRDGBuilder&, const FViewInfo&, const FScreenProbeParameters&,
-    bool bCullByDistanceFromCamera,
-    float CompactionTracingEndDistanceFromCamera, // カメラからの最大距離
-    float CompactionMaxTraceDistance,             // トレースの最大距離
-    bool bCompactForSkyApply,                     // スカイ適用用のコンパクト化か
-    ERDGPassFlags);
-// → CompactedTraceTexelAllocator / CompactedTraceTexelData に書き込み
-// → 遠距離/不要なトレースをスキップして Dispatch 数を削減
-```
-
----
-
 ## HZB Screen Trace の仕組み
 
 ```
-FLumenHZBScreenTraceParameters:
+FLumenHZBScreenTraceParameters（[[ref_lumen_tracing_utils]] 参照）:
   PrevSceneColorTexture  : 前フレームのシーンカラー（時間再投影）
   HistorySceneDepth      : 前フレームの深度バッファ
   HZBParameters          : Hierarchical Z Buffer（ミップチェーン）
@@ -100,4 +172,5 @@ FLumenHZBScreenTraceParameters:
   2. HZB の粗いミップで高速にミス判定 → 細かいミップで精密化
   3. ヒット時: PrevSceneColorTexture から UV でサンプリング
   4. ScreenTraceNoFallbackThicknessScale でハード面の厚みを調整
+     → 値が大きいほど厚いサーフェスとして扱い、裏面ヒットを避ける
 ```
