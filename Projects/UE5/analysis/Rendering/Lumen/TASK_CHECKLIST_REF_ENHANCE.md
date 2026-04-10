@@ -28,12 +28,12 @@
 
 ## b: SceneLighting（6件）
 
-- [ ] `b_SceneLighting/ref_lumen_scene_lighting.md` — RenderLumenSceneLighting() 等
-- [ ] `b_SceneLighting/ref_lumen_scene_card_capture.md` — カードキャプチャパス
-- [ ] `b_SceneLighting/ref_lumen_scene_direct_lighting.md` — 直接光注入パス
-- [ ] `b_SceneLighting/ref_lumen_scene_direct_lighting_hwrt.md` — HW Ray Tracing 版直接光
-- [ ] `b_SceneLighting/ref_lumen_radiosity.md` — Radiosity（間接光伝播）パス
-- [ ] `b_SceneLighting/ref_lumen_scene_rendering.md` — LumenSceneRendering.h の汎用関数
+- [x] `b_SceneLighting/ref_lumen_scene_lighting.md` — RenderLumenSceneLighting() 等
+- [x] `b_SceneLighting/ref_lumen_scene_card_capture.md` — カードキャプチャパス
+- [x] `b_SceneLighting/ref_lumen_scene_direct_lighting.md` — 直接光注入パス
+- [x] `b_SceneLighting/ref_lumen_scene_direct_lighting_hwrt.md` — HW Ray Tracing 版直接光
+- [x] `b_SceneLighting/ref_lumen_radiosity.md` — Radiosity（間接光伝播）パス
+- [x] `b_SceneLighting/ref_lumen_scene_rendering.md` — LumenSceneRendering.h の汎用関数
 
 ---
 
@@ -169,4 +169,4 @@ ReturnType FunctionName(
 ---
 
 **合計**: 40ファイル  
-**完了数**: 7 / 40（a グループ完了 2026-04-10）
+**完了数**: 13 / 40（a グループ完了 2026-04-10、b グループ完了 2026-04-11）
