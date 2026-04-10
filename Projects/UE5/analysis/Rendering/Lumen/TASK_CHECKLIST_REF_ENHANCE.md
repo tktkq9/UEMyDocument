@@ -39,12 +39,12 @@
 
 ## c: Tracing（6件）
 
-- [ ] `c_Tracing/ref_lumen_tracing_utils.md` — FLumenCardTraceParameters, トレースユーティリティ
-- [ ] `c_Tracing/ref_lumen_mesh_sdf_culling.md` — SDF カリング関数
-- [ ] `c_Tracing/ref_lumen_hwrt_common.md` — HW Ray Tracing 共通設定
-- [ ] `c_Tracing/ref_lumen_hwrt_materials.md` — HW Ray Tracing マテリアル処理
-- [ ] `c_Tracing/ref_lumen_heightfields.md` — ハイトフィールドトレース
-- [ ] `c_Tracing/ref_lumen_irradiance_field.md` — Irradiance Field 構造体・関数
+- [x] `c_Tracing/ref_lumen_tracing_utils.md` — FLumenCardTraceParameters, トレースユーティリティ
+- [x] `c_Tracing/ref_lumen_mesh_sdf_culling.md` — SDF カリング関数
+- [x] `c_Tracing/ref_lumen_hwrt_common.md` — HW Ray Tracing 共通設定
+- [x] `c_Tracing/ref_lumen_hwrt_materials.md` — HW Ray Tracing マテリアル処理
+- [x] `c_Tracing/ref_lumen_heightfields.md` — ハイトフィールドトレース
+- [x] `c_Tracing/ref_lumen_irradiance_field.md` — Irradiance Field 構造体・関数
 
 ---
 
@@ -169,4 +169,4 @@ ReturnType FunctionName(
 ---
 
 **合計**: 40ファイル  
-**完了数**: 13 / 40（a グループ完了 2026-04-10、b グループ完了 2026-04-11）
+**完了数**: 19 / 40（a グループ完了 2026-04-10、b グループ完了 2026-04-11、c グループ完了 2026-04-11）

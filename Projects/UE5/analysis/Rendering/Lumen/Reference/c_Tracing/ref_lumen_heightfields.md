@@ -32,6 +32,18 @@ public:
 };
 ```
 
+### メンバ変数
+
+| 変数名 | 型 | 説明 |
+|--------|-----|------|
+| `MeshCardsIndex` | `int32` | `FLumenSceneData::MeshCards` 配列内のインデックス。-1 は無効（未初期化）|
+
+### 使用箇所
+
+- [[ref_lumen_scene_data]] — `FLumenSceneData::Heightfields` 配列に格納される
+- [[ref_lumen_heightfields]] — `FLumenHeightfieldGPUData::FillData()` の引数として渡される
+- [[ref_lumen_mesh_sdf_culling]] — `CullHeightfieldObjectsForView()` でビューカリング対象
+
 ---
 
 ## FLumenHeightfieldGPUData
@@ -41,14 +53,9 @@ Heightfield 1 枚分の GPU バッファデータレイアウト定義。
 
 ```cpp
 struct FLumenHeightfieldGPUData {
-    // LumenCardCommon.ush の LUMEN_HEIGHTFIELD_DATA_STRIDE と一致
-    enum { DataStrideInFloat4s = 3 };              // 1 Heightfield = 3 × float4
-    enum { DataStrideInBytes = 3 * 16 };           // 48 bytes
+    enum { DataStrideInFloat4s = 3 };    // 1 Heightfield = 3 × float4
+    enum { DataStrideInBytes = 3 * 16 }; // 48 bytes
 
-    // FVector4f[3] に以下の順でデータを書き込む:
-    //   [0]     : BoundsCenter.High（DF64 精度, W = MeshCardsIndex（float bit cast））
-    //   [1]     : BoundsCenter.Low（DF64 低精度）
-    //   [2]     : BoundsExtent（ワールド空間 AABB の半サイズ）
     static void FillData(
         const FLumenHeightfield& RESTRICT Heightfield,
         const TSparseSpanArray<FLumenMeshCards>& MeshCards,
@@ -56,39 +63,58 @@ struct FLumenHeightfieldGPUData {
 };
 ```
 
----
+### 定数
 
-## Lumen 名前空間（Heightfield 判定関数）
+| 定数 | 値 | 説明 |
+|------|-----|------|
+| `DataStrideInFloat4s` | 3 | 1 Heightfield あたりの float4 要素数。シェーダーの `LUMEN_HEIGHTFIELD_DATA_STRIDE` と一致 |
+| `DataStrideInBytes` | 48 | バイト換算（3 × 16 bytes）|
+
+### FillData の内部処理フロー
 
 ```cpp
-namespace Lumen {
-    // Voxel Lighting に Heightfield トレースを使うか
-    // 条件: CVar 有効 && シーンに Heightfield が存在
-    bool UseHeightfieldTracingForVoxelLighting(const FLumenSceneData& LumenSceneData);
-
-    // Detail トレース（Screen Probe 等）に Heightfield を使うか
-    // 条件: UseHeightfieldTracingForVoxelLighting() && UseMeshSDFTracing() && LumenDetailTraces
-    bool UseHeightfieldTracing(const FSceneViewFamily& ViewFamily, const FLumenSceneData& LumenSceneData);
-
-    // Heightfield の最大トレースステップ数（1〜256 にクランプ）
-    int32 GetHeightfieldMaxTracingSteps();
-
-    // Heightfield レシーバーバイアス（Landscape LOD ミスマッチ補正）
-    float GetHeightfieldReceiverBias();
-}
+static void FillData(
+    const FLumenHeightfield& RESTRICT Heightfield,
+    const TSparseSpanArray<FLumenMeshCards>& MeshCards,
+    FVector4f* RESTRICT OutData);
 ```
 
----
+**パラメータ**
 
-## 主要 CVar
+| 引数 | 型 | 説明 |
+|------|-----|------|
+| `Heightfield` | `const FLumenHeightfield&` | GPU データを生成する Heightfield |
+| `MeshCards` | `const TSparseSpanArray<FLumenMeshCards>&` | MeshCards 配列（AABB 情報の取得用）|
+| `OutData` | `FVector4f*` | 出力先バッファポインタ（3 × float4 分の書き込み）|
 
-| CVar | デフォルト | 説明 |
-|------|-----------|------|
-| `r.LumenScene.Heightfield.Tracing` | 1 | Heightfield の SW RT 有効/無効 |
-| `r.LumenScene.Heightfield.MaxTracingSteps` | 32 | ハイトマップレイマーチの最大ステップ数 |
-| `r.LumenScene.Heightfield.ReceiverBias` | 0.01 | 受信側バイアス（Landscape の固定 LOD とランタイム CLOD のずれ補正）|
-| `r.LumenScene.Heightfield.CullForView` | 1 | ビューカリングの有効/無効 |
-| `r.LumenScene.Heightfield.FroxelCulling` | 1 | フロクセルカリングの有効/無効 |
+1. **MeshCards から AABB を取得**
+   ```cpp
+   const FLumenMeshCards& LumenMeshCards = MeshCards[Heightfield.MeshCardsIndex];
+   const FBox WorldBounds = LumenMeshCards.GetWorldSpaceBounds();
+   const FVector BoundsCenter = WorldBounds.GetCenter();
+   const FVector BoundsExtent = WorldBounds.GetExtent();
+   ```
+
+2. **DF64 精度での BoundsCenter の分割（浮動小数精度対策）**
+   ```cpp
+   // DF64: 倍精度相当の精度を2つのfloatで実現
+   FVector BoundsCenterHigh = ...; // 上位ビット（粗い値）
+   FVector BoundsCenterLow  = ...; // 下位ビット（補正値）
+   ```
+
+3. **MeshCardsIndex のビットキャスト格納**
+   ```cpp
+   // W 成分に MeshCardsIndex を float ビットキャストして格納
+   // シェーダー側: asuint(Data[0].w) で復元
+   OutData[0] = FVector4f(BoundsCenterHigh.X, BoundsCenterHigh.Y, BoundsCenterHigh.Z,
+                           *(float*)&Heightfield.MeshCardsIndex);
+   OutData[1] = FVector4f(BoundsCenterLow.X,  BoundsCenterLow.Y,  BoundsCenterLow.Z, 0);
+   OutData[2] = FVector4f(BoundsExtent.X,     BoundsExtent.Y,     BoundsExtent.Z,    0);
+   ```
+
+### 使用箇所
+
+- [[ref_lumen_scene_data]] — `UpdateLumenSceneBuffers()` で Heightfield GPU バッファ更新時に呼ばれる
 
 ---
 
@@ -105,6 +131,57 @@ FVector4f[2]: { BoundsExtent.X,      BoundsExtent.Y,      BoundsExtent.Z,      0
 
 ---
 
+## Lumen 名前空間（Heightfield 判定関数）
+
+```cpp
+namespace Lumen {
+    bool UseHeightfieldTracingForVoxelLighting(const FLumenSceneData& LumenSceneData);
+    bool UseHeightfieldTracing(const FSceneViewFamily& ViewFamily, const FLumenSceneData& LumenSceneData);
+    int32 GetHeightfieldMaxTracingSteps();
+    float GetHeightfieldReceiverBias();
+}
+```
+
+| 関数 | 戻り値 | 説明 |
+|------|--------|------|
+| `UseHeightfieldTracingForVoxelLighting()` | `bool` | Voxel Lighting に Heightfield トレースを使うか。条件: CVar 有効 && シーンに Heightfield が存在 |
+| `UseHeightfieldTracing()` | `bool` | Detail トレース（Screen Probe 等）に Heightfield を使うか。追加条件: UseMeshSDFTracing() が有効 |
+| `GetHeightfieldMaxTracingSteps()` | `int32` | CVar `r.LumenScene.Heightfield.MaxTracingSteps` を 1〜256 にクランプして返す |
+| `GetHeightfieldReceiverBias()` | `float` | CVar `r.LumenScene.Heightfield.ReceiverBias` を返す（Landscape LOD ミスマッチ補正）|
+
+### 使用箇所
+
+- [[ref_lumen_tracing_utils]] — `FLumenIndirectTracingParameters::HeightfieldMaxTracingSteps` の初期化に `GetHeightfieldMaxTracingSteps()` を使用
+- [[ref_lumen_mesh_sdf_culling]] — `CullForCardTracing()` 内で `UseHeightfieldTracing()` を確認してカリング分岐
+- [[ref_lumen_screen_probe_tracing]] — Screen Probe トレースパスで `UseHeightfieldTracing()` を判定
+
+> [!note]- UseHeightfieldTracingForVoxelLighting vs UseHeightfieldTracing の違い
+>
+> ```
+> UseHeightfieldTracingForVoxelLighting():
+>   → Voxel Lighting（Global SDF / Radiance Cache）パスで Heightfield を使うかどうか
+>   → 条件: r.LumenScene.Heightfield.Tracing = 1 かつ Scene に Heightfield が 1 枚以上存在
+>
+> UseHeightfieldTracing():
+>   → Screen Probe・Detail Trace など高精度パスで Heightfield を使うかどうか
+>   → 追加条件: UseMeshSDFTracing() が有効（SDF トレースが有効な場合のみ Heightfield も有効）
+>   → 一般的に UseHeightfieldTracingForVoxelLighting() の部分集合
+> ```
+
+---
+
+## 主要 CVar
+
+| CVar | デフォルト | 説明 |
+|------|-----------|------|
+| `r.LumenScene.Heightfield.Tracing` | 1 | Heightfield の SW RT 有効/無効 |
+| `r.LumenScene.Heightfield.MaxTracingSteps` | 32 | ハイトマップレイマーチの最大ステップ数 |
+| `r.LumenScene.Heightfield.ReceiverBias` | 0.01 | 受信側バイアス（Landscape の固定 LOD とランタイム CLOD のずれ補正）|
+| `r.LumenScene.Heightfield.CullForView` | 1 | ビューカリングの有効/無効 |
+| `r.LumenScene.Heightfield.FroxelCulling` | 1 | フロクセルカリングの有効/無効 |
+
+---
+
 ## Heightfield トレーシングの概要
 
 ```
@@ -116,6 +193,7 @@ FVector4f[2]: { BoundsExtent.X,      BoundsExtent.Y,      BoundsExtent.Z,      0
   → ハイトマップテクスチャに対してレイマーチ
   → MaxTracingSteps 回ステップしてヒット判定
   → Mesh SDF と異なり、距離フィールドを持たないため精度に限界あり
+  → ステップ数が少ないと薄い Landscape 地形を貫通することがある
 
 [HW RT 使用時]
   → Landscape は RT BLAS を持つため、HW RT でも正確なトレースが可能
