@@ -21,53 +21,86 @@
 
 ```cpp
 namespace RayTracedTranslucency {
-    // Ray Traced Translucency が有効かどうか
     bool IsEnabled(const FViewInfo& View);
-
-    // 不透明フラグ強制を使うか（デバッグ・負荷削減用）
     bool UseForceOpaque();
-
-    // 屈折（Refraction）に RT を使うか
     bool UseRayTracedRefraction(const TArray<FViewInfo>& Views);
-
-    // 透明マテリアルの反射内で RT Translucency を許可するか
-    // （反射→透明→反射 の多重ネストを許可するか）
     bool AllowTranslucentReflectionInReflections();
 }
 ```
+
+### 有効化判定関数一覧
+
+| 関数名 | 戻り値 | 説明 |
+|--------|--------|------|
+| `IsEnabled(View)` | `bool` | `r.RayTracing.Translucency` が有効かつ HW RT サポートがある場合 `true` |
+| `UseForceOpaque()` | `bool` | `r.RayTracing.Translucency.ForceOpaque = 1` のとき `true`（全透明をOpaque扱い）|
+| `UseRayTracedRefraction(Views)` | `bool` | `r.RayTracing.Translucency.Refraction = 1` かつビューが HW RT を要求する場合 `true` |
+| `AllowTranslucentReflectionInReflections()` | `bool` | 反射レイ内での透明ネスト（反射→透明→反射）を許可するか |
+
+### 使用箇所
+
+- [[ref_ray_traced_translucency]] — `RenderHardwareRayTracingTranslucency()` がトレース開始前に `IsEnabled()` で有効化確認
+- [[ref_lumen_reflection_hwrt]] — `AllowTranslucentReflectionInReflections()` で反射パス内に透明ネストを許可するか判定
+
+---
 
 ### 品質制御関数
 
 ```cpp
 namespace RayTracedTranslucency {
-    // パススルー輝度の閾値（これ以下のレイは追跡を打ち切る）
-    float GetPathThroughputThreshold();
-
-    // 解像度ダウンサンプル係数
-    uint32 GetDownsampleFactor(const TArray<FViewInfo>& Views);
-
-    // 一次ヒットイベントの最大数（透明レイヤーを何枚まで通過するか）
-    uint32 GetMaxPrimaryHitEvents(const FViewInfo& View);
-
-    // 二次ヒットイベントの最大数（反射・屈折後の追加ヒット）
-    uint32 GetMaxSecondaryHitEvents(const FViewInfo& View);
+    float    GetPathThroughputThreshold();
+    uint32   GetDownsampleFactor(const TArray<FViewInfo>& Views);
+    uint32   GetMaxPrimaryHitEvents(const FViewInfo& View);
+    uint32   GetMaxSecondaryHitEvents(const FViewInfo& View);
 }
 ```
 
+### 品質制御関数一覧
+
+| 関数名 | 戻り値 | 説明 |
+|--------|--------|------|
+| `GetPathThroughputThreshold()` | `float` | パス打ち切り輝度閾値。累積透過率がこれ以下になったらレイ追跡を終了（デフォルト: 0.01 = 1%）|
+| `GetDownsampleFactor(Views)` | `uint32` | 解像度ダウンサンプル係数。`r.RayTracing.Translucency.DownsampleFactor`（デフォルト: 1）|
+| `GetMaxPrimaryHitEvents(View)` | `uint32` | 一次ヒットの最大数（透明レイヤーを何枚まで通過するか）。`r.RayTracing.Translucency.MaxPrimaryHitCount`（デフォルト: 8）|
+| `GetMaxSecondaryHitEvents(View)` | `uint32` | 二次ヒットの最大数（反射・屈折後の追加ヒット）。`r.RayTracing.Translucency.MaxSecondaryHitCount`（デフォルト: 2）|
+
+### 使用箇所
+
+- [[ref_ray_traced_translucency]] — `RenderHardwareRayTracingTranslucency()` がシェーダーパラメータ設定時に全品質関数を参照
+- [[ref_lumen_reflection_hwrt]] — マルチバウンス反射で `GetMaxSecondaryHitEvents()` を透明ヒット後の二次レイ本数上限として参照
+
 ---
 
-## 主要関数（extern 宣言）
+## TraceTranslucency
 
 ```cpp
-// SW パス（スクリーンスペース + SDF）での透明トレース
 extern void TraceTranslucency(
     FRDGBuilder& GraphBuilder,
     const FScene* Scene,
     const FViewInfo& View,
     const FSceneTextures& SceneTextures,
     ...);
+```
 
-// HW RT パスでの透明トレース
+### パラメータ
+
+| 引数 | 型 | 説明 |
+|------|-----|------|
+| `GraphBuilder` | `FRDGBuilder&` | RDG ビルダー |
+| `Scene` | `const FScene*` | シーン（SDF / TLAS アクセス）|
+| `View` | `const FViewInfo&` | カメラビュー |
+| `SceneTextures` | `const FSceneTextures&` | HZB・GBuffer テクスチャ群 |
+| `...` | — | 実装ファイル側で拡張（TracingParameters 等）|
+
+### 使用箇所
+
+- SW パス（スクリーンスペース + SDF）での透明トレース。`RayTracedTranslucency::IsEnabled()` が `false` の場合のフォールバック
+
+---
+
+## RenderHardwareRayTracingTranslucency
+
+```cpp
 extern void RenderHardwareRayTracingTranslucency(
     FRDGBuilder& GraphBuilder,
     const FScene* Scene,
@@ -77,6 +110,67 @@ extern void RenderHardwareRayTracingTranslucency(
     ERDGPassFlags ComputePassFlags,
     ...);
 ```
+
+### パラメータ
+
+| 引数 | 型 | 説明 |
+|------|-----|------|
+| `GraphBuilder` | `FRDGBuilder&` | RDG ビルダー |
+| `Scene` | `const FScene*` | シーン（TLAS / Far Field TLAS アクセス）|
+| `View` | `const FViewInfo&` | カメラビュー |
+| `SceneTextures` | `const FSceneTextures&` | SceneColor 等の書き込み先テクスチャ |
+| `TracingParameters` | `const FLumenCardTracingParameters&` | Surface Cache アトラス・トレース共通パラメータ |
+| `ComputePassFlags` | `ERDGPassFlags` | AsyncCompute / Compute の選択フラグ |
+| `...` | — | DownsampleFactor / MaxPrimaryHitEvents 等の品質パラメータ |
+
+### 使用箇所
+
+- [[ref_ray_traced_translucency]] — `RayTracedTranslucency::IsEnabled()` が `true` の場合に呼ばれる HW RT メインパス
+
+### 内部処理フロー
+
+1. **品質パラメータの取得**
+   ```cpp
+   uint32 MaxPrimary = GetMaxPrimaryHitEvents(View);
+   uint32 MaxSecondary = GetMaxSecondaryHitEvents(View);
+   float  ThroughputThreshold = GetPathThroughputThreshold();
+   ```
+
+2. **一次レイ発射**
+   ```cpp
+   // 透明オブジェクトのサーフェスにヒットするまでトレース
+   // MaxPrimaryHitEvents 回まで透明面を通過
+   DispatchTranslucencyRayGen(GraphBuilder, MaxPrimary, ...);
+   ```
+
+3. **屈折計算**
+   ```cpp
+   if (UseRayTracedRefraction(Views)) {
+       // ヒット点の法線・IOR から屈折ベクトルを計算して方向変更
+       ComputeRefractionDirection(HitNormal, IOR, ...);
+   }
+   ```
+
+4. **透明面の反射**
+   ```cpp
+   // 各透明ヒット点で反射レイを発射（MaxSecondaryHitEvents 回）
+   // Surface Cache または Hit Lighting でラジアンスを取得
+   for (int i = 0; i < MaxSecondary; ++i) {
+       DispatchSecondaryReflectionRay(GraphBuilder, ...);
+   }
+   ```
+
+5. **パススルー制御**
+   ```cpp
+   // Throughput（累積透過率）が閾値を下回ったらレイ打ち切り
+   if (Throughput < ThroughputThreshold) { break; }
+   ```
+
+6. **最終合成**
+   ```cpp
+   // 最終カラーを SceneColor に加算合成
+   CompositeTranslucencyToSceneColor(GraphBuilder, SceneTextures, ...);
+   ```
 
 ---
 
@@ -96,6 +190,9 @@ extern void RenderHardwareRayTracingTranslucency(
 
 ```
 RenderHardwareRayTracingTranslucency()
+  │
+  ├─ [品質パラメータ取得]
+  │   GetMaxPrimaryHitEvents() / GetMaxSecondaryHitEvents() / GetPathThroughputThreshold()
   │
   ├─ [一次レイ発射]
   │   透明オブジェクトのサーフェスにヒットするまでトレース

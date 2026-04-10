@@ -15,10 +15,9 @@ Lumen Reflections の **SW（Software）RT トレース実装**ファイル。
 
 ---
 
-## 主要エントリポイント
+## TraceReflections（エントリポイント）
 
 ```cpp
-// 反射レイのトレース全体パス
 void TraceReflections(
     FRDGBuilder& GraphBuilder,
     const FScene* Scene,
@@ -31,9 +30,148 @@ void TraceReflections(
     ERDGPassFlags ComputePassFlags);
 ```
 
+### パラメータ
+
+| 引数 | 型 | 説明 |
+|------|-----|------|
+| `GraphBuilder` | `FRDGBuilder&` | RDG ビルダー |
+| `Scene` | `const FScene*` | シーン（Global SDF / Far Field アクセス）|
+| `View` | `const FViewInfo&` | カメラビュー |
+| `TracingParameters` | `const FLumenCardTracingParameters&` | Surface Cache アトラス・トレース共通パラメータ |
+| `ReflectionTracingParameters` | `const FLumenReflectionTracingParameters&` | 反射固有トレースパラメータ（RayBuffer, TraceRadiance UAV 等）|
+| `ReflectionTileParameters` | `const FLumenReflectionTileParameters&` | タイル分類・Indirect Args |
+| `RadianceCacheParameters` | `FRadianceCacheInterpolationParameters` | ミス時のフォールバック照明 |
+| `bUseRadianceCache` | `bool` | Radiance Cache フォールバックを使うか |
+| `ComputePassFlags` | `ERDGPassFlags` | AsyncCompute / Compute の選択フラグ |
+
+### 内部処理フロー
+
+1. **レイバッファ生成**
+   ```cpp
+   // GBuffer の法線・Roughness から GGX 重み付き反射レイ方向を生成
+   // UseJitter = true の場合 BlueNoise でジッターを加える
+   GenerateReflectionRaysCS(GraphBuilder, View, ReflectionTracingParameters, ...);
+   // → RayBuffer: Texture2D<float4>（xyz=方向, w=GGX PDF）
+   // → DownsampledDepth / DownsampledClosureIndex も同時生成
+   ```
+
+2. **タイル分類**
+   ```cpp
+   // タイルごとにトレースが必要かを分類
+   ClassifyReflectionTilesCS(GraphBuilder, ReflectionTracingParameters, ReflectionTileParameters, ...);
+   // → LumenTileBitmask に分類を書き込み
+   // → ClearIndirectArgs / ResolveIndirectArgs / TracingIndirectArgs を生成
+   ```
+
+3. **HZB スクリーンスペーストレース**
+   ```cpp
+   if (LumenReflections::UseScreenTraces(View)) {
+       TraceReflectionScreenTexturesCS(GraphBuilder, View, ReflectionTracingParameters, ...);
+       // → HZBを階層的に下降しながら反射先を探索
+       // → ヒット: TraceHit テクスチャに距離を書き込み
+   }
+   ```
+
+4. **Mesh SDF トレース**
+   ```cpp
+   if (r.Lumen.Reflections.TraceMeshSDFs && bTraceMeshObjects) {
+       FCompactedReflectionTraceParameters Compacted = LumenReflections::CompactTraces(
+           GraphBuilder, View, TracingParameters, ReflectionTracingParameters,
+           ReflectionTileParameters, true, CardTraceEndDistance, MaxTraceDistance,
+           ComputePassFlags, ETraceCompactionMode::Default, false);
+       TraceReflectionMeshSDFsCS(GraphBuilder, Compacted, ...);
+   }
+   ```
+
+5. **Global SDF トレース**
+   ```cpp
+   // さらにミスしたレイを粗い Global SDF でカバー
+   TraceReflectionGlobalSDFCS(GraphBuilder, Scene, View, TracingParameters,
+       ReflectionTracingParameters, ReflectionTileParameters, ...);
+   ```
+
+6. **Far Field トレース（オプション）**
+   ```cpp
+   if (LumenReflections::UseFarField(ViewFamily)) {
+       FCompactedReflectionTraceParameters FarFieldCompacted = LumenReflections::CompactTraces(
+           ..., ETraceCompactionMode::FarField, false);
+       TraceReflectionFarFieldCS(GraphBuilder, FarFieldCompacted, ...);
+   }
+   ```
+
+7. **Radiance Cache フォールバック**
+   ```cpp
+   if (bUseRadianceCache) {
+       // 粗面（高 Roughness）のミスレイを Radiance Cache で補間
+       // MinRoughness〜MaxRoughness でブレンド
+       ApplyRadianceCacheToReflections(GraphBuilder, RadianceCacheParameters, ...);
+   }
+   ```
+
+8. **Resolve + テンポラル蓄積**
+   ```cpp
+   // FReflectionResolveCS: ダウンサンプル結果を元解像度に復元
+   ResolveReflectionsCS(GraphBuilder, ReflectionTracingParameters, ...);
+   // FReflectionTemporalCS: 前フレームとブレンド（MaxFramesAccumulated=12）
+   if (r.Lumen.Reflections.Temporal) {
+       ReflectionTemporalCS(GraphBuilder, ...);
+   }
+   ```
+
+### 使用箇所
+
+- [[ref_lumen_reflections]] — `r.Lumen.HardwareRayTracing = 0` の場合に `RenderLumenReflections()` から呼ばれる
+
 ---
 
-## トレースパイプライン
+## GenerateReflectionRays
+
+```cpp
+// レイバッファ生成 Compute Shader
+class FReflectionGenerateRaysCS : public FGlobalShader {
+    // 各ピクセルの GBuffer.Normal / Roughness から
+    // GGX 重み付き反射レイ方向 (RayBuffer) を生成
+    // UseJitter = true の場合 Blue Noise でジッターを加える
+    // DownsampledDepth / DownsampledClosureIndex も同時に生成
+};
+```
+
+### 使用箇所
+
+- [[ref_lumen_reflection_tracing]] — `TraceReflections()` ステップ1で呼ばれる
+- [[ref_lumen_reflection_hwrt]] — HW RT パスでも同じ `FReflectionGenerateRaysCS` を使用
+
+---
+
+## FReflectionTemporalCS / FReflectionResolveCS
+
+> [!note]- FReflectionTemporalCS — テンポラル蓄積シェーダー
+>
+> ```cpp
+> class FReflectionTemporalCS : public FGlobalShader { ... };
+> ```
+>
+> 前フレームの `ReflectionHistory` と現フレームの `TraceRadiance` をブレンド。  
+> `MaxFramesAccumulated = 12.0f`（`r.Lumen.Reflections.Temporal.MaxFramesAccumulated`）。  
+> 動き検出によりゴースティングを抑制。
+>
+> **使用箇所**: [[ref_lumen_reflection_tracing]] — `TraceReflections()` の最終ステップ（テンポラル有効時）
+
+> [!note]- FReflectionResolveCS — 解像度復元シェーダー
+>
+> ```cpp
+> class FReflectionResolveCS : public FGlobalShader { ... };
+> ```
+>
+> ダウンサンプル済みトレース結果を元の解像度に復元する。  
+> `ReflectionTracingViewMin / ViewSize` を使ってビューポートにマッピング。  
+> `DownsampleFactor > 1` の場合は隣接ピクセルの補間も行う。
+>
+> **使用箇所**: [[ref_lumen_reflection_tracing]] — テンポラル蓄積の前にResolveを実行
+
+---
+
+## トレースパイプライン全体
 
 ```
 TraceReflections()
@@ -45,96 +183,29 @@ TraceReflections()
   ├─ [タイル分類]
   │   ClassifyReflectionTiles()
   │   ├─ LumenTileBitmask (Texture2DArray) にカテゴリを書き込み
-  │   └─ IndirectArgs (ClearIndirect / ResolveIndirect / TracingIndirect) を生成
+  │   └─ IndirectArgs (Clear / Resolve / Tracing) を生成
   │
   ├─ [HZB スクリーンスペーストレース]
-  │   UseScreenTraces() = true の場合:
-  │   TraceReflectionScreenTextures()
-  │   → HZBを階層的に下降しながら反射先を探索
-  │   → ヒット: TraceHit テクスチャに距離を書き込み
-  │   → ミス: 次段(Mesh SDF)へ
+  │   UseScreenTraces() = true の場合
+  │   → HZB 階層を下降しながら反射先を探索
   │
   ├─ [Mesh SDF トレース]
-  │   r.Lumen.Reflections.TraceMeshSDFs = 1 の場合:
-  │   TraceReflectionMeshSDFs()
-  │   → コンパクト化（CompactTraces）してから Indirect Dispatch
-  │   → 個別 Mesh の Signed Distance Field でトレース
+  │   r.Lumen.Reflections.TraceMeshSDFs = 1 の場合
+  │   → CompactTraces(Default) → Indirect Dispatch
   │
   ├─ [Global SDF トレース]
-  │   TraceReflectionGlobalSDF()
   │   → 粗い Global SDF（ボクセルベース）で長距離をカバー
   │
   ├─ [Far Field トレース]
-  │   UseFarField() = true かつ未解決ピクセルが残る場合:
-  │   TraceReflectionFarField()
+  │   UseFarField() = true かつ未解決ピクセルが残る場合
+  │   → CompactTraces(FarField) → Far Field TLAS でトレース
   │
   ├─ [Radiance Cache フォールバック]
-  │   UseRadianceCache() = true の場合:
+  │   UseRadianceCache() = true の場合
   │   → 粗面（高 Roughness）のレイを Radiance Cache で補間
-  │   → MinRoughness〜MaxRoughness でブレンド
   │
-  └─ [結果書き込み]
-      TraceRadiance / TraceHit テクスチャを更新
-      → ResolveReflections() で解像度復元・テンポラル合成
-```
-
----
-
-## GenerateReflectionRays
-
-```cpp
-// レイバッファ生成シェーダー（Compute Shader）
-class FReflectionGenerateRaysCS : public FGlobalShader {
-    // 各ピクセルの GBuffer 法線・Roughness から
-    // GGX 重み付き反射レイ方向 (RayBuffer) を生成
-    // UseJitter = true の場合 Blue Noise でジッターを加える
-    // DownsampledDepth / DownsampledClosureIndex も同時に生成
-};
-```
-
----
-
-## CompactTraces との連携
-
-```cpp
-// Mesh SDF トレース前のコンパクト化
-FCompactedReflectionTraceParameters CompactedTraceParams =
-    LumenReflections::CompactTraces(
-        GraphBuilder, View,
-        TracingParameters,
-        ReflectionTracingParameters,
-        ReflectionTileParameters,
-        bCullByDistanceFromCamera,
-        CompactionTracingEndDistance,
-        CompactionMaxTraceDistance,
-        ComputePassFlags,
-        ETraceCompactionMode::Default,  // 通常トレース
-        bSortByMaterial);               // マテリアル別ソート（HitLighting時）
-```
-
----
-
-## テンポラル蓄積
-
-```cpp
-// テンポラル蓄積パス（r.Lumen.Reflections.Temporal = 1 の場合）
-class FReflectionTemporalCS : public FGlobalShader {
-    // 前フレームの ReflectionHistory と現フレームの TraceRadiance をブレンド
-    // MaxFramesAccumulated = 12.0f
-    // 動き検出によりゴースティングを抑制
-};
-```
-
----
-
-## ResolveReflections
-
-```cpp
-// ダウンサンプル済みトレース結果を元の解像度に復元
-class FReflectionResolveCS : public FGlobalShader {
-    // ReflectionTracingViewMin / ViewSize を使ってビューポートにマッピング
-    // DownsampleFactor > 1 の場合は隣接ピクセルの補間も行う
-};
+  └─ [Resolve + テンポラル蓄積]
+      FReflectionResolveCS → FReflectionTemporalCS
 ```
 
 ---
@@ -157,5 +228,6 @@ class FReflectionResolveCS : public FGlobalShader {
 
 ```
 r.Lumen.HardwareRayTracing = 0 → TraceReflections()（このファイル）が使われる
-r.Lumen.HardwareRayTracing = 1 → RenderLumenHardwareRayTracingReflections()（LumenReflectionHardwareRayTracing.cpp）
+r.Lumen.HardwareRayTracing = 1 → RenderLumenHardwareRayTracingReflections()
+                                  （LumenReflectionHardwareRayTracing.cpp）
 ```

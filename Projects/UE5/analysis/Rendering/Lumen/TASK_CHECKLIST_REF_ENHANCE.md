@@ -72,12 +72,12 @@
 
 ## f: Reflections（6件）
 
-- [ ] `f_Reflections/ref_lumen_reflections.md` — RenderLumenReflections(), ShouldRenderLumenReflections()
-- [ ] `f_Reflections/ref_lumen_reflection_tracing.md` — 反射トレースパス
-- [ ] `f_Reflections/ref_lumen_reflection_hwrt.md` — HW RT 版反射
-- [ ] `f_Reflections/ref_lumen_restir.md` — ReSTIR GI 関数群
-- [ ] `f_Reflections/ref_lumen_front_layer.md` — Front Layer Translucency
-- [ ] `f_Reflections/ref_ray_traced_translucency.md` — Ray Traced Translucency
+- [x] `f_Reflections/ref_lumen_reflections.md` — RenderLumenReflections(), ShouldRenderLumenReflections()
+- [x] `f_Reflections/ref_lumen_reflection_tracing.md` — 反射トレースパス
+- [x] `f_Reflections/ref_lumen_reflection_hwrt.md` — HW RT 版反射
+- [x] `f_Reflections/ref_lumen_restir.md` — ReSTIR GI 関数群
+- [x] `f_Reflections/ref_lumen_front_layer.md` — Front Layer Translucency
+- [x] `f_Reflections/ref_ray_traced_translucency.md` — Ray Traced Translucency
 
 ---
 
@@ -169,4 +169,4 @@ ReturnType FunctionName(
 ---
 
 **合計**: 40ファイル  
-**完了数**: 31 / 40（a グループ完了 2026-04-10、b グループ完了 2026-04-11、c グループ完了 2026-04-11、d グループ完了 2026-04-11、e グループ完了 2026-04-11）
+**完了数**: 37 / 40（a グループ完了 2026-04-10、b グループ完了 2026-04-11、c グループ完了 2026-04-11、d グループ完了 2026-04-11、e グループ完了 2026-04-11、f グループ完了 2026-04-11）
