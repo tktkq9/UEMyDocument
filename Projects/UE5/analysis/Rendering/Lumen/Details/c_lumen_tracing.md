@@ -234,6 +234,129 @@ r.Lumen.GlobalSDF.Resolution
 
 ---
 
+## コード実行フロー
+
+トレース処理は「**呼び出し元**（Screen Probe Gather / Reflections）」から呼ばれる。  
+SW RT と HW RT で入口が異なるが、コンパクト化 → Dispatch の構造は共通。
+
+### SW RT パス（反射を例に）
+
+```
+TraceReflections()                             (LumenReflectionTracing.cpp:1109)
+  │
+  ├─ [トレース初期化]
+  │   FReflectionClearTracesCS        ← TraceHit バッファをクリア
+  │   GetLumenCardTracingParameters() ← FLumenCardTracingParameters を構築
+  │
+  ├─ [HZB スクリーントレース]
+  │   if (LumenReflections::UseScreenTraces(View))
+  │     FReflectionTraceScreenTexturesCS  ← HZB 階層をたどって反射先を検索
+  │
+  ├─ [Mesh SDF トレース]
+  │   if (r.Lumen.Reflections.TraceMeshSDFs)
+  │     LumenReflections::CompactTraces(ETraceCompactionMode::Default)
+  │       └─ FReflectionCompactTracesCS   ← ミスしたレイを圧縮
+  │     FReflectionTraceMeshSDFsCS        ← Mesh SDF でトレース
+  │
+  ├─ [Global SDF トレース]
+  │   FReflectionTraceVoxelVisibilityCS  ← Global SDF（Voxel）でトレース
+  │
+  ├─ [Far Field トレース]
+  │   if (LumenReflections::UseFarField(ViewFamily))
+  │     LumenReflections::CompactTraces(ETraceCompactionMode::FarField)
+  │     FReflectionTraceFarFieldCS
+  │
+  ├─ [Radiance Cache フォールバック]
+  │   if (bUseRadianceCache)
+  │     ApplyRadianceCacheToReflections()
+  │
+  └─ [Resolve + テンポラル蓄積]
+      FReflectionResolveCS
+      FReflectionTemporalCS  (r.Lumen.Reflections.Temporal = 1 の場合)
+```
+
+### HW RT パス（反射を例に）
+
+```
+RenderLumenHardwareRayTracingReflections()     (LumenReflectionHardwareRayTracing.cpp)
+  │
+  ├─ [HZB スクリーントレース]（SW RT と共通）
+  │
+  ├─ [Near Field コンパクト化]
+  │   LumenReflections::CompactTraces(Default, bSortByMaterial)
+  │
+  ├─ [HW RT Dispatch]
+  │   if (UseHardwareInlineRayTracing())
+  │     FLumenReflectionHardwareRayTracingCS   ← Inline RT (DXR 1.1)
+  │   else
+  │     FLumenReflectionHardwareRayTracingRGS  ← RayGen Shader (DXR 1.0)
+  │
+  ├─ [Hit Lighting パス]（UseHitLighting() = true の場合）
+  │   CompactTraces(ETraceCompactionMode::HitLighting)
+  │   EvaluateHitLighting()    ← フルマテリアル + 全光源 Direct Lighting
+  │
+  ├─ [Far Field トレース]（オプション）
+  │
+  └─ [Radiance Cache フォールバック]
+```
+
+### フロー詳細
+
+1. **GetLumenCardTracingParameters** — Surface Cache へのアクセス構造体を構築（`LumenTracingUtils.cpp`）
+   ```cpp
+   GetLumenCardTracingParameters(GraphBuilder, View, LumenSceneData,
+       FrameTemporaries, bSurfaceCacheFeedback, TracingParameters);
+   ```
+   - `FinalLightingAtlas` / `AlbedoAtlas` / ページテーブルを `FLumenCardTracingParameters` に設定
+   - 参照: [[ref_lumen_tracing_utils]]
+
+2. **CompactTraces** — ミスしたレイを Indirect Dispatch 用に圧縮（`LumenReflectionTracing.cpp`）
+   ```cpp
+   FCompactedReflectionTraceParameters Compacted = LumenReflections::CompactTraces(
+       GraphBuilder, View, TracingParameters, ReflectionTracingParameters,
+       ReflectionTileParameters, bCullByDistanceFromCamera,
+       CardTraceEndDistance, MaxTraceDistance,
+       ComputePassFlags, ETraceCompactionMode::Default, bSortByMaterial);
+   ```
+   - `FReflectionCompactTracesCS` で未解決レイを圧縮して `CompactedTraceTexelAllocator` に書き込む
+   - 参照: [[ref_lumen_reflection_tracing]]
+
+3. **SW RT（Mesh SDF → Global SDF）**
+   ```cpp
+   // Mesh SDF: 近距離の高精度トレース
+   FReflectionTraceMeshSDFsCS → TraceHit に書き込み
+   // Global SDF: Mesh SDF ミス後の粗いカバー
+   FReflectionTraceVoxelVisibilityCS → TraceHit に追記
+   ```
+   - 参照: [[ref_lumen_mesh_sdf_culling]] | [[ref_lumen_tracing_utils]]
+
+4. **HW RT（Inline / RGS の選択）**
+   ```cpp
+   if (Lumen::UseHardwareInlineRayTracing(ViewFamily)) {
+       // DXR 1.1 Inline RT: Compute Shader 内で TraceRayInline()
+       FLumenReflectionHardwareRayTracingCS
+   } else {
+       // DXR 1.0 RayGen Shader
+       FLumenReflectionHardwareRayTracingRGS
+   }
+   ```
+   - 参照: [[ref_lumen_reflection_hwrt]] | [[ref_lumen_hwrt_common]]
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|------------|--------|------|
+| `FLumenCardTracingParameters` | `LumenTracingUtils.h` | Surface Cache バインディング一式 |
+| `FCompactedReflectionTraceParameters` | `LumenReflectionTracing.h` | コンパクト化済みレイバッファ |
+| `ETraceCompactionMode` | `LumenReflectionTracing.h` | Default / FarField / HitLighting の区分 |
+| `LumenReflections::CompactTraces()` | `LumenReflectionTracing.cpp` | ミスレイの圧縮とソート |
+| `FReflectionCompactTracesCS` | `LumenReflectionTracing.cpp` | コンパクト化 Compute Shader |
+| `FReflectionTraceMeshSDFsCS` | `LumenReflectionTracing.cpp` | Mesh SDF トレース CS |
+| `FLumenReflectionHardwareRayTracingCS` | `LumenReflectionHWRT.cpp` | Inline RT バリアント |
+| `FLumenReflectionHardwareRayTracingRGS` | `LumenReflectionHWRT.cpp` | RayGen バリアント |
+
+---
+
 ## 関連ソースファイル
 
 | ファイル | 役割 |

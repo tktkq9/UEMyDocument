@@ -212,25 +212,128 @@ r.Lumen.RadianceCache.FarField.Enable = 1
 
 ---
 
+## コード実行フロー
+
+### エントリポイント
+
+Radiance Cache の更新は Screen Probe Gather から呼ばれる。
+
+```
+RenderLumenScreenProbeGather()  (LumenScreenProbeGather.cpp:2525)
+  │
+  └─ UpdateRadianceCaches(GraphBuilder, Views, FrameTemporaries,
+                          ScreenProbeParameters, ...)
+       │                         (LumenRadianceCache.cpp:1215)
+       │
+       ├─ [各 FUpdateInputs に対して]
+       │   UpdateRadianceCacheState()         ← クリップマップリサイズ・スクロール判定
+       │
+       ├─ ClearProbeIndirectionCS             ← インダイレクション 3D テクスチャをクリア
+       │
+       ├─ GraphicsMarkUsedRadianceCacheProbes.Broadcast()  ← 使用中 Probe をマーク
+       │   ComputeMarkUsedRadianceCacheProbes.Broadcast()  ← （デリゲート呼び出し）
+       │
+       ├─ ProbeFreeList 割り当て / 古い Probe の解放
+       │
+       ├─ SetupTraceFromProbesCS              ← 間接ディスパッチ引数をセットアップ
+       │
+       ├─ [r.LumenScene.RadianceCache.SortTraceTiles = 1 時]
+       │   SortProbeTraceTilesCS              ← マテリアルソートで干渉低減
+       │
+       ├─ [SW RT 時]
+       │   FRadianceCacheTraceFromProbesCS    ← Global SDF でトレース
+       │
+       │   [HW RT 時]
+       │   RenderLumenHardwareRayTracingRadianceCache()
+       │     (LumenRadianceCacheHardwareRayTracing.cpp)
+       │
+       ├─ FilterProbeRadianceWithGatherCS     ← 空間フィルタ（Probe 間平滑化）
+       │
+       └─ IntegrateProbeCS                    ← FinalRadianceAtlas / FinalIrradianceAtlas に統合
+```
+
+### フロー詳細
+
+1. **UpdateRadianceCacheState** — クリップマップのリサイズとスクロールオフセット計算（`LumenRadianceCache.cpp`）
+   ```cpp
+   UpdateRadianceCacheState(GraphBuilder, View, FrameTemporaries,
+       Inputs[CacheIndex], RadianceCacheState);
+   ```
+   - クリップマップ数・解像度の変更を検出してバッファを再確保
+   - カメラ移動量から `VolumeUVOffset`（スクロールオフセット）を算出
+   - 参照: [[ref_lumen_radiance_cache]]
+
+2. **Mark Used Probes** — トレース・サンプリングするプローブを特定（`LumenRadianceCache.cpp`）
+   ```cpp
+   // デリゲート経由で各システムが使用プローブをマーク
+   Inputs[CacheIndex].GraphicsMarkUsedRadianceCacheProbes.Broadcast(
+       GraphBuilder, View, RadianceCacheMarkParameters);
+   Inputs[CacheIndex].ComputeMarkUsedRadianceCacheProbes.Broadcast(
+       GraphBuilder, View, RadianceCacheMarkParameters);
+   ```
+   - Screen Probe Gather・Reflections などが `RWRadianceProbeIndirectionTexture` にビットを立てる
+   - 参照: [[ref_lumen_radiance_cache]]
+
+3. **SetupTraceFromProbesCS + トレース** — Probe ごとに方向サンプルを射出（`LumenRadianceCache.cpp`）
+   ```cpp
+   // SW RT
+   FRadianceCacheTraceFromProbesCS::FParameters* PassParameters = ...;
+   // HW RT
+   if (Lumen::UseHardwareRayTracedRadianceCache(...))
+       RenderLumenHardwareRayTracingRadianceCache(
+           GraphBuilder, FrameTemporaries, SceneTextures,
+           View, RadianceCacheState, Inputs[CacheIndex], ...);
+   ```
+   - SW RT: Global SDF を使ったスフィアトレース
+   - HW RT: DXR / Vulkan RT で精度向上、`LumenRadianceCacheHardwareRayTracing.cpp` が担当
+   - 参照: [[ref_lumen_radiance_cache]] | [[ref_lumen_radiance_cache_hwrt]]
+
+4. **FilterProbeRadianceWithGatherCS → IntegrateProbeCS** — フィルタ後に最終アトラスに書き込み（`LumenRadianceCache.cpp`）
+   ```cpp
+   // 空間フィルタ: 隣接 Probe と平滑化
+   FFilterProbeRadianceWithGatherCS::FParameters* FilterParams = ...;
+
+   // 積分: FinalRadianceAtlas / FinalIrradianceAtlas へ出力
+   FIntegrateProbeCS::FParameters* IntegrateParams = ...;
+   ```
+   - `FinalRadianceAtlas`: 方向別放射輝度（Screen Probe / Reflections がサンプリング）
+   - `FinalIrradianceAtlas`: 全方向積分済み放射照度
+   - 参照: [[ref_lumen_radiance_cache]] | [[ref_lumen_radiance_cache_internal]]
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|------------|--------|------|
+| `UpdateRadianceCaches()` | `LumenRadianceCache.cpp` | Radiance Cache 更新のトップレベルエントリ |
+| `UpdateRadianceCacheState()` | `LumenRadianceCache.cpp` | クリップマップリサイズ・スクロール計算 |
+| `FRadianceCacheMarkParameters` | `LumenRadianceCache.h` | Probe マーク用シェーダーパラメータ |
+| `FMarkUsedRadianceCacheProbes` | `LumenRadianceCache.h` | 使用プローブ通知デリゲート |
+| `FRadianceCacheTraceFromProbesCS` | `LumenRadianceCache.cpp` | SW RT トレースコンピュートシェーダー |
+| `RenderLumenHardwareRayTracingRadianceCache()` | `LumenRadianceCacheHardwareRayTracing.cpp` | HW RT バリアント |
+| `FFilterProbeRadianceWithGatherCS` | `LumenRadianceCache.cpp` | Probe 間空間フィルタ |
+| `FRadianceCacheState` | `LumenViewState.h` | GPU リソース（アトラス・バッファ）の保持 |
+
+---
+
 ## 関連ソースファイル
 
-| ファイル | 役割 |
-|---------|------|
-| `LumenRadianceCache.h/cpp` | Radiance Cache メインシステム |
-| `LumenRadianceCacheInternal.h` | 内部実装の共有ヘッダ |
-| `LumenRadianceCacheInterpolation.h` | サンプリング・補間処理 |
-| `LumenRadianceCacheHardwareRayTracing.cpp` | HW RT バリアント |
-| `LumenViewState.h` | FRadianceCacheState / FRadianceCacheClipmap の定義 |
-| `LumenTranslucencyRadianceCache.cpp` | 半透明オブジェクト用の Radiance Cache |
+| ファイル                                       | 役割                                              |
+| ------------------------------------------ | ----------------------------------------------- |
+| `LumenRadianceCache.h/cpp`                 | Radiance Cache メインシステム                          |
+| `LumenRadianceCacheInternal.h`             | 内部実装の共有ヘッダ                                      |
+| `LumenRadianceCacheInterpolation.h`        | サンプリング・補間処理                                     |
+| `LumenRadianceCacheHardwareRayTracing.cpp` | HW RT バリアント                                     |
+| `LumenViewState.h`                         | FRadianceCacheState / FRadianceCacheClipmap の定義 |
+| `LumenTranslucencyRadianceCache.cpp`       | 半透明オブジェクト用の Radiance Cache                      |
 
 ---
 
 ## 関連リファレンス
 
-| リファレンス | 対象ソース |
-|------------|----------|
-| [[ref_lumen_radiance_cache]] | `LumenRadianceCache.h/cpp` |
-| [[ref_lumen_radiance_cache_internal]] | `LumenRadianceCacheInternal.h` / `LumenRadianceCacheInterpolation.h` |
-| [[ref_lumen_radiance_cache_hwrt]] | `LumenRadianceCacheHardwareRayTracing.cpp` |
-| [[ref_lumen_translucency_radiance_cache]] | `LumenTranslucencyRadianceCache.cpp` |
-| [[ref_lumen_translucency_volume]] | `LumenTranslucencyVolumeLighting.h/cpp` / `LumenTranslucencyVolumeHardwareRayTracing.cpp` |
+| リファレンス                                    | 対象ソース                                                                                     |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [[ref_lumen_radiance_cache]]              | `LumenRadianceCache.h/cpp`                                                                |
+| [[ref_lumen_radiance_cache_internal]]     | `LumenRadianceCacheInternal.h` / `LumenRadianceCacheInterpolation.h`                      |
+| [[ref_lumen_radiance_cache_hwrt]]         | `LumenRadianceCacheHardwareRayTracing.cpp`                                                |
+| [[ref_lumen_translucency_radiance_cache]] | `LumenTranslucencyRadianceCache.cpp`                                                      |
+| [[ref_lumen_translucency_volume]]         | `LumenTranslucencyVolumeLighting.h/cpp` / `LumenTranslucencyVolumeHardwareRayTracing.cpp` |

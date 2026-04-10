@@ -161,6 +161,90 @@ r.LumenScene.Radiosity.Allow = 1
 
 ---
 
+## コード実行フロー
+
+### エントリポイント
+
+`UpdateLumenScene()` の直後、GBuffer 描画前に呼ばれる。
+
+```
+FDeferredShadingSceneRenderer::RenderLumenSceneLighting()   (LumenSceneLighting.cpp:217)
+  │
+  ├─ [非同期タスク完了待ち]
+  │   LightingTaskData->Task.Wait()         ← BeginGatherLumenLights() の結果を待つ
+  │
+  ├─ [カード更新コンテキスト構築]
+  │   LumenRadiosity::InitFrameTemporaries()
+  │   Lumen::BuildCardUpdateContext()
+  │     ├─ DirectLightingCardUpdateContext   ← 更新タイルの優先度付きリスト
+  │     └─ IndirectLightingCardUpdateContext
+  │
+  ├─ RenderDirectLightingForLumenScene(...)  ← DirectLightingAtlas に書き込み
+  │   (LumenSceneDirectLighting.cpp:2239)
+  │
+  ├─ RenderRadiosityForLumenScene(...)       ← IndirectLightingAtlas に書き込み
+  │   (LumenRadiosity.cpp:1085)
+  │
+  └─ LumenSceneData.bFinalLightingAtlasContentsValid = true
+```
+
+### フロー詳細
+
+1. **BeginGatherLumenLights** — 非同期ライト収集（`InitViews` フェーズ起動）
+   ```cpp
+   // DeferredShadingRenderer.cpp:1876
+   BeginGatherLumenLights(*InitViewTaskDatas.LumenFrameTemporaries,
+       InitViewTaskDatas.LumenDirectLighting, ...);
+   ```
+   - CPU タスクでシーン内の全光源を `FLumenGatheredLight` 配列に収集
+   - 参照: [[ref_lumen_scene_lighting]]
+
+2. **Lumen::BuildCardUpdateContext** — 更新するカードタイルを優先度付きで列挙（`LumenSceneLighting.cpp`）
+   ```cpp
+   Lumen::BuildCardUpdateContext(GraphBuilder, LumenSceneData, Views, FrameTemporaries,
+       RadiosityFrameTemporaries.bIndirectLightingHistoryValid,
+       DirectLightingCardUpdateContext, IndirectLightingCardUpdateContext, ComputePassFlags);
+   ```
+   - 各カードタイルの更新優先度スコアを計算し `MaxUpdateTiles` 数に絞り込む
+   - 参照: [[ref_lumen_scene_lighting]] | [[ref_lumen_scene_rendering]]
+
+3. **RenderDirectLightingForLumenScene** — 直接光を Surface Cache に書き込む（`LumenSceneDirectLighting.cpp:2239`）
+   ```cpp
+   RenderDirectLightingForLumenScene(GraphBuilder, FrameTemporaries,
+       DirectLightingTaskData, DirectLightingCardUpdateContext, ComputePassFlags);
+   ```
+   - `CullDirectLightingTiles()` — タイル × 光源のカリング
+   - `[SW RT 時]` カードタイルへシャドウマスクを書き込み
+   - `[HW RT 時]` `RenderLumenHardwareRayTracingDirectLighting()` でシャドウトレース
+   - `ApplyLightingToCards()` — `DirectLightingAtlas` へ書き込み
+   - 参照: [[ref_lumen_scene_direct_lighting]] | [[ref_lumen_scene_direct_lighting_hwrt]]
+
+4. **RenderRadiosityForLumenScene** — Radiosity（間接光バウンス）を Surface Cache に書き込む（`LumenRadiosity.cpp:1085`）
+   ```cpp
+   RenderRadiosityForLumenScene(GraphBuilder, FrameTemporaries,
+       RadiosityFrameTemporaries, IndirectLightingCardUpdateContext, ComputePassFlags);
+   ```
+   - `LumenRadiosity::AddRadiosityPass()` — カードから Probe を生成してトレース
+     - Probe を各カードタイルに均等配置
+     - `FinalLightingAtlas` から Probe 方向の輝度をサンプル（短距離バウンス）
+     - Probe SH を `IndirectLightingAtlas` に書き込み（テンポラル蓄積あり）
+   - `Lumen::CombineLumenSceneLighting()` — `Direct + Indirect → FinalLightingAtlas`
+   - 参照: [[ref_lumen_radiosity]] | [[ref_lumen_scene_lighting]]
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|------------|--------|------|
+| `FLumenCardUpdateContext` | `LumenSceneLighting.h` | 更新タイルの優先度付きリスト |
+| `FLumenGatheredLight` | `LumenSceneDirectLighting.h` | 収集済みライト情報 |
+| `FLumenDirectLightingTaskData` | `LumenSceneDirectLighting.h` | CPU 非同期ライト収集の結果 |
+| `Lumen::BuildCardUpdateContext()` | `LumenSceneLighting.cpp` | 更新対象タイルの選定 |
+| `RenderDirectLightingForLumenScene()` | `LumenSceneDirectLighting.cpp` | Direct Lighting 書き込みパス |
+| `RenderRadiosityForLumenScene()` | `LumenRadiosity.cpp` | Radiosity 書き込みパス |
+| `Lumen::CombineLumenSceneLighting()` | `LumenSceneLighting.cpp` | FinalLightingAtlas 合成 |
+
+---
+
 ## 関連ソースファイル
 
 | ファイル | 役割 |

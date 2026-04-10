@@ -85,7 +85,7 @@ RenderLumen(GraphBuilder, SceneTextures, ...);
 
 ### b: Scene Lighting（1件）
 
-- [ ] `Details/b_lumen_scene_lighting.md` — Surface Cache ライティングフロー
+- [x] `Details/b_lumen_scene_lighting.md` — Surface Cache ライティングフロー
 
 **追記内容**:
 - `UpdateLumenScene()` → `RenderLumenSceneLighting()` のコールチェーン
@@ -97,7 +97,7 @@ RenderLumen(GraphBuilder, SceneTextures, ...);
 
 ### c: Tracing（1件）
 
-- [ ] `Details/c_lumen_tracing.md` — トレースパス呼び出しフロー
+- [x] `Details/c_lumen_tracing.md` — トレースパス呼び出しフロー
 
 **追記内容**:
 - Screen Probe / 反射からのトレース呼び出しの共通入口
@@ -109,7 +109,7 @@ RenderLumen(GraphBuilder, SceneTextures, ...);
 
 ### d: Radiance Cache（1件）
 
-- [ ] `Details/d_lumen_radiance_cache.md` — Radiance Cache 更新フロー
+- [x] `Details/d_lumen_radiance_cache.md` — Radiance Cache 更新フロー
 
 **追記内容**:
 - `RenderLumenDiffuseIndirect()` / `RenderLumenReflections()` から `UpdateLumenRadianceCache()` への呼び出し
@@ -149,14 +149,14 @@ RenderLumen(GraphBuilder, SceneTextures, ...);
 |---------|------|
 | `02_lumen_overview.md` | [x] 完了 |
 | `a_lumen_surface_cache.md` | [x] 完了 |
-| `b_lumen_scene_lighting.md` | [ ] 未着手 |
-| `c_lumen_tracing.md` | [ ] 未着手 |
-| `d_lumen_radiance_cache.md` | [ ] 未着手 |
+| `b_lumen_scene_lighting.md` | [x] 完了 |
+| `c_lumen_tracing.md` | [x] 完了 |
+| `d_lumen_radiance_cache.md` | [x] 完了 |
 | `e_lumen_diffuse_gi.md` | [ ] 未着手 |
 | `f_lumen_reflections.md` | [ ] 未着手 |
 
 **合計**: 7 ファイル  
-**完了数**: 2 / 7
+**完了数**: 5 / 7
 
 ---
 
