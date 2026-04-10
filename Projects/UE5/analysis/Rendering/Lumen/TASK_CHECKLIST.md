@@ -80,7 +80,7 @@ Rendering/Lumen/
 
 ---
 
-## グループ d：Radiance Cache — 6本
+## グループ d：Radiance Cache — 5本
 
 | # | ファイル名 | 対象ソース | 状態 |
 |---|-----------|-----------|------|
@@ -115,7 +115,7 @@ Rendering/Lumen/
 | F-3 | `Reference/f_Reflections/ref_lumen_reflection_hwrt.md` | `LumenReflectionHardwareRayTracing.cpp` | [x] 完了 |
 | F-4 | `Reference/f_Reflections/ref_lumen_restir.md` | `LumenReSTIRGather.h/cpp` | [x] 完了 |
 | F-5 | `Reference/f_Reflections/ref_lumen_front_layer.md` | `LumenFrontLayerTranslucency.h/cpp` | [x] 完了 |
-| F-6 | `Reference/f_Reflections/ref_lumen_front_layer.md` | `RayTracedTranslucency.h` | [x] 完了 |
+| F-6 | `Reference/f_Reflections/ref_ray_traced_translucency.md` | `RayTracedTranslucency.h` | [x] 完了 |
 
 ---
 
