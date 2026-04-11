@@ -249,7 +249,7 @@ RenderLumenScreenProbeGather()  (LumenScreenProbeGather.cpp:2525)
        │
        ├─ FilterProbeRadianceWithGatherCS     ← 空間フィルタ（Probe 間平滑化）
        │
-       └─ IntegrateProbeCS                    ← FinalRadianceAtlas / FinalIrradianceAtlas に統合
+       └─ FFixupBordersAndGenerateMipsCS      ← ボーダー修正 + Mip 生成 → FinalRadianceAtlas に書き込み
 ```
 
 ### フロー詳細
@@ -288,13 +288,14 @@ RenderLumenScreenProbeGather()  (LumenScreenProbeGather.cpp:2525)
    - HW RT: DXR / Vulkan RT で精度向上、`LumenRadianceCacheHardwareRayTracing.cpp` が担当
    - 参照: [[ref_lumen_radiance_cache]] | [[ref_lumen_radiance_cache_hwrt]]
 
-4. **FilterProbeRadianceWithGatherCS → IntegrateProbeCS** — フィルタ後に最終アトラスに書き込み（`LumenRadianceCache.cpp`）
+4. **FilterProbeRadianceWithGatherCS → FFixupBordersAndGenerateMipsCS** — フィルタ後に最終アトラスに書き込み（`LumenRadianceCache.cpp`）
    ```cpp
    // 空間フィルタ: 隣接 Probe と平滑化
    FFilterProbeRadianceWithGatherCS::FParameters* FilterParams = ...;
 
-   // 積分: FinalRadianceAtlas / FinalIrradianceAtlas へ出力
-   FIntegrateProbeCS::FParameters* IntegrateParams = ...;
+   // ボーダー修正 + Mip 生成 → FinalRadianceAtlas / FinalIrradianceAtlas へ出力
+   FFixupBordersAndGenerateMipsCS::FParameters* MipParams = ...;
+   // RWFinalRadianceAtlasMip0/1/2 と RWFinalIrradianceAtlas に書き込み
    ```
    - `FinalRadianceAtlas`: 方向別放射輝度（Screen Probe / Reflections がサンプリング）
    - `FinalIrradianceAtlas`: 全方向積分済み放射照度
@@ -311,6 +312,7 @@ RenderLumenScreenProbeGather()  (LumenScreenProbeGather.cpp:2525)
 | `FRadianceCacheTraceFromProbesCS` | `LumenRadianceCache.cpp` | SW RT トレースコンピュートシェーダー |
 | `RenderLumenHardwareRayTracingRadianceCache()` | `LumenRadianceCacheHardwareRayTracing.cpp` | HW RT バリアント |
 | `FFilterProbeRadianceWithGatherCS` | `LumenRadianceCache.cpp` | Probe 間空間フィルタ |
+| `FFixupBordersAndGenerateMipsCS` | `LumenRadianceCache.cpp` | ボーダー修正 + Mip 生成 → FinalRadianceAtlas 書き込み |
 | `FRadianceCacheState` | `LumenViewState.h` | GPU リソース（アトラス・バッファ）の保持 |
 
 ---

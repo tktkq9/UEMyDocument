@@ -265,7 +265,7 @@ FDeferredShadingSceneRenderer::Render()   (DeferredShadingRenderer.cpp)
    - `PendingAddOperations` → `FLumenMeshCards` を生成して `FLumenPrimitiveGroup` に登録
    - 参照: [[ref_lumen_scene]] | [[ref_lumen_mesh_cards]]
 
-2. **UpdateSurfaceCacheMeshCards** — キャプチャ候補を選定（`LumenSurfaceCache.cpp`）
+2. **UpdateSurfaceCacheMeshCards** — キャプチャ候補を選定（`LumenSceneRendering.cpp:1472`）
    ```cpp
    UpdateSurfaceCacheMeshCards(
        LumenSceneData, SurfaceCacheFeedbackData,
@@ -275,7 +275,7 @@ FDeferredShadingSceneRenderer::Render()   (DeferredShadingRenderer.cpp)
    - 距離・ラフネス・解像度スコアで `SurfaceCacheRequests` を優先度付け
    - 参照: [[ref_lumen_surface_cache]] | [[ref_lumen_surface_cache_feedback]]
 
-3. **ProcessLumenSurfaceCacheRequests** — `CardPagesToRender` リストを確定（`LumenSurfaceCache.cpp`）
+3. **ProcessLumenSurfaceCacheRequests** — `CardPagesToRender` リストを確定（`LumenSceneRendering.cpp:876`）
    ```cpp
    LumenSceneData.ProcessLumenSurfaceCacheRequests(
        Views[0], MaxCardUpdateDistanceFromCamera, MaxTileCapturesPerFrame,
@@ -325,7 +325,7 @@ FDeferredShadingSceneRenderer::Render()   (DeferredShadingRenderer.cpp)
 | `FLumenCardRenderer` | `LumenSceneRendering.h` | CPU 側のカードキャプチャ情報（MeshDrawCommands 等）|
 | `FCardPageRenderData` | `LumenSceneRendering.h` | 1ページのキャプチャ情報（Rect / DrawCommands）|
 | `UpdateLumenScenePrimitives()` | `LumenScene.cpp` | CPU でプリミティブを PrimitiveGroup に追加/削除 |
-| `UpdateSurfaceCacheMeshCards()` | `LumenSurfaceCache.cpp` | フィードバックとスコアでキャプチャ候補を選定 |
+| `UpdateSurfaceCacheMeshCards()` | `LumenSceneRendering.cpp` | フィードバックとスコアでキャプチャ候補を選定 |
 | `LumenScene::GPUDrivenUpdate()` | `LumenSceneGPUDrivenUpdate.cpp` | GPU 上でのプリミティブ追加/削除処理 |
 | `RenderLumenCardCaptures()` | `LumenSceneCardCapture.cpp` | メッシュ描画で Card をキャプチャ |
 

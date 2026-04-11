@@ -271,8 +271,8 @@ TraceReflections()                             (LumenReflectionTracing.cpp:1109)
   │     ApplyRadianceCacheToReflections()
   │
   └─ [Resolve + テンポラル蓄積]
-      FReflectionResolveCS
-      FReflectionTemporalCS  (r.Lumen.Reflections.Temporal = 1 の場合)
+      FLumenReflectionResolveCS
+      FLumenReflectionDenoiserTemporalCS  (r.Lumen.Reflections.Temporal = 1 の場合)
 ```
 
 ### HW RT パス（反射を例に）
@@ -352,8 +352,8 @@ RenderLumenHardwareRayTracingReflections()     (LumenReflectionHardwareRayTracin
 | `LumenReflections::CompactTraces()` | `LumenReflectionTracing.cpp` | ミスレイの圧縮とソート |
 | `FReflectionCompactTracesCS` | `LumenReflectionTracing.cpp` | コンパクト化 Compute Shader |
 | `FReflectionTraceMeshSDFsCS` | `LumenReflectionTracing.cpp` | Mesh SDF トレース CS |
-| `FLumenReflectionHardwareRayTracingCS` | `LumenReflectionHWRT.cpp` | Inline RT バリアント |
-| `FLumenReflectionHardwareRayTracingRGS` | `LumenReflectionHWRT.cpp` | RayGen バリアント |
+| `FLumenReflectionHardwareRayTracingCS` | `LumenReflectionHardwareRayTracing.cpp` | Inline RT バリアント |
+| `FLumenReflectionHardwareRayTracingRGS` | `LumenReflectionHardwareRayTracing.cpp` | RayGen バリアント |
 
 ---
 

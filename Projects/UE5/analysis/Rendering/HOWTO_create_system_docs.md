@@ -390,7 +390,108 @@ Lumenの実例: D:\Learning\Projects\UE5\analysis\Rendering\Lumen\Reference\
 
 ---
 
-## 8. 完成後の Obsidian 連携
+## 8. コード実行フロー追記（第三フェーズ）
+
+Reference 拡張（第二フェーズ）の後、概要ファイルと各 Details 記事に  
+**「どこから処理が始まり、どの関数・クラスが呼ばれるか」** を追記するフェーズ。  
+Lumen では `TASK_CHECKLIST_FLOW.md` で管理し、7ファイルを順番に実施した。
+
+### 追記する内容
+
+| 追記項目 | 形式 | 説明 |
+|---------|------|------|
+| エントリポイント | ASCII コールツリー | `FDeferredShadingSceneRenderer::Render()` 等から始まる呼び出し元を明示 |
+| コールチェーン | 番号付きステップ + `cpp` スニペット | 関数→関数の連鎖を順番に追う |
+| 分岐条件 | インラインコードブロック | SW RT / HW RT など重要な分岐を `if` ブロックで示す |
+| 関与クラス一覧 | テーブル | そのフローで登場する主要クラス・構造体を一覧化 |
+| Obsidian リンク | `[[ref_xxx]]` | 各ステップで呼ばれる関数の Reference へのリンク |
+
+### 追記フォーマット（標準テンプレート）
+
+```markdown
+## コード実行フロー
+
+### エントリポイント
+
+```
+FDeferredShadingSceneRenderer::Render()
+  │
+  └─ SubFunction(...)       // SourceFile.cpp:行番号
+       │
+       ├─ ChildFuncA(...)   ← 説明
+       └─ ChildFuncB(...)   ← 説明
+```
+
+### フロー詳細
+
+1. **{ステップ名}** — 説明（`SourceFile.cpp:行番号`）
+   ```cpp
+   // 実際のシグネチャ
+   ReturnType Function(ParamType1 Param1, ParamType2 Param2);
+   ```
+   - 条件: `{CVar or 条件式}`
+   - 参照: [[ref_xxx]]
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|------------|--------|------|
+| `ClassName` | `File.cpp` | 説明 |
+```
+
+### 実装ルール
+
+1. 関数名・行番号は**実際のソースコードを確認してから**記述する（推測で書かない）
+2. 重要な分岐（SW RT / HW RT、CVar による On/Off 等）は必ず明示する
+3. 処理は「概要ファイル → a → b → c …」の順で実施する（上流から下流へ）
+4. 各ステップには対応 Reference ファイルへの `[[ref_xxx]]` リンクを付ける
+5. ASCII コールツリーは `├─` / `└─` / `│` で階層を表現する
+
+### フロー追記用チェックリスト（TASK_CHECKLIST_FLOW.md）
+
+```markdown
+# {SystemName} コード実行フロー 追記タスクリスト
+
+**方針**: 概要・Details 各ファイルに「どこから処理が始まり、どの関数・クラスが呼ばれるか」を追記する
+**追記形式**: `## コード実行フロー` セクション（エントリポイント → 段階的コールチェーン + コードスニペット）
+**作業開始日**: YYYY-MM-DD
+**優先度**: 概要 → a → b → c → d → e → f の順
+
+## タスク一覧
+
+### 概要ファイル（1件）
+- [ ] `{system}_overview.md` — システム全体エントリポイント〜サブシステム呼び出しの大局フロー
+
+### a: {SubsystemName}（1件）
+- [ ] `Details/a_{system}_{subsystem}.md` — {SubsystemName} 更新フロー
+
+（以降グループ数だけ繰り返す）
+
+## 進捗サマリ
+
+| ファイル | 状態 |
+|---------|------|
+| `{system}_overview.md` | [ ] 未着手 |
+
+**合計**: N ファイル
+**完了数**: 0 / N
+```
+
+### Claude への依頼テンプレート（フロー追記フェーズ）
+
+```
+{SystemName}のコード実行フロー追記をお願いします。
+
+対象チェックリスト: D:\Learning\Projects\UE5\analysis\Rendering\{SystemName}\TASK_CHECKLIST_FLOW.md
+フォーマット: 同ファイルの「追記フォーマット（標準テンプレート）」を使用
+ソースコード: D:\UnrealEngine\Engine\Source\Runtime\Renderer\Private\{SystemName}\
+
+{ファイル名}をお願いします。
+```
+
+---
+
+## 9. 完成後の Obsidian 連携
 
 Reference ファイルの frontmatter（`- 上位:`, `- 関連:`）と  
 Details の `## 関連リファレンス` セクションにより、  
