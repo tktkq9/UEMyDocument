@@ -245,3 +245,19 @@ namespace ERHIFeatureLevel
 | `r.RHI.MeshShaders` | 1 | Mesh / Amplification Shader 有効 |
 | `r.RHI.Bindless` | 0 | バインドレスリソース有効 |
 | `r.D3D12.MultiGPU` | 0 | マルチ GPU（SLI / mGPU）有効 |
+
+---
+
+> [!note]- FDynamicRHI のプラグインロードと GDynamicRHI 初期化
+> `FDynamicRHI` の実装は実行時にプラグインとしてロードされる。起動時に `FModuleManager::Get().LoadModule("D3D12RHI")` が呼ばれ、モジュールの `StartupModule()` 内で `GDynamicRHI = new FD3D12DynamicRHI(...)` が設定される。  
+> グローバルポインタ `GDynamicRHI` は以降すべての `RHICreateXxx()` インライン関数から参照される。プラットフォーム判定は起動引数や `r.GraphicsAPI` CVar で行われる。
+
+> [!note]- IRHICommandContext と FDynamicRHI の役割分担
+> `FDynamicRHI` はリソース**生成・破棄**の責務を持ち、`IRHICommandContext` はコマンド**記録**の責務を持つ。  
+> これらは意図的に分離されており、D3D12 実装では `FD3D12DynamicRHI` が `FDynamicRHI` を継承し、`FD3D12CommandContext` が `IRHICommandContext` を継承する（別クラス）。  
+> コマンドリストは複数存在できる（並列記録対応）が、リソース生成は常に `GDynamicRHI` の1インスタンスを通す。
+
+> [!note]- ERHIFeatureLevel::SM6 と D3D12 Shader Model 6 機能
+> `SM6` フィーチャーレベルは DX12 の Shader Model 6.x を前提とし、Mesh Shader / Amplification Shader / DXR（レイトレーシング）/ Bindless が有効になる。  
+> `RHISupportsRayTracing(Platform)` は `SM6` かつ `r.RHI.RayTracing=1` の場合に `true` を返す。  
+> コンソール向けプラットフォームでは独自の機能レベルが定義されており、`SM6` に対応するが一部機能の可用性は異なる。

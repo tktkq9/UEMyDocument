@@ -160,6 +160,54 @@ extern RHI_API FRHICommandListImmediate GRHICommandList;
 
 ---
 
+## コード実行フロー
+
+```
+[コマンド記録 → 実行の全体フロー]
+
+[Render Thread]
+GRHICommandList.DrawIndexedPrimitive(...)
+  │  FRHICommandList::EnqueueCommand()   ← メモリスタックにコマンド構造体をアロケート
+  │
+  ▼ (r.RHIThread.Enable=1 の場合 RHI スレッドへ非同期ディスパッチ)
+
+[RHI Thread]
+FRHICommandListBase::Execute()           RHICommandList.cpp:518
+  └─ コマンドリンクリストを順番に処理
+       └─ IRHICommandContext::RHIDrawIndexedPrimitive()  (仮想関数呼び出し)
+            └─ FD3D12CommandContext::RHIDrawIndexedPrimitive()  D3D12Commands.cpp:1270
+                 ├─ FlushResourceBarriers()  D3D12CommandList.cpp:70
+                 │    └─ ID3D12GraphicsCommandList::ResourceBarrier(N個まとめて)
+                 └─ ID3D12GraphicsCommandList::DrawIndexedInstanced()
+
+[ImmediateFlush 時]
+FRHICommandListImmediate::ImmediateFlush()  RHICommandList.cpp:1573
+  ├─ DispatchToRHIThread … RHI スレッドにコマンドを送って戻る（非同期）
+  └─ FlushRHIThread      … RHI スレッドの全コマンド完了を CPU が待機
+
+[リソース生成フロー（FDynamicRHI 経由）]
+GDynamicRHI->RHICreateTexture()
+  └─ FD3D12DynamicRHI::CreateTextureInternal()  D3D12Texture.cpp:622
+       ├─ GetResourceDesc()  (D3D12_RESOURCE_DESC を構築)
+       ├─ ID3D12Device::CreateCommittedResource() または PlacedResource
+       └─ FD3D12Texture を返す（FRHITexture* として扱う）
+```
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル:行 | 役割 |
+|-------------|-----------|------|
+| `GRHICommandList` | `RHICommandList.h` | レンダースレッド用グローバルコマンドリスト |
+| `FRHICommandListBase::Execute()` | `RHICommandList.cpp:518` | コマンドリンクリストを順番に実行 |
+| `FRHICommandListImmediate::ImmediateFlush()` | `RHICommandList.cpp:1573` | RHI スレッドへのディスパッチ制御 |
+| `IRHICommandContext::RHIDrawIndexedPrimitive()` | `RHIContext.h` | 純粋仮想。D3D12 実装が受け取る |
+| `FD3D12CommandContext::RHIDrawIndexedPrimitive()` | `D3D12Commands.cpp:1270` | D3D12 実装。DrawIndexedInstanced を呼ぶ |
+| `FD3D12ContextCommon::FlushResourceBarriers()` | `D3D12CommandList.cpp:70` | 保留バリアをまとめて発行 |
+| `GDynamicRHI->RHICreateTexture()` | `DynamicRHI.h` / D3D12 実装 | テクスチャをデバイスに生成 |
+| `FD3D12DynamicRHI::CreateTextureInternal()` | `D3D12Texture.cpp:622` | D3D12 テクスチャ生成の実装本体 |
+
+---
+
 ## コマンド記録フロー（概念）
 
 ```

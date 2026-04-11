@@ -205,3 +205,20 @@ class FD3D12DiagnosticBuffer : public FRHIDiagnosticBuffer
 | `r.D3D12.MaxCommandsPerCommandList` | 10000 | コマンドリスト分割閾値 |
 | `r.D3D12.DescriptorHeapSize` | 500000 | グローバルビューヒープサイズ |
 | `r.D3D12.BindlessResources` | 0 | バインドレスリソース有効 |
+
+---
+
+> [!note]- FD3D12Adapter と マルチ GPU（mGPU）構成
+> `FD3D12Adapter` は `IDXGIAdapter` に対応し、複数 GPU を搭載したシステムでは `Adapter[0]`, `Adapter[1]` のように列挙される。  
+> `r.D3D12.MultiGPU=1` を有効にすると1つの `FD3D12Adapter` が複数の `FD3D12Device` を持ち、`FRHIGPUMask` でどの GPU にコマンドを投入するかを制御できる。  
+> デフォルトは `r.D3D12.MultiGPU=0` で、ゲーム向けにはほぼ使用しない（VR 等の特殊用途向け）。
+
+> [!note]- FD3D12Queue の3種類と非同期コンピュート
+> D3D12 では `Direct`（Graphics+Compute+Copy）・`AsyncCompute`（Compute+Copy）・`Copy` の3タイプのキューが使える。  
+> `r.D3D12.EnableAsyncCompute=1`（デフォルト）で AsyncCompute キューが有効になり、Lumen の Radiance Cache 更新やシャドウマップ生成などが Graphics パスと並列実行される。  
+> `FD3D12Queue::WaitForOtherQueue()` / `SignalForOtherQueue()` でキュー間のフェンス同期を行い、バリアなしで安全にリソースを共有できる。
+
+> [!note]- FD3D12DiagnosticBuffer と DRED による GPU クラッシュ診断
+> `r.D3D12.EnableDRED=1` を有効にすると `FD3D12DiagnosticBuffer` がページフォルト不可の仮想ヒープ上に確保される。  
+> GPU クラッシュ（TDR）後もこのバッファは CPU から読み取り可能で、`ReadMarkerIn()`・`ReadMarkerOut()` でクラッシュ直前に実行していたブレッドクラムが分かる。  
+> ブレッドクラムはコマンドリスト中に `RHI_BREADCRUMB_EVENT_F()` マクロで埋め込まれ、どのレンダリングパスで問題が起きたかを特定できる。

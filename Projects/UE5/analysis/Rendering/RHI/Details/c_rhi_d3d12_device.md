@@ -210,6 +210,56 @@ FD3D12DynamicRHI::Init()
 
 ---
 
+## コード実行フロー
+
+```
+[起動時 — モジュールロード → デバイス初期化]
+FD3D12DynamicRHI::FD3D12DynamicRHI()      D3D12RHI.cpp:60
+  └─ FD3D12DynamicRHI::PostInit()          D3D12RHI.cpp:257
+       └─ 各アダプタ・デバイスを初期化
+            ├─ IDXGIFactory::EnumAdapters1()
+            ├─ D3D12CreateDevice()
+            ├─ FD3D12Queue::Initialize()   (3種 × GPU 数)
+            │    └─ ID3D12Device::CreateCommandQueue()
+            └─ FD3D12DescriptorManager::Init()
+
+[フレーム終了 — GPU 投入]
+FD3D12DynamicRHI::RHIEndFrame()            D3D12RHI.cpp:572
+  └─ FD3D12ContextCommon::CloseCommandList()  D3D12CommandContext.cpp:378
+       ├─ FlushResourceBarriers()           D3D12CommandList.cpp:70
+       └─ ID3D12GraphicsCommandList::Close()
+
+FD3D12Queue::ExecuteCommandList()
+  └─ FD3D12SubmissionThread::ProcessPayload()  D3D12Submission.cpp:553
+       └─ ID3D12CommandQueue::ExecuteCommandLists()  D3D12Submission.cpp:827
+            └─ ID3D12CommandQueue::Signal(Fence, ++FenceValue)
+
+[フェンス完了後 — リソース解放]
+FD3D12Device::ProcessDeferredDeletionQueue(CompletedFenceValue)
+  └─ GetLastCompletedFence() >= ObjectFenceValue の全エントリを破棄
+       ├─ ID3D12Object::Release()
+       └─ FD3D12CommandAllocator::Reset()  ← 再利用プールへ返却
+
+[シャットダウン]
+FD3D12DynamicRHI::Shutdown()              D3D12RHI.cpp:298
+  └─ 全フェンス完了を待機 → 全リソース解放
+```
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル:行 | 役割 |
+|-------------|-----------|------|
+| `FD3D12DynamicRHI::FD3D12DynamicRHI()` | `D3D12RHI.cpp:60` | アダプタ配列を受け取るコンストラクタ |
+| `FD3D12DynamicRHI::PostInit()` | `D3D12RHI.cpp:257` | 遅延初期化（RHI スレッド開始後） |
+| `FD3D12DynamicRHI::Shutdown()` | `D3D12RHI.cpp:298` | 全リソース解放・デバイス破棄 |
+| `FD3D12DynamicRHI::RHIEndFrame()` | `D3D12RHI.cpp:572` | フレーム終了処理・投入トリガー |
+| `FD3D12ContextCommon::CloseCommandList()` | `D3D12CommandContext.cpp:378` | コマンドリストをクローズして投入準備 |
+| `FD3D12Queue::ExecuteCommandList()` | `D3D12Queue.h` | Submission Thread への Enqueue |
+| `ID3D12CommandQueue::ExecuteCommandLists()` | `D3D12Submission.cpp:827` | 実際の GPU 投入 |
+| `FD3D12Device::ProcessDeferredDeletionQueue()` | `D3D12Device.cpp` | フェンス完了後の遅延破棄処理 |
+
+---
+
 ## 関連リファレンス
 
 - [[ref_rhi_d3d12_device]] … FD3D12DynamicRHI / FD3D12Adapter / FD3D12Device / FD3D12Queue の詳細

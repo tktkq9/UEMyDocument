@@ -62,6 +62,44 @@
 
 ---
 
+## コード実行フロー
+
+```
+[起動時 — D3D12RHI モジュールロード]
+FD3D12DynamicRHI::FD3D12DynamicRHI()     D3D12RHI.cpp:60
+  └─ FD3D12DynamicRHI::PostInit()         D3D12RHI.cpp:257
+       └─ FD3D12Device::Initialize()       D3D12Device.cpp
+            ├─ CreateCommandQueue() × 3   (Graphics / AsyncCompute / Copy)
+            └─ FD3D12DescriptorManager::Init()
+
+[フレームごと — コマンド記録]
+FRHICommandListImmediate (GRHICommandList)
+  └─ AddPass() / SetGraphicsPipelineState() / DrawIndexedPrimitive()
+       ↓ EnqueueCommand (コマンドをメモリスタックに積む)
+  └─ ImmediateFlush()                       RHICommandList.cpp:1573
+       └─ FRHICommandListBase::Execute()     RHICommandList.cpp:518
+            └─ IRHICommandContext::RHIXxx() (仮想関数ディスパッチ)
+                 └─ FD3D12CommandContext::RHIDrawIndexedPrimitive()  D3D12Commands.cpp:1270
+                      ├─ FlushResourceBarriers()  D3D12CommandList.cpp:70
+                      └─ CommandList->DrawIndexedInstanced()
+
+[フレーム終了 — GPU 投入]
+FD3D12DynamicRHI::RHIEndFrame()           D3D12RHI.cpp:572
+  └─ FD3D12Submission (Submission Thread)  D3D12Submission.cpp:553
+       └─ ID3D12CommandQueue::ExecuteCommandLists()  D3D12Submission.cpp:827
+            └─ ID3D12CommandQueue::Signal() (フェンスをシグナル)
+
+[RDG 経由の場合]
+FRDGBuilder::Execute()                    RenderGraphBuilder.cpp:1755
+  ├─ Compile() (依存解析・バリア計算)      RenderGraphBuilder.cpp:1316
+  ├─ AllocateResources (FRDGTexture→FRHITexture 確定)
+  └─ ExecutePass() × n                    RenderGraphBuilder.cpp:3482
+       ├─ ExecutePassPrologue() (バリア発行) RenderGraphBuilder.cpp:3395
+       └─ ラムダ呼び出し → FRHICommandList::DrawXxx / DispatchXxx
+```
+
+---
+
 ## RHI の 3 階層
 
 ### 1. 抽象層（`Runtime/RHI/`）

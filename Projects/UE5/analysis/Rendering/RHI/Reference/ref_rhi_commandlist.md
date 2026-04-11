@@ -208,3 +208,19 @@ enum class ERHIThreadMode
 | `r.RHIThread.Enable` | 1 | RHI スレッド有効（0=無効） |
 | `r.RHIThread.EnableTaskMode` | 0 | タスクモード有効 |
 | `r.RHI.MaximumFrameLatency` | 2 | 最大フレームレイテンシ（GPU 先行フレーム数）|
+
+---
+
+> [!note]- FRHICommandList のコマンドキュー構造とメモリスタック
+> `FRHICommandListBase` はコマンドを `FMemStack`（スレッドローカルメモリスタック）上にアロケートするため malloc を呼ばず非常に高速。  
+> 各コマンドは `FRHICommandBase` を継承した構造体として積まれ、リンクリストで繋がれる。  
+> `FRHICommandListBase::Execute()` (`RHICommandList.cpp:518`) がリストを先頭から順番にたどり `IRHICommandContext` の仮想関数を呼ぶ仕組みになっている。
+
+> [!note]- ImmediateFlush の各モードと CPU/GPU スタール
+> `ImmediateFlush()` (`RHICommandList.cpp:1573`) の `FlushType` は 5 段階あり、`DispatchToRHIThread` はコマンドをキューに投げて即座に戻るが、`FlushRHIThread` は RHI スレッドの全コマンドが完了するまで CPU がスタールする。  
+> `BlockUntilGPUIdle()` はさらに GPU フェンスの完了まで待つ。`FlushRenderingCommands()` はゲームスレッドからレンダースレッドを同期させる高レベル API であり、これらは重いため頻繁な呼び出しは避けるべき。
+
+> [!note]- ERHIThreadMode と r.RHIThread.Enable
+> `r.RHIThread.Enable=1`（デフォルト）で専用 RHI スレッドが有効になり、`ERHIThreadMode::DedicatedThread` として動作する。  
+> `r.RHIThread.Enable=0` にするとレンダースレッドが直接 `IRHICommandContext` を呼ぶ `None` モードになり、スレッド間オーバーヘッドがなくなるが CPU コアの分離が失われる。  
+> `r.RHIThread.EnableTaskMode=1` は実験的な Task グラフモード（`ERHIThreadMode::Tasks`）で、RHI コマンドを複数スレッドで並列処理できるが対応プラットフォームが限定される。

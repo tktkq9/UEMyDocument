@@ -245,3 +245,20 @@ private:
 | `r.D3D12.BarrierBatchSize` | 16 | バリアバッチサイズ（PendingBarriers の最大数）|
 | `r.D3D12.EnableAsyncCompute` | 1 | 非同期コンピュートキュー有効 |
 | `r.D3D12.ForceAsyncCompute` | 0 | Compute を強制的に非同期キューへ |
+
+---
+
+> [!note]- FD3D12StateCachePrivate による冗長 SetXxx の省略
+> `FD3D12StateCachePrivate` は現在バインド中の PSO・ビューポート・シザー・ルートシグネチャ等をキャッシュし、値が変わった場合のみ D3D12 API を呼ぶ。  
+> `FD3D12CommandContext::RHISetGraphicsPipelineState()` (`D3D12Commands.cpp:390`) は StateCache に新しい PSO を記録するだけで、実際の `SetPipelineState()` 呼び出しは `ApplyState()` まで遅延される。  
+> コマンドリスト切り替え時（`CloseCommandList()` 後の `OpenCommandList()`）は `ClearState()` で全キャッシュをリセットし、次のドローコール前に必ず全ステートを再設定する。
+
+> [!note]- FD3D12CommandAllocator のリングプールと GPU フェンス管理
+> `FD3D12CommandAllocator` は `Reset()` できるのは GPU がそのコマンドの実行を完了した後のみ（D3D12 の制約）。  
+> UE5 D3D12RHI は `FD3D12CommandAllocatorManager` のフリープールを持ち、`GetLastCompletedFence() >= AllocatorFenceValue` の条件が満たされたアロケータだけを `Reset()` してプールに戻す。  
+> フレーム内で `r.D3D12.MaxCommandsPerCommandList`（デフォルト 10000）を超えるとコマンドリストを分割し、新しいアロケータをプールから取り出す（プールが空の場合は新規生成）。
+
+> [!note]- FlushResourceBarriers のバッチ処理と PendingBarriers
+> RDG / RHI レイヤーが `ERHIAccess` の遷移を要求するたびに `AddPendingResourceBarrier()` で `PendingBarriers` 配列に追加していく。  
+> `FlushResourceBarriers()` (`D3D12CommandList.cpp:70`) はこれをまとめて `ID3D12GraphicsCommandList::ResourceBarrier(N, barriers)` の1回呼び出しで発行する（バリアをまとめることで D3D12 内部のパイプラインストール回数を削減できる）。  
+> バリアのフラッシュタイミングはドローコール直前、コマンドリストクローズ直前、および明示的な `RHIFlushResourceBarriers()` 呼び出し時の3つ。

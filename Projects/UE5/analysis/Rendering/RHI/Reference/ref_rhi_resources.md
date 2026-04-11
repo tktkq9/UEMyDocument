@@ -216,4 +216,21 @@ FDepthStencilStateRHIRef DSState = RHICreateDepthStencilState(
 // サンプラー
 FSamplerStateRHIRef Sampler = RHICreateSamplerState(
     FSamplerStateInitializerRHI(SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp));
+
+---
+
+> [!note]- FRHIResource の参照カウントと遅延削除キュー
+> `FRHIResource::Release()` で参照カウントが 0 になると `MarkForDelete()` を呼び出し、デバイスの **遅延削除キュー**（`FD3D12Device::DeferredDeleteQueue`）に登録される。  
+> 直接 `delete` しないのは、GPU がそのリソースのコマンドを実行中の可能性があるため。  
+> `FD3D12Device::ProcessDeferredDeletionQueue()` はフェンス完了値と比較し、GPU が使用し終えたことを確認してから `ID3D12Resource::Release()` を呼ぶ。
+
+> [!note]- FRHIBuffer の UE5.3 統合と EBufferUsageFlags
+> UE5.3 以降、`FRHIVertexBuffer` / `FRHIIndexBuffer` / `FRHIStructuredBuffer` は廃止され `FRHIBuffer` に統合された。  
+> 用途は `EBufferUsageFlags` の組み合わせで指定する。たとえば `BUF_VertexBuffer | BUF_ShaderResource` で VB としても SRV としても使えるバッファを作れる。  
+> `BUF_Dynamic` フラグを付けると `FD3D12UploadHeapAllocator`（UPLOAD ヒープのリングバッファ）が選ばれ、毎フレーム CPU から書き込む用途に最適化される。
+
+> [!note]- ETextureCreateFlags の Transient と RDG メモリプール
+> `TexCreate_Transient` フラグ付きテクスチャは **RDG の IRHITransientResourceAllocator** によって管理される。  
+> RDG は生存期間が重ならないテクスチャ同士をメモリエイリアシングさせることで VRAM を節約する（`r.D3D12.TransientResourceAllocator=1` が必要）。  
+> 通常の `TexCreate_RenderTargetable` テクスチャは `FRenderTargetPool` からプールされるが、Transient はそれより短命で同一フレーム内での使い捨てに特化している。
 ```

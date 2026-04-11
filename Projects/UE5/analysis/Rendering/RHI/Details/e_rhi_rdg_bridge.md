@@ -159,6 +159,59 @@ GraphBuilder.Execute();
 
 ---
 
+## コード実行フロー
+
+```
+[Build フェーズ — パス・リソース登録]
+GraphBuilder.CreateTexture(Desc, TEXT("MyTex"))    ← FRDGTexture* を返す（仮想）
+GraphBuilder.AddPass(Name, PassParams, Flags, Lambda)
+  └─ FRDGPass を Passes 配列に追加（Lambda はまだ実行しない）
+       └─ PassParams の型からリソース依存を自動解析
+
+[Execute フェーズ — RenderGraphBuilder.cpp:1755]
+FRDGBuilder::Execute()
+  │
+  ├─ FRDGBuilder::Compile()                RenderGraphBuilder.cpp:1316
+  │    ├─ SetupPassDependencies()           RenderGraphBuilder.cpp:2319  ← 依存グラフ構築
+  │    ├─ SetupPassResources()              RenderGraphBuilder.cpp:2374  ← リソース割り当て
+  │    │    └─ FRDGTexture に FRHITexture* を確定（TransientAllocator or Pool）
+  │    ├─ CollectPassBarriers()             RenderGraphBuilder.cpp:3839  ← バリア収集
+  │    └─ CompilePassBarriers()             RenderGraphBuilder.cpp:3750  ← バリア最適化
+  │
+  └─ パスを順番に実行
+       └─ FRDGBuilder::ExecutePass()        RenderGraphBuilder.cpp:3482
+            ├─ ExecutePassPrologue()         RenderGraphBuilder.cpp:3395
+            │    └─ RHICmdList.Transition()  ← 前バリア（ERHIAccess→D3D12_RESOURCE_STATES）
+            ├─ FRDGPass::Execute()           ← ユーザーラムダを呼び出す
+            │    └─ RHICmdList.DrawXxx() / DispatchXxx() 等を直接呼ぶ
+            └─ ExecutePassEpilogue()         RenderGraphBuilder.cpp:3428
+                 └─ RHICmdList.Transition()  ← 後バリア
+
+[バリア変換パス]
+RHICmdList.Transition(FRHITransitionInfo{Resource, ERHIAccess::SRVCompute})
+  └─ FD3D12CommandContext 経由で
+       └─ FD3D12ContextCommon::AddPendingResourceBarrier()
+            └─ PendingBarriers に D3D12_RESOURCE_BARRIER 追加
+                 └─ FlushResourceBarriers()  D3D12CommandList.cpp:70
+                      └─ ID3D12GraphicsCommandList::ResourceBarrier()
+```
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル:行 | 役割 |
+|-------------|-----------|------|
+| `FRDGBuilder::Execute()` | `RenderGraphBuilder.cpp:1755` | グラフ実行エントリポイント |
+| `FRDGBuilder::Compile()` | `RenderGraphBuilder.cpp:1316` | 依存解析・バリア計算・リソース割り当て |
+| `FRDGBuilder::SetupPassDependencies()` | `RenderGraphBuilder.cpp:2319` | パス間の依存グラフ構築 |
+| `FRDGBuilder::SetupPassResources()` | `RenderGraphBuilder.cpp:2374` | 仮想リソース → 実 RHI リソース確定 |
+| `FRDGBuilder::CollectPassBarriers()` | `RenderGraphBuilder.cpp:3839` | 各パスのバリア情報収集 |
+| `FRDGBuilder::ExecutePass()` | `RenderGraphBuilder.cpp:3482` | 単一パスの実行 |
+| `FRDGBuilder::ExecutePassPrologue()` | `RenderGraphBuilder.cpp:3395` | パス実行前バリア発行 |
+| `FRDGTexture::GetRHI()` | `RenderGraphResources.h` | 仮想テクスチャ→実 FRHITexture* |
+| `FD3D12ContextCommon::FlushResourceBarriers()` | `D3D12CommandList.cpp:70` | ERHIAccess → D3D12 バリア変換・発行 |
+
+---
+
 ## 関連ドキュメント
 
 - [[10_rdg_overview]] … RDG 全体の詳細説明

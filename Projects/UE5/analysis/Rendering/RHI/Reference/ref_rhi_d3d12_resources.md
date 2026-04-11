@@ -264,3 +264,20 @@ class FD3D12PipelineStateCache
 | `r.D3D12.EnablePSOCache` | 1 | PSO キャッシュ有効 |
 | `r.D3D12.SubAllocatorBufferPoolSize` | 8MB | バッファサブアロケータプールサイズ |
 | `r.D3D12.TransientResourceAllocator` | 1 | Transient リソースアロケータ有効 |
+
+---
+
+> [!note]- FD3D12Resource の Placed / Committed / Reserved の使い分け
+> D3D12 では3種のリソース配置方式がある。**Committed** (`CreateCommittedResource`) はヒープとリソースを同時作成する最もシンプルな方式。  
+> **Placed** (`CreatePlacedResource`) は事前確保した `FD3D12Heap` 上に配置し、同じヒープで複数リソースをエイリアシングできる（Transient リソースはこれを使う）。  
+> UE5 の Transient Resource Allocator（`r.D3D12.TransientResourceAllocator=1`）は Placed を使い、生存期間が重ならないリソース間でメモリを再利用することで VRAM 消費を削減する。
+
+> [!note]- FD3D12PipelineStateCache のディスクキャッシュと初回ロード
+> `FD3D12PipelineStateCache` は `ID3D12PipelineLibrary`（D3D12 PSO Library）を使い、シェーダーバイナリとパイプライン設定をディスクに保存する。  
+> `r.D3D12.EnablePSOCache=1` かつ `r.D3D12.PSOFileCacheDirectory` にパスを設定すると、次回起動時にキャッシュから PSO を復元でき、ドライバーによる再コンパイルを回避できる。  
+> キャッシュミス時は `ID3D12Device::CreateGraphicsPipelineState()` が非同期で実行され（`r.D3D12.AsyncPSOCreation=1` の場合）、完了まで前の PSO をフォールバックとして使う。
+
+> [!note]- バインドレスディスクリプタと従来のディスクリプタコピー方式の違い
+> 従来方式では描画ごとに CPU 側のオフラインヒープからシェーダー可視ヒープへ必要なディスクリプタをコピーする（`FD3D12ExplicitDescriptorCache`）。これはドローコール数に比例してオーバーヘッドが増える。  
+> バインドレス方式（`r.D3D12.BindlessResources=1`）では全リソースを `FD3D12BindlessDescriptors::GlobalResourceHeap`（最大 1M エントリ）に登録し、シェーダーはインデックスで参照する。ディスクリプタコピーが不要になりドローコールのCPUコストが大幅に下がる。  
+> バインドレスは SM6+ かつ `D3D12_RESOURCE_BINDING_TIER_3` 以上のハードウェアが必要。UE5 では対応 GPU でのみ自動選択される。

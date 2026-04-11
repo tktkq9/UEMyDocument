@@ -25,22 +25,22 @@
 
 ---
 
-## Phase 3（コード実行フロー + callout 追加） ← 未着手
+## Phase 3（コード実行フロー + callout 追加）
 
 ### Overview（1本）
-- [ ] `12_rhi_overview.md` … `## コード実行フロー` 追加
+- [x] `12_rhi_overview.md` … `## コード実行フロー` 追加
 
 ### Details（5本） — `## コード実行フロー` + `## 関連リファレンス` 追加
-- [ ] `a_rhi_abstraction.md`
-- [ ] `b_rhi_resources.md`
-- [ ] `c_rhi_d3d12_device.md`
-- [ ] `d_rhi_d3d12_context.md`
-- [ ] `e_rhi_rdg_bridge.md`
+- [x] `a_rhi_abstraction.md`
+- [x] `b_rhi_resources.md`
+- [x] `c_rhi_d3d12_device.md`
+- [x] `d_rhi_d3d12_context.md`
+- [x] `e_rhi_rdg_bridge.md`
 
 ### Reference（6本） — `> [!note]-` callout × 3 追加
-- [ ] `ref_rhi_commandlist.md`
-- [ ] `ref_rhi_resources.md`
-- [ ] `ref_rhi_dynamic_rhi.md`
-- [ ] `ref_rhi_d3d12_device.md`
-- [ ] `ref_rhi_d3d12_context.md`
-- [ ] `ref_rhi_d3d12_resources.md`
+- [x] `ref_rhi_commandlist.md`
+- [x] `ref_rhi_resources.md`
+- [x] `ref_rhi_dynamic_rhi.md`
+- [x] `ref_rhi_d3d12_device.md`
+- [x] `ref_rhi_d3d12_context.md`
+- [x] `ref_rhi_d3d12_resources.md`
