@@ -203,3 +203,21 @@ FScreenPassTexture AddDownsamplePass(
 | CVar | デフォルト | 説明 |
 |------|----------|------|
 | `r.Downsample.Quality` | 1 | ダウンサンプル品質（0=Low, 1=High） |
+
+---
+
+> [!note]- ガウシアン Bloom の 6 段ダウンサンプルと加算合成
+> Bloom は `BloomSetupPass` でハーフ解像度に縮小後、さらに 1/4・1/8・1/16・1/32・1/64 と 6 段階縮小する。  
+> 各段の縮小テクスチャに対して `AddWeightedSampleSumPass()` で水平・垂直の分離ガウシアンブラーをかけ、  
+> ブラー済みの各段を元の SceneColor に加算合成する。低段は広いグロー、高段は狭い集中グローに対応する。
+
+> [!note]- FFT Bloom とカーネル形状テクスチャ
+> `PostProcessFFTBloom` は `r.BloomMethod = 1` で有効になり、  
+> `r.FFTBloom.KernelTextureAsset` に指定したテクスチャをカーネルとして FFT 畳み込みを行う。  
+> これにより六角形ボケ・アナモルフィックフレア等の任意のグロー形状が実現できる。  
+> ガウシアンに比べて GPU コストが高いため、デフォルトは無効。
+
+> [!note]- FTextureDownsampleChain と多段ダウンサンプルの共有
+> `FTextureDownsampleChain` は Bloom・LocalExposure・TAA 等が共有するダウンサンプル段の管理クラス。  
+> `StageCount = 5` で最大 1/32 まで段を作り、必要なステージだけを `GetTexture(StageIndex)` で取得できる。  
+> 同じステージが複数パスから要求された場合、RDG のキャッシュにより重複実行されない。

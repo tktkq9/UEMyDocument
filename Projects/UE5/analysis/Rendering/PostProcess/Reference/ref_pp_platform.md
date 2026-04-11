@@ -176,3 +176,20 @@ PostProcess 系パスが参照するシーンレンダーターゲットの**型
 | VR / HMD | HMD レンズディストーション補正を追加 |
 | コンソール | プラットフォーム固有最適化（RHI レイヤーで対応）|
 | MinimalHDR | DeviceEncodingOnly でガンマ変換のみ |
+
+---
+
+> [!note]- モバイルパイプラインの機能削減と AddMobilePostProcessingPasses
+> `AddMobilePostProcessingPasses()` は PC の `AddPostProcessingPasses()` とは別のコードパスで、TAA→FXAA、DiaphragmDOF→旧 PostProcessDOF、LocalExposure 省略など大幅に簡略化されている。  
+> `r.MobileHDR = 1`（デフォルト）ではモバイルでも HDR レンダリングが有効だが、Tonemap は `AddMobileTonemapperPass()` の軽量版を使う。  
+> モバイルでは `r.Mobile.PostProcessing.BloomType = 0`（Gaussian のみ）が固定されており、FFT Bloom は使用できない。
+
+> [!note]- Mitchell-Netravali の B/C パラメータとフィルター特性の使い分け
+> `AddMitchellNetravaliUpscalePass()` の B・C パラメータで 2 次元フィルター空間の特性を制御する。  
+> `B=1/3, C=1/3`（デフォルト）は Mitchell-Netravali 点でシャープネスとリンギングのバランスが最良。`B=0, C=0.5` は Catmull-Rom でよりシャープだがリンギングが増え、`B=1, C=0` は B-Spline でソフトだがブラーしやすい。  
+> UE5 では `r.Upscale.Quality = 3` のとき自動的にこのフィルターが選択され、Bicubic や Bilinear より高品質なアップスケールを提供する。
+
+> [!note]- DeviceEncodingOnly の最小限 Tonemap パス
+> `AddDeviceEncodingOnlyPass()` は `r.PostProcessing.PropagateAlpha` や完全な PostProcess を無効にした場合でも、デバイス出力に必要な最低限のガンマ補正（sRGB / PQ）だけを行う。  
+> `FTonemapInputs::bGammaOnly = true` に相当するモードで、ACES トーンカーブや CombineLUT は適用されない。  
+> ヘッドレスサーバーや非表示レンダリング（オフスクリーン）など、視覚品質が不要な場面でフル PostProcess コストを避けるために使われる。

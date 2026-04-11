@@ -141,6 +141,25 @@ FScreenPassTexture AddVisualizeDOFPass(
 
 ---
 
+> [!note]- DiaphragmDOF の GatherCS と ScatterCS の使い分け
+> `DiaphragmDOF::AddPasses()` (`DiaphragmDOF.cpp:1486`) はデフォルトで「Gather（収集）」モードを使う。  
+> GatherCS は出力ピクセルが入力の CoC 半径内のピクセルを収集してボケを計算するため、フィルサイズ制限内で高品質。  
+> 高輝度スポット（光源等）には「ScatterCS（散乱）」モードが使われ、ボケ形状テクスチャを使って非球面的なボケを表現できる。
+
+> [!note]- FPhysicalCocModel の物理パラメータ
+> `FPhysicalCocModel` は焦点距離・絞り値（F 値）・センサーサイズ・焦点距離からサークルオブコンフュージョン（CoC）を計算する。  
+> `DiaphragmDiameterToFocalDistance = FocalLength / Fstop` で絞り径を算出し、  
+> 各ピクセルの深度と焦点距離の差から CoC 半径（ピクセル単位）を求める。  
+> `DepthBlurKernelSize` は追加のモーションブラー的効果で通常は 0。
+
+> [!note]- 前景と後景の非対称なボケ処理
+> 前景（カメラより近いもの）のボケは後景（カメラより遠いもの）に「漏れ出す」ため、  
+> DiaphragmDOF は前景と後景を別々の GatherCS で処理する。  
+> PostFilter CS が前景のボケを後景の焦点外エリアに正しく合成することで、  
+> 前景と後景の境界で不自然なハロが出ないようにしている。
+
+---
+
 ## PostProcessDOF.h/.cpp
 
 ### 役割

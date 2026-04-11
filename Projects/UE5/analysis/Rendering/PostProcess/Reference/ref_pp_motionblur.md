@@ -124,3 +124,23 @@ FScreenPassTexture AddVisualizeMotionVectorsPass(
 | `r.MotionBlur.SeparableFilter.Distance` | 1.0 | Separable フィルター距離 |
 | `r.VelocityOutputPass` | 0 | ベロシティ出力パス設定 |
 | `r.BasePassOutputsVelocity` | 0 | BasePass でベロシティ出力 |
+
+---
+
+> [!note]- ベロシティバッファとタイル最大化による効率化
+> `AddMotionBlurPass()` (`PostProcessMotionBlur.cpp:1333`) はまず「タイル最大化」パスで  
+> 画面を N×N タイルに分割し、各タイル内のベロシティ最大値を求める。  
+> その後「タイル拡張」でタイル間のベロシティを隣接タイルに伝播させ、  
+> 最終的に各タイルが影響を受けるベロシティの最大値を使って Gather ブラーをかける。  
+> これにより「全ピクセルのベロシティを毎回サンプルする」コストを避けられる。
+
+> [!note]- カメラモーションブラーとオブジェクトモーションブラーの合算
+> MotionBlur は2種類のベロシティを合算する。  
+> **カメラモーション**はビュー行列の差分から計算し、  
+> **オブジェクトモーション**は `SceneVelocityBuffer`（スケルタルメッシュ等のみ書き込まれる）から取得する。  
+> `r.MotionBlurQuality = 0` でモーションブラー全体が無効になり、`1〜4` で品質（サンプル数）が変わる。
+
+> [!note]- r.MotionBlur.Filter による実装切り替え
+> `r.MotionBlur.Filter` で `Separable`（0）・`Unified`（1）・`自動`（2）を切り替えられる。  
+> Separable フィルターは水平・垂直を分離してかけるため Unified より高速だが、複雑なベロシティ場では破綻しやすい。  
+> `自動`（デフォルト: 2）はプラットフォームのパフォーマンス特性に応じていずれかを選択する。

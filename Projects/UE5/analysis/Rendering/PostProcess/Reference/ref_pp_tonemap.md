@@ -152,3 +152,23 @@ FACESTonemapShaderParameters GetTransformResources(FRHICommandListBase& RHICmdLi
 | `ReachMTable` | ACES 2.0 の Reach-M（最大輝度マッピング）係数 |
 | `GamutCuspTable` | 各色相の色域境界点（クラスプ）座標 |
 | `UpperHullGammaTable` | 上側凸包ガンマカーブ補間テーブル |
+
+---
+
+> [!note]- CombineLUT の 32³ 3D テクスチャとブレンド
+> `AddCombineLUTPass()` (`PostProcessCombineLUTs.cpp:494`) は PostProcessSettings の ColorGrading 設定を  
+> 32×32×32 の 3D テクスチャ（RGBA8, 線形空間）に焼き込む CS パス。  
+> 最大 16 枚の外部 LUT テクスチャを重み付きブレンドで合成できる。  
+> Tonemap シェーダーはこの 1 枚の 3D テクスチャだけをサンプリングするため、複数グレーディングでも実行コストは固定���
+
+> [!note]- ACES 2.0 と GetTransformResources の事前生成テーブル
+> `ACESUtils::GetTransformResources()` はプロセス起動後初回呼び出し時に  
+> `ReachMTable`・`GamutCuspTable`・`UpperHullGammaTable` を CPU で計算して GPU バッファにキャッシュする。  
+> ACES 2.0 は gamut mapping を動的計算するのではなく、これらのルックアップテーブルを使って  
+> シェーダー内の計算を高速化してい���。テーブルは以降のフレームでも再利用される。
+
+> [!note]- AddTonemapPass の HDR モニター出力
+> `AddTonemapPass()` (`PostProcessTonemap.cpp:569`) は `r.HDR.Display.OutputDevice` によって  
+> sRGB 出力（SDR）か PQ / HLG（HDR10）かを切り替え���。  
+> HDR 出力の場合、ガンマ変換の代わりに SMPTE ST 2084 の PQ カーブを適用して  
+> HDR モニターが扱える 0〜1 の信号値にマッピングする（最大輝度 10000 nit を想定）。

@@ -143,3 +143,56 @@ BL_ReplacingTonemapper  … Tonemapperを置き換え
 | `r.PostProcessing.PreferCompute` | 0 | Compute シェーダー優先 |
 | `r.PostProcessing.ForceAsyncDispatch` | 0 | 非同期ディスパッチ強制 |
 | `r.AntiAliasingMethod` | 4 | AA方式（0=None,1=FXAA,2=TAA,4=TSR） |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+FDeferredShadingRenderer::Render()
+  └─ AddPostProcessingPasses()           PostProcessing.cpp:347
+       └─ （15パスを順番に RDG に登録）
+            ├─ MotionBlur               PostProcessMotionBlur.cpp:1333
+            ├─ TAA / TSR               TemporalAA.cpp:571
+            ├─ PostProcessMaterial(BeforeBloom)
+            ├─ Bloom                   PostProcessBloomSetup.cpp:120
+            ├─ LensFlares
+            ├─ Histogram → EyeAdaptation
+            ├─ DiaphragmDOF             DiaphragmDOF.cpp:1486
+            ├─ LocalExposure
+            ├─ PostProcessMaterial(BeforeTonemap)
+            ├─ CombineLUT → Tonemap    PostProcessCombineLUTs.cpp:494 / PostProcessTonemap.cpp:569
+            ├─ PostProcessMaterial(AfterTonemap)
+            ├─ FXAA / SMAA
+            ├─ Upscale
+            └─ AddDebugViewPostProcessingPasses()  PostProcessing.cpp:2073
+```
+
+### フロー詳細
+
+1. `AddPostProcessingPasses()` (`PostProcessing.cpp:347`) が呼ばれ、`FPostProcessingInputs` から SceneColor 等を受け取る
+2. 各パスは `FScreenPassTexture` を入出力として連鎖し、前パスの出力が次パスの入力になる
+3. `r.PostProcessing.PreferCompute = 1` の場合、Compute シェーダー版パスが選択される
+4. デバッグビューモードでは `AddDebugViewPostProcessingPasses()` が通常パイプラインの代わりに実行される
+5. モバイルでは `AddMobilePostProcessingPasses()` が呼ばれ、軽量化された別パイプラインが実行される
+
+### 関与クラス・関数一覧
+
+| クラス/関数 | ファイル:行 | 役割 |
+|------------|-----------|------|
+| `AddPostProcessingPasses()` | `PostProcessing.cpp:347` | 全パスオーケストレーター |
+| `AddDebugViewPostProcessingPasses()` | `PostProcessing.cpp:2073` | デバッグビュー専用パス |
+| `AddMobilePostProcessingPasses()` | `PostProcessing.cpp:2440` | モバイル向け軽量パイプライン |
+| `IsPostProcessingEnabled()` | `PostProcessing.h` | PP 有効/無効判定 |
+| `FPostProcessingInputs` | `PostProcessing.h` | パイプライン入力データ |
+| `FScreenPassTexture` | `ScreenPass.h` | パス間のテクスチャ受け渡し |
+
+---
+
+## 関連リファレンス
+
+- [[ref_pp_orchestrator]] — AddPostProcessingPasses / FPostProcessingInputs リファレンス
+- [[ref_pp_taa]] — TAA リファレンス
+- [[ref_pp_tsr]] — TSR リファレンス

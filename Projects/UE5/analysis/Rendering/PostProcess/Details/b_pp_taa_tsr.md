@@ -168,3 +168,55 @@ public:
 | `r.TemporalAA.Upsampling` | 0 | アップサンプリング有効 |
 | `r.TemporalAA.FilterSize` | 1.0 | フィルターサイズ |
 | `r.TemporalAA.Sharpen` | 0 | シャープネス強度 |
+
+---
+
+## コード実行フロー
+
+### TAA エントリポイント
+
+```
+AddPostProcessingPasses()                      PostProcessing.cpp:347
+  └─ AddTemporalAAPass()                       TemporalAA.cpp:571
+       ├─ 入力: SceneColor / SceneDepth / SceneVelocity / 前フレーム履歴
+       ├─ FTAAPassParameters で設定値を構築
+       ├─ CS or VS/PS で Temporal Blend を実行
+       └─ 出力: FTAAOutputs (SceneColor + SceneMetadata)
+```
+
+### TSR エントリポイント
+
+```
+AddPostProcessingPasses()
+  └─ ITemporalUpscaler::AddPasses()
+       └─ FTSRHistory（前フレーム履歴）を受け取り TSR 多パス実行
+            ├─ DecimateHistory CS (履歴縮小)
+            ├─ FilterAntiAlias CS (サブピクセル AA)
+            ├─ RejectShading CS (履歴矩形クリッピング)
+            └─ Upsample CS (解像度アップスケール)
+```
+
+### フロー詳細
+
+1. **TAA** (`TemporalAA.cpp:571`) — `FTAAPassParameters` を構築し、`ETAAPassConfig` に応じた CS または VS/PS パスを選択する。前フレームの `FTAAOutputs::SceneMetadata` が履歴として渡される
+2. **TSR** — `ITemporalUpscaler` インターフェース経由で呼ばれ、`FTSRHistory` に前フレームの高解像度履歴を保持する。デフォルト解像度の 50% 入力から native 解像度に復元する
+3. ゴースト対策として TSR は「矩形クリッピング」（RejectShading）で履歴の誤サンプルを除去する
+4. `GetMainTAAPassConfig()` が現在の AA 設定と解像度スケールから適切な `ETAAPassConfig` を選択する
+
+### 関与クラス・関数一覧
+
+| クラス/関数 | ファイル:行 | 役割 |
+|------------|-----------|------|
+| `AddTemporalAAPass()` | `TemporalAA.cpp:571` | TAA パスの実行 |
+| `GetMainTAAPassConfig()` | `TemporalAA.h` | AA 設定の解決 |
+| `ITemporalUpscaler::AddPasses()` | `TemporalAA.h` | TSR/DLSS 等の統一インターフェース |
+| `FTAAPassParameters` | `TemporalAA.h` | TAA 入力パラメータ |
+| `FTAAOutputs` | `TemporalAA.h` | TAA 出力（SceneColor + 履歴）|
+
+---
+
+## 関連リファレンス
+
+- [[ref_pp_taa]] — FTAAPassParameters / AddTemporalAAPass リファレンス
+- [[ref_pp_tsr]] — TSR / ITemporalUpscaler リファレンス
+- [[ref_pp_orchestrator]] — パイプライン全体の実行順序

@@ -313,3 +313,20 @@ FScreenPassTexture AddLensDistortionPass(
     const FViewInfo& View,
     FScreenPassTexture Input);
 ```
+
+---
+
+> [!note]- ISpatialUpscaler によるプラグイン差し替えアーキテクチャ
+> `ISpatialUpscaler` は DLSS・XeSS・FSR 等のサードパーティアップスケーラーをプラグインとして差し込むための抽象インターフェース。  
+> `Fork_GameThread()` でゲームスレッド側にコピーを作り、マルチビュー（VR 等）でも各ビューに独立したインスタンスを渡せる設計になっている。  
+> プラグインが登録されていない場合は `AddSpatialUpscalePass()` がデフォルトの Bicubic / CatmullRom フィルターにフォールバックする。
+
+> [!note]- PostProcessMaterial の EBlendableLocation と挿入タイミング
+> `AddPostProcessMaterialChain()` は `EBlendableLocation` を受け取り、PP パイプライン内の挿入ポジション（`BL_AfterOpaque`・`BL_BeforeTranslucency`・`BL_AfterTranslucency`・`BL_BeforeTonemap`・`BL_AfterTonemapping`）を決定する。  
+> `BL_BeforeTonemap` はトーンマップ前の HDR 空間でマテリアルを適用するため、線形 RGB 計算が必要。`BL_AfterTonemapping` は LDR（sRGB）空間で動作する。  
+> `AddPostProcessingPasses()` がロケーションごとにこの関数を呼び出すことで、マテリアルチェーンがパイプラインの適切な位置に挿入される。
+
+> [!note]- SSS の Burley と画面空間フィルタリング
+> `AddSubsurfacePass()` は GBuffer の SSS プロファイルマスクを使って、肌・蝋・牛乳等の素材に散乱を適用する。  
+> `r.SSS.Quality = 1`（Burley）は物理ベースの Burley 正規化拡散プロファイルをスクリーンスペースで近似し、HalfRes で処理後フル解像度に合成する（`r.SSS.HalfRes = 1`）。  
+> `r.SSS.Quality = 0` では SSS が完全にスキップされ、散乱なしの直接ライティングのみが適用される。

@@ -170,3 +170,22 @@ bool IsLocalExposureEnabled(const FViewInfo& View);
 | `r.LocalExposure.BlurredLuminanceBlend` | 1.0 | ブラー輝度との混合率 |
 | `r.LocalExposure.MiddleGreyExposureCompensation` | 0 | 中間グレー露出補正 |
 | `r.LocalExposure.BilateralGridSize` | 16 | バイラテラルグリッドサイズ |
+
+---
+
+> [!note]- ヒストグラム集計の仕組みと 256 ビン
+> `AddHistogramPass()` (`PostProcessHistogram.cpp:451`) は SceneColor の全ピクセルから log2 輝度を計算し、  
+> 256 ビンのヒストグラムをアトミック加算 CS で構築する。  
+> `r.EyeAdaptation.MinBrightness`〜`MaxBrightness` の log 範囲を 256 等分し、各ピクセルを該当ビンに加算する。  
+> `HistogramReduce` でタイル単位に縮小することでアトミック競合を削減している。
+
+> [!note]- EyeAdaptation の指数移動平均による応答速度
+> `AddHistogramEyeAdaptationPass()` (`PostProcessEyeAdaptation.cpp:1023`) はヒストグラムから目標 EV を求め、  
+> 前フレームの EV と指数移動平均でブレンドすることで応答の遅延をシミュレートする。  
+> `ExposureSpeedUp`（明→暗応答）と `ExposureSpeedDown`（暗→明応答）を別々に設定でき、  
+> 人間の目の非対称な光適応特性を再現している。
+
+> [!note]- LocalExposure のバイラテラルグリッド
+> `AddLocalExposureBlurredLogLuminancePass()` は log 空間での輝度をバイラテラルグリッドで平滑化する。  
+> `r.LocalExposure.BilateralGridSize = 16` で空間解像度 16x16 のグリッドを作成し、  
+> エッジを保存しながら低周波の輝度分布を推定する。これをもとにハイライトとシャドウを個別に圧縮・伸張する。

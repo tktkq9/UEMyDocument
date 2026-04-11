@@ -133,6 +133,49 @@ class ITemporalUpscaler
 
 ---
 
+## コード実行フロー
+
+### エントリポイント
+
+```
+FDeferredShadingSceneRenderer::Render()
+  └─ AddPostProcessingPasses()                     PostProcessing.cpp:347
+       │
+       ├─[A] AddMotionBlurPass()                   PostProcessMotionBlur.cpp:1333
+       │
+       ├─[B] AddTemporalAAPass()  or ITemporalUpscaler::AddPasses()   TemporalAA.cpp:571
+       │
+       ├─[C] AddBloomSetupPass() + Gaussian/FFT    PostProcessBloomSetup.cpp:120
+       │
+       ├─[D] AddHistogramPass()                    PostProcessHistogram.cpp:451
+       │     AddHistogramEyeAdaptationPass()        PostProcessEyeAdaptation.cpp:1023
+       │
+       ├─[E] DiaphragmDOF::AddPasses()             DiaphragmDOF.cpp:1486
+       │
+       ├─[F] AddCombineLUTPass()                   PostProcessCombineLUTs.cpp:494
+       │     AddTonemapPass()                      PostProcessTonemap.cpp:569
+       │
+       └─[G] AddDebugViewPostProcessingPasses()    PostProcessing.cpp:2073
+```
+
+### 関与クラス・関数一覧
+
+| クラス/関数 | ファイル:行 | 役割 |
+|------------|-----------|------|
+| `AddPostProcessingPasses()` | `PostProcessing.cpp:347` | 全パスのオーケストレーター |
+| `AddTemporalAAPass()` | `TemporalAA.cpp:571` | TAA 実行 |
+| `ITemporalUpscaler::AddPasses()` | `TemporalAA.h` | TSR/DLSS 等のインターフェース |
+| `AddBloomSetupPass()` | `PostProcessBloomSetup.cpp:120` | Bloom セットアップ |
+| `AddHistogramPass()` | `PostProcessHistogram.cpp:451` | 輝度ヒストグラム集計 |
+| `AddHistogramEyeAdaptationPass()` | `PostProcessEyeAdaptation.cpp:1023` | Eye Adaptation |
+| `DiaphragmDOF::AddPasses()` | `DiaphragmDOF.cpp:1486` | 高品質 DOF |
+| `AddMotionBlurPass()` | `PostProcessMotionBlur.cpp:1333` | モーションブラー |
+| `AddCombineLUTPass()` | `PostProcessCombineLUTs.cpp:494` | LUT 合成 |
+| `AddTonemapPass()` | `PostProcessTonemap.cpp:569` | トーンマップ |
+| `AddDebugViewPostProcessingPasses()` | `PostProcessing.cpp:2073` | デバッグビュー |
+
+---
+
 ## 主要クラス・関数
 
 ```cpp

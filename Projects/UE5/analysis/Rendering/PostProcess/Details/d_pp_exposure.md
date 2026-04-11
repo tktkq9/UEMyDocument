@@ -191,3 +191,47 @@ FScreenPassTexture AddLocalExposurePass(
 | `r.LocalExposure.DetailStrength` | 1.0 | ディテール強度 |
 | `r.LocalExposure.BlurredLuminanceBlend` | 1.0 | ブラー輝度混合率 |
 | `r.HistogramReduce` | 1 | ヒストグラム縮小（パフォーマンス） |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+AddPostProcessingPasses()
+  │
+  ├─ AddHistogramPass()                    PostProcessHistogram.cpp:451
+  │    └─ Compute Shader: SceneColor から輝度ヒストグラムを集計（256 bin）
+  │
+  ├─ AddHistogramEyeAdaptationPass()       PostProcessEyeAdaptation.cpp:1023
+  │    └─ ヒストグラムから EV（露出値）を計算 → 前フレームと指数移動平均でブレンド
+  │         └─ EyeAdaptationBuffer に書き込み（Tonemap から参照）
+  │
+  └─ AddLocalExposurePass()                PostProcessHistogram.cpp:489
+       ├─ AddLocalExposureBlurredLogLuminancePass()
+       │    └─ 輝度の対数をバイラテラルフィルターで平滑化
+       └─ LocalExposureTexture を生成 → Tonemap で参照
+```
+
+### フロー詳細
+
+1. **AddHistogramPass()** (`PostProcessHistogram.cpp:451`) — SceneColor の全ピクセルから log2 輝度を計算し 256 ビンのヒストグラムに集計する（並列アトミック加算 CS）
+2. **AddHistogramEyeAdaptationPass()** (`PostProcessEyeAdaptation.cpp:1023`) — `Min/MaxBrightness` パーセンタイルでヒストグラムをトリムし、目標 EV を計算する。`ExposureSpeedUp/Down` で光への慣れをシミュレートする
+3. **LocalExposure** — `AddLocalExposureBlurredLogLuminancePass()` はバイラテラルグリッドで空間的な輝度の偏りを計算し、明るいハイライトと暗いシャドウを個別に補正する
+
+### 関与クラス・関数一覧
+
+| クラス/関数 | ファイル:行 | 役割 |
+|------------|-----------|------|
+| `AddHistogramPass()` | `PostProcessHistogram.cpp:451` | 256 ビンヒストグラム集計 |
+| `AddHistogramEyeAdaptationPass()` | `PostProcessEyeAdaptation.cpp:1023` | ヒストグラムベース自動露出 |
+| `AddBasicEyeAdaptationPass()` | `PostProcessEyeAdaptation.cpp:1165` | シンプル平均輝度ベース露出 |
+| `AddLocalExposurePass()` | `PostProcessHistogram.cpp:489` | ローカル露出補正 |
+
+---
+
+## 関連リファレンス
+
+- [[ref_pp_exposure]] — Histogram / EyeAdaptation / LocalExposure リファレンス
+- [[ref_pp_tonemap]] — Tonemap でどのように露出値が使われるか

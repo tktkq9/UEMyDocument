@@ -222,3 +222,51 @@ FScreenPassTexture AddPostProcessAA(
 | `r.SMAA.Quality` | 1 | SMAA 品質 |
 | `r.Upscale.Quality` | 3 | 空間アップスケール品質 |
 | `r.NeuralPostProcess.Enable` | 0 | ニューラル後処理有効 |
+
+---
+
+## コード実行フロー
+
+### PostProcessMaterial エントリポイント
+
+```
+AddPostProcessingPasses()
+  └─ AddPostProcessMaterialChain()
+       └─ IBlendableInterface::OverrideBlendableSettings() から材料リストを収集
+            ├─ BL_BeforeBloom ロケーション → Bloom 前に PS/CS で実行
+            ├─ BL_BeforeTonemap ロケーション → Tonemap 前（HDR 空間）
+            └─ BL_AfterTonemap ロケーション → Tonemap 後（LDR 空間）
+```
+
+### PostProcessSubsurface エントリポイント
+
+```
+FDeferredShadingSceneRenderer::Render()
+  └─ RenderSubsurface()
+       ├─ SubsurfaceCombinePass CS: Diffuse + Specular を分離
+       ├─ SubsurfaceFilterPass CS: 複数パスの Gaussian フィルター
+       └─ SubsurfaceRecombinePass: 最終合成
+```
+
+### フロー詳細
+
+1. **PostProcessMaterial** — `UMaterialInterface` が `IBlendableInterface` を実装し、`EBlendableLocation` で挿入位置を指定する。`AddPostProcessMaterialChain()` が該当位置のマテリアルを順番に実行する
+2. **Subsurface** — ベースパス後（RenderSubsurface）に実行される。DiffusionProfile に従ってカーネルを変え皮膚・蝋等の散乱を表現する
+3. **NeuralPostProcess** — NNE（Neural Network Engine）に GPU 推論を委譲する。入力/出力バッファは RDG テクスチャとして扱われる
+4. **Upscale** — `ISpatialUpscaler` インターフェース経由で空間アップスケール（Lanczos / Catmull-Rom 等）を実行する
+
+### 関与クラス・関数一覧
+
+| クラス/関数 | 役割 |
+|------------|------|
+| `AddPostProcessMaterialChain()` | カスタム PP マテリアルの連鎖実行 |
+| `RenderSubsurface()` | サブサーフェース散乱後処理 |
+| `ISpatialUpscaler::AddPasses()` | 空間アップスケール |
+| `IBlendableInterface` | PP マテリアル挿入位置の宣言 |
+
+---
+
+## 関連リファレンス
+
+- [[ref_pp_material_misc]] — PostProcessMaterial / Subsurface / LensFlares / Upscale リファレンス
+- [[ref_pp_orchestrator]] — ブレンダブルロケーションとパイプライン���体

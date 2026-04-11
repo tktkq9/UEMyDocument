@@ -100,3 +100,20 @@ TSR パス実行順:
 | `r.TSR.Output.HalfRes` | 0 | ハーフ解像度出力生成 |
 | `r.TSR.Subpixel.Details` | 1 | サブピクセルディテール保持 |
 | `r.TSR.Debug.ArraySize` | 0 | デバッグ配列サイズ（0=無効）|
+
+---
+
+> [!note]- ITemporalUpscaler の差し替えアーキテクチャ
+> TSR は `ITemporalUpscaler` インターフェースを実装するプラグイン差し替え可能なシステム。  
+> NVIDIA DLSS・AMD FSR・Intel XeSS も同インターフェースを実装することで TSR と同じ呼び出し口で利用できる。  
+> `FDeferredShadingRenderer` は TSR の具体的な実装を知らず、`ITemporalUpscaler::AddPasses()` を呼ぶだけでよい。
+
+> [!note]- TSR の履歴バッファと FTSRHistory
+> TSR は `FTSRHistory` として**フルサイズの高解像度履歴バッファ**を保持する（TAA より大きい）。  
+> `r.TSR.History.ScreenPercentage = 200` がデフォルトで、native 解像度の 200% の履歴を保持する。  
+> 入力は 50% 解像度（レンダリング解像度スケール）で、履歴の蓄積によって native 解像度に復元する。
+
+> [!note]- RejectShading による履歴矩形クリッピング
+> TAA のゴースト対策（速度ベース反発）に対し、TSR は「矩形クリッピング」を使う。  
+> `RejectShading` CS が現フレームの近傍ピクセルの色域（AABB）を計算し、  
+> 履歴ピクセルがこの領域を外れる場合に補正するため、動きが速い場合でもゴーストが残りにくい。

@@ -159,3 +159,53 @@ class FTextureDownsampleChain
 | `r.FFTBloom.KernelDownscale` | 1.0 | FFT カーネルダウンスケール率 |
 | `r.FFTBloom.Convolution.ImageTextureMaxResolutionFraction` | 1.0 | FFT テクスチャ最大解像度率 |
 | `r.Downsample.Quality` | 1 | ダウンサンプル品質（0=Low, 1=High） |
+
+---
+
+## コード実行フロー
+
+### ガウシアン Bloom エントリポイント
+
+```
+AddPostProcessingPasses()
+  ├─ AddBloomSetupPass()                PostProcessBloomSetup.cpp:120
+  │    └─ 閾値以上の輝度を抽出 → BloomSetupTexture
+  └─ AddGaussianBloomPasses()
+       ├─ AddDownsamplePass() × 6段      → HalfRes / QuarterRes / ...
+       ├─ AddWeightedSampleSumPass() × 6  → 水平・垂直 分離ガウシアンブラー
+       └─ 各段の結果を加算合成 → 最終 BloomTexture
+```
+
+### FFT Bloom エントリポイント（r.BloomMethod=1）
+
+```
+AddPostProcessingPasses()
+  └─ AddFFTBloomPass()
+       ├─ 入力テクスチャを FFT 変換（CS）
+       ├─ カーネル画像（Bloom Shape テクスチャ）と周波数領域で畳み込み
+       ├─ IFFT で実空間に戻す
+       └─ SceneColor に加算合成
+```
+
+### フロー詳細
+
+1. **AddBloomSetupPass()** (`PostProcessBloomSetup.cpp:120`) — 閾値（デフォルト: 1.0）を超えた高輝度ピクセルを抽出し、ハーフ解像度に縮小する
+2. ガウシアン Bloom は 6 段のダウンサンプルと `AddWeightedSampleSumPass()` による分離 Gaussian を組み合わせる。各段は異なるぼかし半径を持ち、加算合成でソフトなグローを表現する
+3. FFT Bloom は任意形状のカーネル（ボケ形状テクスチャ）を使えるため、アナモルフィックフレアや星型ボケが可能
+4. `PostProcessDownsample` は Bloom 専用でなく TAA・DOF・LocalExposure でも共有されるユーティリティパス
+
+### 関与クラス・関数一覧
+
+| クラス/関数 | ファイル:行 | 役割 |
+|------------|-----------|------|
+| `AddBloomSetupPass()` | `PostProcessBloomSetup.cpp:120` | 高輝度抽出・ハーフ解像度縮小 |
+| `AddWeightedSampleSumPass()` | `PostProcessWeightedSampleSum.h` | 分離ガウシアンブラー |
+| `AddFFTBloomPass()` | `PostProcessFFTBloom.h` | FFT 高品質 Bloom |
+| `AddDownsamplePass()` | `PostProcessDownsample.h` | 汎用ダウンサンプルユーティリティ |
+
+---
+
+## 関連リファレンス
+
+- [[ref_pp_bloom]] — BloomSetup / FFTBloom / WeightedSampleSum / Downsample リファレンス
+- [[ref_pp_orchestrator]] — パイプライン全体の実行順序

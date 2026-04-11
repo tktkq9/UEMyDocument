@@ -27,3 +27,33 @@
 - [x] `ref_pp_visualize.md`      … 全Visualize系（GBufferHints / VisualizeBuffer / VisualizeShadingModels 等）
 - [x] `ref_pp_debug_editor.md`   … Debug/Editor系（BufferInspector / CompositeEditor / SelectionOutline 等）
 - [x] `ref_pp_platform.md`       … プラットフォーム系（Mobile / HMD / DeviceEncodingOnly / SMAA 等）
+
+---
+
+## Phase 3（コード実行フロー + callout 追加）
+
+### Overview（1本）
+- [x] `05_postprocess_overview.md` … `## コード実行フロー` 追加
+
+### Details（7本） — `## コード実行フロー` + `## 関連リファレンス` 追加
+- [x] `a_pp_orchestrator.md`
+- [x] `b_pp_taa_tsr.md`
+- [x] `c_pp_bloom.md`
+- [x] `d_pp_exposure.md`
+- [x] `e_pp_dof_motionblur.md`
+- [x] `f_pp_tonemap.md`
+- [x] `g_pp_misc.md`
+
+### Reference（12本） — `> [!note]-` callout × 3 追加
+- [x] `ref_pp_orchestrator.md`
+- [x] `ref_pp_taa.md`
+- [x] `ref_pp_tsr.md`
+- [x] `ref_pp_bloom.md`
+- [x] `ref_pp_exposure.md`
+- [x] `ref_pp_dof.md`
+- [x] `ref_pp_motionblur.md`
+- [x] `ref_pp_tonemap.md`
+- [x] `ref_pp_material_misc.md`
+- [x] `ref_pp_visualize.md`
+- [x] `ref_pp_debug_editor.md`
+- [x] `ref_pp_platform.md`

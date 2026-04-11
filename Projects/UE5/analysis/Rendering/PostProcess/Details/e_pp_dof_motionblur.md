@@ -190,3 +190,53 @@ FMotionBlurOutputs AddMotionBlurPass(
 | `r.MotionBlur.Max` | 0 | 最大ブラー量（0=制限なし） |
 | `r.MotionBlur.TargetFPS` | 0 | ターゲットFPS（シャッタースピード正規化） |
 | `r.MotionBlur.Scale` | 1.0 | スケール係数 |
+
+---
+
+## コード実行フロー
+
+### DiaphragmDOF エントリポイント
+
+```
+AddPostProcessingPasses()
+  └─ DiaphragmDOF::AddPasses()             DiaphragmDOF.cpp:1486
+       ├─ SetupCS: CoC（Circle of Confusion）マップ生成
+       ├─ ReduceCS: 前景・後景の分離 + ダウンサンプル
+       ├─ GatherCS (Foreground): 前景ボケを収集（蓄積型）
+       ├─ GatherCS (Background): 後景ボケを収集
+       ├─ PostFilterCS: CoC 境界の修正・前景ボケの後景への合成
+       └─ ScatterCS: 高輝度スポットを散乱（ボケシェイプ使用時）
+```
+
+### MotionBlur エントリポイント
+
+```
+AddPostProcessingPasses()
+  └─ AddMotionBlurPass()                   PostProcessMotionBlur.cpp:1333
+       ├─ MotionBlurSetup CS: ベロシティタイル最大値を計算
+       ├─ MotionBlurFlatten CS: 隣接タイルのベロシティを統合
+       ├─ MotionBlurDilate CS: タイルベロシティを拡張
+       └─ MotionBlurApply CS: タイルごとにブラーを適用（Gather 方式）
+```
+
+### フ���ー詳細
+
+1. **DiaphragmDOF** (`DiaphragmDOF.cpp:1486`) — `FPhysicalCocModel` でカメラの焦点距離・絞り・センサーサイズから CoC を物理計算する。前景と後景のボケは非対称なので分離処理する
+2. **GatherCS** — CoC 半径内のピクセルを「収集（Gather）」してボケを生成する。ScatterCS は明るい点光源のボケシェイプ（六角形・円形等）を散乱で表現する
+3. **MotionBlur** (`PostProcessMotionBlur.cpp:1333`) — タイル単位でベロシティの最大値を求め、カメラモーション（ビュー行列差分）とオブジェクトモーション（ベロシティバッファ）を合算してブラーをかける
+4. `r.MotionBlurQuality` が 3 以上でオブジェクトモーションブラー有効、0 で全て無効
+
+### 関与クラス・関数一覧
+
+| クラス/関数 | ファイル:行 | 役割 |
+|------------|-----------|------|
+| `DiaphragmDOF::AddPasses()` | `DiaphragmDOF.cpp:1486` | 高品質 DOF 全パス |
+| `FPhysicalCocModel` | `DiaphragmDOF.h` | 物理ベース CoC 計算 |
+| `AddMotionBlurPass()` | `PostProcessMotionBlur.cpp:1333` | モーションブラー |
+
+---
+
+## 関連リファレンス
+
+- [[ref_pp_dof]] — DiaphragmDOF / BokehDOF リファレンス
+- [[ref_pp_motionblur]] — PostProcessMotionBlur リファレンス

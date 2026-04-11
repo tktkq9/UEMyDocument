@@ -128,3 +128,21 @@ enum class EBlendableLocation : uint8
 | `r.PostProcessing.Disable` | 0 | 全ポストプロセス無効（デバッグ） |
 | `r.PostProcessAAQuality` | 4 | AA 品質（ポストプロセス）|
 | `r.AntiAliasingMethod` | 4 | AA 方式（0=None,1=FXAA,2=TAA,4=TSR） |
+
+---
+
+> [!note]- AddPostProcessingPasses の FScreenPassTexture チェーン
+> 各パスは `FScreenPassTexture` を入出力として連鎖する。前パスの出力が次パスの入力になるため、  
+> `AddPostProcessingPasses()` (`PostProcessing.cpp:347`) 内でローカル変数 `SceneColor` が各パスの呼び出しのたびに更新される。  
+> パスが無効な場合（品質設定 = 0 等）は入力をそのまま返すため、呼び出し側は常に最新の `FScreenPassTexture` を次パスに渡せばよい。
+
+> [!note]- EBlendableLocation と挿入タイミングの注意
+> `BL_BeforeTonemap`（HDR 空間）と `BL_AfterTonemap`（LDR 空間）は大きく異なる。  
+> `BeforeTonemap` ではシーンの HDR 値（0〜数千 nit）を直接操作できるが、  
+> `AfterTonemap` では 0〜1 に収まった LDR 値のみを扱う。  
+> ユーザーが HDR 操作をしたい場合（輝度調整等）は `BeforeTonemap` を使わなければならない。
+
+> [!note]- r.PostProcessing.PreferCompute の効果
+> `r.PostProcessing.PreferCompute = 1` を設定すると、サポートされるパスが Vertex/Pixel Shader から  
+> Compute Shader 版に切り替わる。コンソールや GPU によっては CS のほうが効率的な場合があるが、  
+> すべてのパスに CS 版があるわけではない。未対応パスは引き続き VS/PS を使う。

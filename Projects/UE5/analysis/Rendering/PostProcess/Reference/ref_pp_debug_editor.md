@@ -179,3 +179,20 @@ FScreenPassTexture AddDebugAlphaChannelPass(
 | CVar | デフォルト | 説明 |
 |------|----------|------|
 | `r.DebugAlphaChannel` | 0 | アルファチャンネルデバッグ表示 |
+
+---
+
+> [!note]- WITH_EDITOR / WITH_DEBUG_VIEW_MODES によるコンパイルガード
+> このファイル群のほぼすべては `#if WITH_EDITOR` または `#if WITH_DEBUG_VIEW_MODES` で囲まれており、シッピングビルドには含まれない。  
+> `WITH_DEBUG_VIEW_MODES` はエディタ以外でもデバッグ可視化を有効にしたい開発ビルド向けに用意されており、`Target.cs` で `bWithDebugViewModeShaders = true` を指定することで有効化できる。  
+> ゲームビルドでこれらのパスを呼ぶと空のスタブが返るか、コンパイルエラーになるため、呼び出し元でも同じガードを入れる必要がある。
+
+> [!note]- SelectionOutline の CustomDepth 利用とステンシルマスク
+> `AddSelectionOutlinePass()` (`PostProcessSelectionOutline.cpp`) はエディタで選択されたメッシュを `CustomDepth` / `CustomStencil` バッファに書き込んだ後、そのシルエットを膨張させてアウトラインを描く。  
+> 選択されたオブジェクトの `bRenderCustomDepth = true` がフレームごとにセットされ、深度比較でシルエット境界を検出する。`FSelectionOutlineParameters::SelectionHighlightColor` でアウトライン色を変更できる。  
+> ゲームビルドでは `IsEditorSelectionOutlineEnabled()` が常に `false` を返すためパス自体が追加されない。
+
+> [!note]- BufferInspector の GPU リードバックとフレーム遅延
+> `AddBufferInspectorPass()` は指定ピクセル座標のシェーダーデータを GPU から CPU にリードバックする。  
+> RDG パスは非同期実行のため結果は **1 フレーム遅延**して CPU 側に届く。エディタの「Material Stats」ウィンドウはこの遅延を前提に更新される。  
+> リードバック先は `FRDGBuffer` 経由のステージングバッファで、`RHILockBuffer` で CPU アドレスを取得して `FBufferInspectorPixelData` に書き戻す仕組み。

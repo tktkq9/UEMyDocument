@@ -138,3 +138,21 @@ bool IsLowResTemporalAAConfig(ETAAPassConfig Pass);
 | `r.TemporalAA.VelocityWeighting` | 1 | 速度重み付け |
 | `r.TemporalAA.ForceComputeShader` | 0 | Compute シェーダー強制 |
 | `r.TemporalAA.HistoryScreenPercentage` | 100 | 履歴バッファ解像度（%）|
+
+---
+
+> [!note]- ETAAPassConfig とシナリオ別の使い分け
+> `ETAAPassConfig` は単なる「TAA ON/OFF」ではなく、DOF・ダウンサンプル等のシナリオも含む列挙型。  
+> `Disabled` は AA を完全にスキップ、`TAA` は通常の native 解像度 AA、  
+> `DiaphragmDOF_*` は被写界深度パス内で独自の Temporal Accumulation を使うモード。  
+> `GetMainTAAPassConfig()` が ViewInfo の設定から適切な値を自動選択する。
+
+> [!note]- FTAAOutputs::SceneMetadata と履歴の管理
+> `FTAAOutputs::SceneMetadata` は次フレームの TAA に渡される「テンポラル履歴」テクスチャ。  
+> `PreviousOutputs` として渡された前フレームの `SceneMetadata` と現フレームの SceneColor を  
+> 速度ベースのブレンド係数でブレンドする。初回フレーム（`PreviousOutputs = nullptr`）は履歴なしで実行される。
+
+> [!note]- IsTemporalAccumulationBasedMethod によるサブシステムの判別
+> Lumen や VSM など多くのサブシステムが「テンポラル蓄積 AA が有効か」で動作を変える。  
+> `IsTemporalAccumulationBasedMethod(EAntiAliasingMethod)` が TAA / TSR の場合に true を返し、  
+> これを見て Lumen が Temporal Filtering を有効にしたり VSM がページキャッシュを有効にしたりする。

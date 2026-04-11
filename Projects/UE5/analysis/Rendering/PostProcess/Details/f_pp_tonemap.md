@@ -142,3 +142,47 @@ FACESTonemapShaderParameters GetTransformResources(FRHICommandListBase& RHICmdLi
 | `r.HDR.Display.OutputDevice` | 0 | HDR 出力デバイス |
 | `r.HDR.Display.ColorGamut` | 0 | HDR カラーガマット |
 | `r.HDR.UI.CompositeMode` | 1 | HDR UI 合成モード |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+AddPostProcessingPasses()
+  │
+  ├─ AddCombineLUTPass()               PostProcessCombineLUTs.cpp:494
+  │    ├─ PostProcessSettings の ColorGrading 設定を読み込む
+  │    ├─ 最大 16 枚の Color Grading LUT をブレンド重みで合成
+  │    └─ 出力: 32³ RGBA8 3D テクスチャ（CombinedLUT）
+  │
+  └─ AddTonemapPass()                  PostProcessTonemap.cpp:569
+       ├─ 入力: SceneColor (HDR) + EyeAdaptationBuffer + CombinedLUT
+       ├─ 露出を EV 値で適用
+       ├─ ACES トーンマッピングカーブ適用（ACESUtils.cpp で事前生成テーブル参照）
+       ├─ CombinedLUT でカラーグレーディング適用
+       └─ 出力: LDR SceneColor（ガンマ適用済み）
+```
+
+### フロー詳細
+
+1. **AddCombineLUTPass()** (`PostProcessCombineLUTs.cpp:494`) — `FPostProcessSettings` の Color Grading 設定から Saturation / Contrast / Gamma / Gain / Offset を取り出し、32³ の 3D LUT を CS で生成する。複数のグレーディング LUT は重み付き平均でブレンドされる
+2. **AddTonemapPass()** (`PostProcessTonemap.cpp:569`) — EyeAdaptation バッファから現フレームの EV を読み取り、ACES 2.0 カーブを使って HDR → LDR に変換する。最後に CombinedLUT をサンプリングしてカラーグレーディングを適用する
+3. `r.Tonemapper.Quality` が高いほど LUT サイズが大きくなり精度が向上する
+
+### 関与クラス・関数一覧
+
+| クラス/関数 | ファイル:行 | 役割 |
+|------------|-----------|------|
+| `AddCombineLUTPass()` | `PostProcessCombineLUTs.cpp:494` | Color Grading LUT 合成 |
+| `AddTonemapPass()` | `PostProcessTonemap.cpp:569` | ACES トーンマップ + LUT 適用 |
+| `GetTransformResources()` | `ACESUtils.h` | ACES 変換テーブル取得 |
+
+---
+
+## 関連リファレンス
+
+- [[ref_pp_tonemap]] — AddTonemapPass / AddCombineLUTPass / ACESUtils リファレンス
+- [[ref_pp_exposure]] — EyeAdaptation による露出値の供給
+- [[ref_pp_orchestrator]] — パイプライン全体の実行順序

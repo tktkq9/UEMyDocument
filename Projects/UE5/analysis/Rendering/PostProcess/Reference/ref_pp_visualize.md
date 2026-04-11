@@ -213,3 +213,20 @@ FScreenPassTexture AddVisualizeTemporalUpscalerPass(
 | `r.ShowFlag.ShadingModels` | 0 | シェーディングモデル表示 |
 | `r.VisualizeLocalExposure` | 0 | ローカル露出可視化 |
 | `r.VisualizeTemporalUpscaler` | 0 | TSR 品質可視化 |
+
+---
+
+> [!note]- Show Flags によるパス有効化の仕組み
+> Visualize 系パスはすべて `FEngineShowFlags` の対応フラグが立っているときのみ `AddPostProcessingPasses()` から呼ばれる。  
+> `r.ShowFlag.ShaderComplexity = 1` のように CVar で強制することも可能だが、通常はエディタの View Mode メニューや `showflag.xxx 1` コンソールコマンドで切り替える。  
+> 各パスは独立した RDG パスとして追加されるため、複数の Visualize モードを同時に有効化してもリソース競合は起きない（表示は最後に追加されたパスで上書きされる）。
+
+> [!note]- ShaderComplexity の命令数カウントと色分けスケール
+> `AddShaderComplexityPass()` は各ピクセルのシェーダー命令数を `r.ComplexityLegend.*` の閾値で色分けする。  
+> 青（0 命令）→ 緑 → 赤 → ホワイト（過負荷）の順にグラデーションし、白く飽和しているピクセルはリアルタイム実行に危険なシェーダー負荷があることを示す。  
+> クワッドオーバードロー（`ShowFlag.QuadOverdraw`）も同様のヒートマップ可視化を持ち、タイル単位のクワッド浪費を検出できる。
+
+> [!note]- VisualizeTemporalUpscaler と TSR 品質スコア
+> `AddVisualizeTemporalUpscalerPass()` は TSR の内部品質バッファ（ゴースト強度・シャープネス・信頼度）を画面に重畳表示する。  
+> `r.VisualizeTemporalUpscaler = 1` で有効化すると TSR が各ピクセルに計算した「履歴信頼度」がヒートマップで見え、高速移動や薄いジオメトリでゴーストが発生しやすい箇所を特定できる。  
+> この情報は通常の TSR 出力に影響しない読み取り専用パスであり、パフォーマンスへの副作用は最小限。
