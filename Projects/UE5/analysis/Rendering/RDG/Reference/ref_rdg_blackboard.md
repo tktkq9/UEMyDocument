@@ -18,40 +18,71 @@
 
 ## FRDGBlackboard
 
+### メンバ変数
+
+| 変数 | 型 | 説明 |
+|-----|-----|------|
+| `Allocator` | `FRDGAllocator&` | グラフアロケータへの参照。登録インスタンスはこのアロケータから確保される |
+| `Blackboard` | `TArray<FStruct*, FRDGArrayAllocator>` | 型インデックス → 仮想基底インスタンスの配列（null = 未登録） |
+
+### 内部型
+
 ```cpp
-class FRDGBlackboard
+// 仮想基底クラス（デストラクタ追跡用）
+struct FStruct { virtual ~FStruct() = default; };
+
+// 型付き具体クラス
+template <typename StructType>
+struct TStruct final : public FStruct
 {
-public:
-    // 新規作成（すでに存在する場合はアサート）
-    template <typename StructType, typename... ArgsType>
-    StructType& Create(ArgsType&&... Args);
-
-    // Mutable 取得（存在しない場合は nullptr）
-    template <typename StructType>
-    StructType* GetMutable() const;
-
-    // Const 取得（存在しない場合は nullptr）
-    template <typename StructType>
-    const StructType* Get() const;
-
-    // Mutable 取得（存在しない場合はアサート）
-    template <typename StructType>
-    StructType& GetMutableChecked() const;
-
-    // Const 取得（存在しない場合はアサート）
-    template <typename StructType>
-    const StructType& GetChecked() const;
-
-    // 存在しなければ作成して返す
-    template <typename StructType, typename... ArgsType>
-    StructType& GetOrCreate(ArgsType&&... Args);
-
-private:
-    FRDGAllocator& Allocator;                     // グラフアロケータへの参照
-    TArray<FStruct*, FRDGArrayAllocator> Blackboard;  // 型インデックス → インスタンスの配列
-    friend class FRDGBuilder;
+    StructType Struct;  // ユーザー定義の構造体インスタンス
 };
 ```
+
+### 公開メソッド
+
+```cpp
+// 新規作成（すでに存在する場合は checkf でアサート）
+template <typename StructType, typename... ArgsType>
+StructType& Create(ArgsType&&... Args);
+
+// Mutable 取得（存在しない場合は nullptr）
+template <typename StructType>
+StructType* GetMutable() const;
+
+// Const 取得（存在しない場合は nullptr）
+template <typename StructType>
+const StructType* Get() const;
+
+// Mutable 取得（存在しない場合は checkf でアサート）
+template <typename StructType>
+StructType& GetMutableChecked() const;
+
+// Const 取得（存在しない場合は checkf でアサート）
+template <typename StructType>
+const StructType& GetChecked() const;
+
+// 存在しなければ作成して返す
+template <typename StructType, typename... ArgsType>
+StructType& GetOrCreate(ArgsType&&... Args);
+```
+
+### 内部処理フロー（Create）
+
+```
+Create<StructType>(Args...)
+  ├─ GetStructIndex<StructType>()
+  │   └─ 初回呼び出し時: AllocateIndex() でグローバル一意インデックスを割り当て
+  │       └─ 以降は static uint32 Index にキャッシュ（= 再割り当てなし）
+  ├─ Blackboard 配列が足りない場合: SetNumZeroed で拡張
+  ├─ Blackboard[StructIndex] が非 null なら checkf アサート
+  └─ Allocator.Alloc<TStruct<StructType>>(Args...) で確保・構築
+     └─ Blackboard[StructIndex] に登録、struct の参照を返す
+```
+
+### 使用箇所
+- [[ref_rdg_builder]] `FRDGBuilder::Blackboard` — パブリックメンバとして公開
+- `DeferredShadingRenderer.cpp` — `FSceneTexturesConfig` / `FSceneTextures` の共有
 
 ---
 
@@ -61,12 +92,16 @@ Blackboard で使用する構造体を登録するためのマクロ。
 型と一意のインデックスを関連付ける。
 
 ```cpp
-// ヘッダまたは .cpp で 1 回だけ宣言する
-RDG_REGISTER_BLACKBOARD_STRUCT(FMyStruct)
+// マクロの展開内容
+#define RDG_REGISTER_BLACKBOARD_STRUCT(StructType)          \
+    template <>                                              \
+    inline FString FRDGBlackboard::GetTypeName<StructType>()\
+    {                                                        \
+        return GetTypeName(TEXT(#StructType), TEXT(__FILE__), __LINE__); \
+    }
 ```
 
-マクロが展開すると `FRDGBlackboard::GetTypeName<FMyStruct>()` の特殊化が生成される。  
-登録なしに `Create<FMyStruct>()` を呼ぶとコンパイルエラーになる。
+登録なしに `Create<MyStruct>()` を呼ぶと、`static_assert(sizeof(StructType) == 0)` が発動してコンパイルエラーになる。
 
 ---
 
@@ -75,7 +110,7 @@ RDG_REGISTER_BLACKBOARD_STRUCT(FMyStruct)
 ### 書き込み（パス A）
 
 ```cpp
-// 構造体を Blackboard に登録
+// ヘッダで構造体を定義・登録
 struct FSceneSharedTextures
 {
     FRDGTextureRef SceneColor = nullptr;
@@ -97,14 +132,20 @@ const auto& Shared = GraphBuilder.Blackboard.GetChecked<FSceneSharedTextures>();
 FRDGTextureRef Color = Shared.SceneColor;
 
 // 存在しない可能性がある場合
-const auto* Shared = GraphBuilder.Blackboard.Get<FSceneSharedTextures>();
-if (Shared) { ... }
+const auto* SharedPtr = GraphBuilder.Blackboard.Get<FSceneSharedTextures>();
+if (SharedPtr) { ... }
 ```
 
 ---
 
-## 内部実装メモ
+> [!note]- 型インデックスの割り当て方式（静的 once-initialization）
+> `GetStructIndex<T>()` は `static uint32 Index = UINT_MAX` をスレッドセーフに初期化する。  
+> `AllocateIndex()` はグローバルな原子カウンタをインクリメントして一意番号を返す。  
+> インデックスはプロセス起動後に単調増加し、型の登録順に依存するが不変。  
+> `Blackboard` 配列は必要に応じて `SetNumZeroed` で拡張されるため、初期サイズへの事前決定は不要。
 
-- 各型に静的な一意インデックスが `AllocateIndex()` で割り振られる
-- 配列の添字は型インデックス（= 初回アクセス時に採番）
-- インデックスはプロセス起動中は不変（型が追加されると配列が拡張される）
+> [!note]- GetOrCreate の使いどころ
+> `GetOrCreate<T>()` はパスが複数の呼び出しパスから到達できる場合に安全に使える。  
+> 最初の呼び出し時のみ `Create` を実行し、以降は `GetMutable` でキャッシュされた参照を返す。  
+> ただし `Create` と `GetOrCreate` を混在させると 2 回目の `Create` でアサートするため、  
+> どちらを使うかのルールをシステム内で統一することが重要。

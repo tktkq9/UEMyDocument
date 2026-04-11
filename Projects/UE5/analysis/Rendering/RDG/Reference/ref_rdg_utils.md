@@ -9,238 +9,283 @@
 ## 概要
 
 レンダリングコードでよく使われる RDG ユーティリティ関数群。  
-リソース状態確認・レンダーターゲットバインド・クリア・コピー・スクリーンパスラッパーを含む。
+リソース状態確認・テクスチャ登録・クリア・コピー・リードバック・コンピュートパスのショートカットを含む。
 
 ---
 
-## イベント名マクロ
+## リソース状態確認ユーティリティ
 
 ```cpp
-// GPU プロファイラに表示されるパス名を生成
-// フォーマット文字列あり: RenderDoc/PIX に変数値が表示される
-#define RDG_EVENT_NAME(Format, ...) \
-    FRDGEventName(TEXT(Format), ##__VA_ARGS__)
+// テクスチャ / バッファが先行パスで生成済みか確認
+bool HasBeenProduced(FRDGViewableResource* Resource);
 
-// 注意: フォーマット引数なし版は静的文字列として最適化される
-RDG_EVENT_NAME("StaticPassName")         // 高速（文字列コピーなし）
-RDG_EVENT_NAME("Pass %dx%d", W, H)       // 動的（文字列フォーマット）
-```
+// 生成済みならそのまま返し、未生成なら FallbackTexture を返す
+FRDGTextureRef GetIfProduced(FRDGTextureRef Texture, FRDGTextureRef FallbackTexture = nullptr);
+FRDGBufferRef  GetIfProduced(FRDGBufferRef Buffer,   FRDGBufferRef FallbackBuffer   = nullptr);
 
----
-
-## イベントスコープマクロ
-
-```cpp
-// RDG グラフ全体のスコープ（GPU プロファイラで階層化される）
-RDG_EVENT_SCOPE(GraphBuilder, "MySubsystem");
-RDG_EVENT_SCOPE(GraphBuilder, "Bloom Pass %s", bFFT ? "FFT" : "Gaussian");
-
-// GPU 統計スコープ（r.GPU.Stat.MyStatName で計測）
-RDG_GPU_STAT_SCOPE(GraphBuilder, MyStatName);
-
-// CSV プロファイルスコープ
-RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, PostProcess);
-```
-
----
-
-## FRDGEventName
-
-```cpp
-class FRDGEventName final
-{
-public:
-    FRDGEventName(const TCHAR* EventFormat, ...);  // 可変長引数（動的）
-    FRDGEventName(int32 NonVariadic, const TCHAR* EventName);  // 静的文字列
-
-    const TCHAR* GetTCHAR() const;
-    bool HasFormattedString() const;
-};
-```
-
----
-
-## FRDGBlackboard
-
-```cpp
-class FRDGBlackboard
-{
-public:
-    // 新規作成（同一型はひとつまで。2回呼ぶとエラー）
-    template <typename StructType, typename... ArgsType>
-    StructType& Create(ArgsType&&... Args);
-
-    // 存在チェック付き取得（const 参照、なければアサート）
-    template <typename StructType>
-    const StructType& GetChecked() const;
-
-    // Mutable 取得（存在しなければ nullptr）
-    template <typename StructType>
-    StructType* GetMutable() const;
-
-    // 存在しなければデフォルト構築して返す
-    template <typename StructType, typename... ArgsType>
-    StructType& GetOrCreate(ArgsType&&... Args);
-};
-
-// 使用登録マクロ（cpp ファイルで1回だけ呼ぶ）
-#define RDG_REGISTER_BLACKBOARD_STRUCT(StructType)
-```
-
----
-
-## FRDGParameterStruct
-
-```cpp
-class FRDGParameterStruct
-{
-public:
-    template <typename ParameterStructType>
-    explicit FRDGParameterStruct(
-        const ParameterStructType* Parameters,
-        const FShaderParametersMetadata* InParameterMetadata);
-
-    const uint8*                    GetContents() const;
-    const FRHIUniformBufferLayout&  GetLayout()   const;
-    const FShaderParametersMetadata* GetMetadata() const;
-
-    bool HasRenderTargets()        const;
-    bool HasExternalOutputs()      const;
-    bool HasTextures()             const;
-    bool HasBuffers()              const;
-    bool HasUniformBuffers()       const;
-
-    uint32 GetBufferParameterCount()        const;
-    uint32 GetTextureParameterCount()       const;
-    uint32 GetUniformBufferParameterCount() const;
-
-    // リソース列挙（RDG 内部でバリア解析に使用）
-    template <typename FunctionType>
-    void Enumerate(FunctionType Function) const;
-    void EnumerateTextures(FunctionType Function) const;
-    void EnumerateBuffers(FunctionType Function) const;
-    void EnumerateUniformBuffers(FunctionType Function) const;
-};
-```
-
----
-
-## シェーダーパラメータ構造体マクロ一覧
-
-```cpp
-// 構造体の開始・終了
-BEGIN_SHADER_PARAMETER_STRUCT(StructName, Qualifier)
-END_SHADER_PARAMETER_STRUCT()
-
-// プリミティブ値
-SHADER_PARAMETER(Type, Name)                    // float, uint32, FVector2f 等
-SHADER_PARAMETER_ARRAY(Type, Name, [Count])
-
-// RDG テクスチャ
-SHADER_PARAMETER_RDG_TEXTURE(TextureType, Name)            // SRV として使用
-SHADER_PARAMETER_RDG_TEXTURE_SRV(TextureType, Name)        // 明示的 SRV
-SHADER_PARAMETER_RDG_TEXTURE_UAV(TextureType, Name)        // UAV
-SHADER_PARAMETER_RDG_TEXTURE_ARRAY(TextureType, Name, [N]) // 配列
-
-// RDG バッファ
-SHADER_PARAMETER_RDG_BUFFER_SRV(BufferType, Name)
-SHADER_PARAMETER_RDG_BUFFER_UAV(BufferType, Name)
-
-// Uniform Buffer
-SHADER_PARAMETER_STRUCT_REF(StructType, Name)              // TUniformBufferRef<>
-SHADER_PARAMETER_RDG_UNIFORM_BUFFER(StructType, Name)      // TRDGUniformBufferRef<>
-SHADER_PARAMETER_STRUCT(StructType, Name)                  // インライン埋め込み
-SHADER_PARAMETER_STRUCT_ARRAY(StructType, Name, [N])
-
-// サンプラー / テクスチャ（非 RDG。StaticSamplerState 等）
-SHADER_PARAMETER_SAMPLER(SamplerType, Name)
-SHADER_PARAMETER_TEXTURE(TextureType, Name)
-
-// レンダーターゲット（Raster パスのみ）
-RENDER_TARGET_BINDING_SLOTS()
-```
-
----
-
-## RenderGraphUtils.h — ユーティリティ関数
-
-```cpp
-// テクスチャをクリア（RDG パスとして追加）
-void AddClearRenderTargetPass(
-    FRDGBuilder& GraphBuilder,
+// 生成済みなら ELoad、未生成なら指定の ActionIfNotProduced を返す
+ERenderTargetLoadAction GetLoadActionIfProduced(
     FRDGTextureRef Texture,
-    const FLinearColor& ClearColor = FLinearColor::Black);
+    ERenderTargetLoadAction ActionIfNotProduced);
 
-void AddClearDepthStencilPass(
-    FRDGBuilder& GraphBuilder,
+// 生成済み判定に基づくバインディング生成
+FRenderTargetBinding GetLoadBindingIfProduced(
     FRDGTextureRef Texture,
-    bool bClearDepth, float Depth,
-    bool bClearStencil, uint8 Stencil);
-
-// テクスチャ → テクスチャコピー
-void AddCopyTexturePass(
-    FRDGBuilder& GraphBuilder,
-    FRDGTextureRef InputTexture,
-    FRDGTextureRef OutputTexture,
-    const FRHICopyTextureInfo& CopyInfo = FRHICopyTextureInfo());
-
-// バッファをゼロクリア
-void AddClearUAVPass(
-    FRDGBuilder& GraphBuilder,
-    FRDGBufferUAVRef BufferUAV,
-    uint32 ClearValue);
-
-void AddClearUAVFloatPass(
-    FRDGBuilder& GraphBuilder,
-    FRDGBufferUAVRef BufferUAV,
-    float ClearValue);
-
-// GPU → CPU リードバック（非同期）
-void AddEnqueueCopyPass(
-    FRDGBuilder& GraphBuilder,
-    FRHIGPUTextureReadback* Readback,
-    FRDGTextureRef SourceTexture,
-    FResolveParams ResolveParams = FResolveParams());
-
-void AddEnqueueCopyPass(
-    FRDGBuilder& GraphBuilder,
-    FRHIGPUBufferReadback* Readback,
-    FRDGBufferRef SourceBuffer,
-    uint32 NumBytes = 0);
+    ERenderTargetLoadAction ActionIfNotProduced);
 ```
+
+### 使用箇所
+- ポストプロセスパスで SceneColor が前段パスで書かれているか確認
+
+---
+
+## RHI リソース取得ユーティリティ
+
+```cpp
+// null チェック付きで RHI リソースを取得（nullptr 安全）
+FRHITexture* TryGetRHI(FRDGTextureRef Texture);
+FRHIBuffer*  TryGetRHI(FRDGBuffer*       Buffer);
+FRHIBuffer*  TryGetRHI(FRDGPooledBuffer* Buffer);
+FRHIShaderResourceView* TryGetSRV(FRDGPooledBuffer* Buffer);
+uint64 TryGetSize(const FRDGBuffer*      Buffer);
+uint64 TryGetSize(const FRDGPooledBuffer* Buffer);
+
+// GraphBuilder にすでに登録されているか確認
+bool IsRegistered(FRDGBuilder& GraphBuilder, const TRefCountPtr<IPooledRenderTarget>& RenderTarget);
+bool IsRegistered(FRDGBuilder& GraphBuilder, const TRefCountPtr<FRDGPooledBuffer>& Buffer);
+```
+
+---
+
+## テクスチャ登録ユーティリティ
+
+```cpp
+// null の場合に FallbackPooledTexture を使う安全版
+FRDGTextureRef RegisterExternalTextureWithFallback(
+    FRDGBuilder& GraphBuilder,
+    const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
+    const TRefCountPtr<IPooledRenderTarget>& FallbackPooledTexture);
+
+// null の場合に nullptr を返す（アサートしない）
+FRDGTextureRef TryRegisterExternalTexture(
+    FRDGBuilder& GraphBuilder,
+    const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
+    ERDGTextureFlags Flags = ERDGTextureFlags::None);
+
+FRDGBufferRef TryRegisterExternalBuffer(
+    FRDGBuilder& GraphBuilder,
+    const TRefCountPtr<FRDGPooledBuffer>& ExternalPooledBuffer,
+    ERDGBufferFlags Flags = ERDGBufferFlags::None);
+
+// FRHITexture* から直接登録（登録済みの場合は既存を返す）
+FRDGTextureRef RegisterExternalTexture(
+    FRDGBuilder& GraphBuilder,
+    FRHITexture* Texture,
+    const TCHAR* NameIfUnregistered,
+    ERDGTextureFlags Flags = ERDGTextureFlags::None);
+```
+
+---
+
+## レンダーターゲットバインディング生成
+
+```cpp
+// 複数テクスチャを同じ LoadAction で一括バインド
+FRenderTargetBindingSlots GetRenderTargetBindings(
+    ERenderTargetLoadAction ColorLoadAction,
+    TArrayView<FRDGTextureRef> ColorTextures);
+
+// FTextureRenderTargetBinding（bNeverClear / ArraySlice 対応）版
+FRenderTargetBindingSlots GetRenderTargetBindings(
+    ERenderTargetLoadAction ColorLoadAction,
+    TArrayView<FTextureRenderTargetBinding> ColorTextures);
+```
+
+### FTextureRenderTargetBinding
+
+```cpp
+struct FTextureRenderTargetBinding
+{
+    FRDGTextureRef Texture    = nullptr;
+    int16          ArraySlice = -1;       // -1 = 全スライス
+    bool           bNeverClear = false;   // Clear 指定でも EClear を ELoad に差し替える
+};
+```
+
+---
+
+## MSAA ユーティリティ
+
+```cpp
+// MSAA テクスチャ対（Target + Resolve）を生成
+FRDGTextureMSAA CreateTextureMSAA(
+    FRDGBuilder& GraphBuilder,
+    FRDGTextureDesc Desc,
+    const TCHAR* NameMultisampled,
+    const TCHAR* NameResolved,
+    ETextureCreateFlags ResolveFlagsToAdd = TexCreate_None);
+
+struct FRDGTextureMSAA {
+    FRDGTextureRef Target  = nullptr;  // マルチサンプルテクスチャ
+    FRDGTextureRef Resolve = nullptr;  // リゾルブ先（単サンプル）
+    bool IsValid()    const;  // 両方非 null
+    bool IsSeparate() const;  // Target != Resolve
+};
+```
+
+---
+
+## シェーダーパラメータ検証・クリア
+
+```cpp
+// シェーダーが使わないパラメータを nullptr / 0 にクリア
+// （バリデーション失敗を事前に防ぐためにシェーダー設定前に呼ぶ）
+template <typename TShaderClass>
+void ClearUnusedGraphResources(
+    const TShaderRef<TShaderClass>& Shader,
+    typename TShaderClass::FParameters* InoutParameters,
+    std::initializer_list<FRDGResourceRef> ExcludeList = {});
+
+// 2 シェーダーの合成パラメータをクリア（VS + PS 等）
+template <typename TShaderClassA, typename TShaderClassB, typename TPassParameterStruct>
+void ClearUnusedGraphResources(
+    const TShaderRef<TShaderClassA>& ShaderA,
+    const TShaderRef<TShaderClassB>& ShaderB,
+    TPassParameterStruct* InoutParameters,
+    std::initializer_list<FRDGResourceRef> ExcludeList = {});
+```
+
+### 使用箇所
+- `FComputeShaderUtils::AddPass()` 内部で自動的に呼び出す
 
 ---
 
 ## FComputeShaderUtils — Compute パスのショートカット
 
+### GetGroupCount / GetGroupCountWrapped
+
 ```cpp
-// Dispatch（グループ数指定）
+namespace FComputeShaderUtils {
+
+// 定数: GCN の 1 wave / Nvidia の 2 warp を占有する推奨サイズ
+static constexpr int32 kGolden2DGroupSize = 8;
+
+// グループ数計算（スレッド数 ÷ グループサイズ、端数切り上げ）
+FIntVector GetGroupCount(int32 ThreadCount, int32 GroupSize);
+FIntVector GetGroupCount(FIntPoint ThreadCount, FIntPoint GroupSize);
+FIntVector GetGroupCount(FIntPoint ThreadCount, int32 GroupSize);
+FIntVector GetGroupCount(FIntVector ThreadCount, FIntVector GroupSize);
+
+// X 次元がハードウェア上限を超える場合に Y/Z に折り返す
+// シェーダー側で: uint LinearGroupId = GroupId.X + (GroupId.Z * 128 + GroupId.Y) * 128;
+static constexpr int32 WrappedGroupStride = 128;
+FIntVector GetGroupCountWrapped(int32 TargetGroupCount);
+FIntVector GetGroupCountWrapped(int32 ThreadCount, int32 GroupSize);
+
+} // namespace FComputeShaderUtils
+```
+
+### Dispatch / DispatchIndirect（直接 RHI 発行）
+
+```cpp
+// パイプライン設定 → パラメータ設定 → Dispatch → UAV アンセット
 template<typename TShaderClass>
-static void Dispatch(
+void Dispatch(
     FRHIComputeCommandList& RHICmdList,
-    const TShaderRef<TShaderClass>& Shader,
+    const TShaderRef<TShaderClass>& ComputeShader,
     const typename TShaderClass::FParameters& Parameters,
     FIntVector GroupCount);
 
-// Dispatch（スレッド数から自動計算）
+// Indirect Dispatch（IndirectArgsBuffer のバリデーション付き）
 template<typename TShaderClass>
-static void DispatchIndirect(
+void DispatchIndirect(
     FRHIComputeCommandList& RHICmdList,
-    const TShaderRef<TShaderClass>& Shader,
+    const TShaderRef<TShaderClass>& ComputeShader,
     const typename TShaderClass::FParameters& Parameters,
-    FRHIBuffer* IndirectArgsBuffer, uint32 IndirectArgOffset);
+    FRDGBufferRef IndirectArgsBuffer,
+    uint32 IndirectArgOffset);
+```
 
-// AddPass のショートカット（GraphBuilder 版）
+### AddPass（RDG グラフへの追加）
+
+```cpp
+// グループ数固定版（内部で ClearUnusedGraphResources を自動実行）
 template<typename TShaderClass>
-static FRDGPassRef AddPass(
+FRDGPassRef AddPass(
     FRDGBuilder& GraphBuilder,
     FRDGEventName&& PassName,
-    const TShaderRef<TShaderClass>& Shader,
+    ERDGPassFlags PassFlags,          // Compute または AsyncCompute のみ有効
+    const TShaderRef<TShaderClass>& ComputeShader,
     typename TShaderClass::FParameters* Parameters,
     FIntVector GroupCount);
 
-// グループ数の計算（スレッド総数 / グループサイズ、端数切り上げ）
-static FIntVector GetGroupCount(const FIntPoint& ThreadCount, const FIntPoint& GroupSize);
-static FIntVector GetGroupCount(const FIntVector& ThreadCount, const FIntVector& GroupSize);
-static int32 GetGroupCount(int32 ThreadCount, int32 GroupSize);
+// グループ数コールバック版（実行直前まで GroupCount を遅延決定できる）
+// FRDGDispatchGroupCountCallback = TFunction<FIntVector()>
+template<typename TShaderClass>
+FRDGPassRef AddPass(
+    FRDGBuilder& GraphBuilder,
+    FRDGEventName&& PassName,
+    ERDGPassFlags PassFlags,
+    const TShaderRef<TShaderClass>& ComputeShader,
+    typename TShaderClass::FParameters* Parameters,
+    FRDGDispatchGroupCountCallback&& GroupCountCallback);
+
+// ERDGPassFlags::Compute をデフォルト使用する簡略版
+template<typename TShaderClass>
+FRDGPassRef AddPass(
+    FRDGBuilder& GraphBuilder,
+    FRDGEventName&& PassName,
+    const TShaderRef<TShaderClass>& ComputeShader,
+    typename TShaderClass::FParameters* Parameters,
+    FIntVector GroupCount);
 ```
+
+### 内部処理フロー（AddPass）
+
+```
+AddPass(GraphBuilder, Name, PassFlags, ComputeShader, Parameters, GroupCount)
+  ├─ checkf: PassFlags は Compute / AsyncCompute のみ許可
+  ├─ ValidateGroupCount(GroupCount)
+  ├─ ClearUnusedGraphResources(ComputeShader, Parameters)
+  └─ GraphBuilder.AddPass(Name, Parameters, PassFlags,
+         [ParametersMetadata, Parameters, ComputeShader, GroupCount](FRDGAsyncTask, FRHIComputeCommandList& RHICmdList)
+         {
+             FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, ParametersMetadata, *Parameters, GroupCount);
+         })
+```
+
+---
+
+## シェーダーパラメータマクロ（参照）
+
+| マクロ | C++ 型 | 用途 |
+|--------|--------|------|
+| `SHADER_PARAMETER(Type, Name)` | プリミティブ | `float`, `uint32`, `FVector2f` 等 |
+| `SHADER_PARAMETER_RDG_TEXTURE(T, N)` | `FRDGTextureRef` | SRV として使用 |
+| `SHADER_PARAMETER_RDG_TEXTURE_SRV(T, N)` | `FRDGTextureSRVRef` | 明示的 SRV |
+| `SHADER_PARAMETER_RDG_TEXTURE_UAV(T, N)` | `FRDGTextureUAVRef` | UAV |
+| `SHADER_PARAMETER_RDG_BUFFER_SRV(T, N)` | `FRDGBufferSRVRef` | バッファ SRV |
+| `SHADER_PARAMETER_RDG_BUFFER_UAV(T, N)` | `FRDGBufferUAVRef` | バッファ UAV |
+| `SHADER_PARAMETER_RDG_UNIFORM_BUFFER(T, N)` | `TRDGUniformBufferRef<T>` | RDG UB |
+| `RENDER_TARGET_BINDING_SLOTS()` | `FRenderTargetBindingSlots` | Raster パスのみ |
+
+---
+
+> [!note]- FRDGDispatchGroupCountCallback — 遅延 GroupCount
+> ```cpp
+> using FRDGDispatchGroupCountCallback = TFunction<FIntVector()>;
+> ```
+> GPU カウンタバッファの結果など、AddPass 時点では未確定だが  
+> Execute 直前には確定している GroupCount を渡すための仕組み。  
+> コールバックが返す GroupCount のいずれかが 0 の場合は Dispatch をスキップする。
+
+> [!note]- GetGroupCountWrapped の注意点
+> GLES 3.1 では X 次元の最大グループ数が 65535 と制限される場合がある。  
+> `GetGroupCountWrapped` は `WrappedGroupStride = 128` でラップするため、  
+> シェーダー側でも `GetUnWrappedDispatchGroupId(GroupId)` を使って線形 GroupId を復元する必要がある。
+
+> [!note]- ValidateIndirectArgsBuffer のバリデーション内容
+> 1. バッファに `BUF_VertexBuffer` or `BUF_ByteAddressBuffer` フラグが必要
+> 2. バッファに `BUF_DrawIndirect` フラグが必要
+> 3. IndirectArgOffset は 4 バイトアライン
+> 4. プラットフォームによっては境界をまたぐオフセットが禁止（`PLATFORM_DISPATCH_INDIRECT_ARGUMENT_BOUNDARY_SIZE`）
