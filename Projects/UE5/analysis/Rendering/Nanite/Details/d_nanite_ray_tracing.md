@@ -90,6 +90,65 @@ struct FStreamOutRequest
 
 ---
 
+## コード実行フロー
+
+### エントリポイント
+
+```
+[プリミティブ追加/削除時]
+FScene::AddPrimitive() / RemovePrimitive()
+  └─ Nanite::GRayTracingManager.Add() / Remove()
+       → FPrimitiveSceneInfo を内部管理テーブルに登録/削除
+       → 初回は FPendingBuild キューに追加
+
+[毎フレーム: RenderNanite() より前]
+Nanite::GRayTracingManager.UpdateStreaming()
+  → ストリーミング状態を確認
+  → ストリームが完了したエントリを FPendingBuild に移動
+
+[毎フレーム: RenderNanite() 内]
+Nanite::GRayTracingManager.ProcessBuildRequests()
+  │
+  ├─ NaniteStreamOut::StreamOutData()
+  │    → GPU→CPU でメッシュ頂点/インデックスデータを抽出
+  │    → FStreamOutRequest::Header / Segments を埋める
+  │
+  └─ RHIBuildAccelerationStructure()
+       → FRayTracingGeometry（BLAS）を構築
+       → 完成した BLAS を Lumen HW RT / DXR シャドウが参照
+
+[BLAS 取得]
+Nanite::GRayTracingManager.GetRayTracingGeometry(SceneInfo)
+  → FRayTracingGeometry* を返す（Lumen/シャドウパスが使用）
+```
+
+### フロー詳細
+
+1. **Add() / Remove()**  
+   プリミティブの追加削除時にレンダースレッドで呼ばれる。内部で `FInternalData` マップを更新し、BLAS が必要なエントリを `FPendingBuild` キューに追加する。
+
+2. **UpdateStreaming()**  
+   Nanite ページストリーミングの完了を確認し、BLAS 構築に必要なデータが揃ったエントリを `FPendingBuild` に移動する。ストリーミングが未完了なら次フレームに持ち越す。
+
+3. **NaniteStreamOut::StreamOutData()**  
+   Nanite の仮想ジオメトリ（クラスター）を従来の頂点/インデックスバッファ形式で GPU から CPU に読み出す。RHI 加速構造体の構築は従来フォーマットのメッシュデータを必要とするため、このステップが必要となる。
+
+4. **ProcessBuildRequests()**  
+   `FPendingBuild` を処理し、`RHIBuildAccelerationStructure()` を発行して BLAS を完成させる。完成した `FRayTracingGeometry` は `GetRayTracingGeometry()` で取得できる。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル:行 | 説明 |
+|--------------|------------|------|
+| `Nanite::FRayTracingManager::Add()` | `NaniteRayTracing.h` | プリミティブ登録 |
+| `Nanite::FRayTracingManager::Remove()` | `NaniteRayTracing.h` | プリミティブ削除 |
+| `Nanite::FRayTracingManager::UpdateStreaming()` | `NaniteRayTracing.h` | ストリーミング完了確認 |
+| `Nanite::FRayTracingManager::ProcessBuildRequests()` | `NaniteRayTracing.h` | BLAS 構築 GPU ジョブ発行 |
+| `Nanite::FRayTracingManager::GetRayTracingGeometry()` | `NaniteRayTracing.h` | 完成 BLAS の取得 |
+| `NaniteStreamOut::StreamOutData()` | `NaniteStreamOut.h` | GPU→CPU メッシュデータ抽出 |
+
+---
+
 ## 関連リファレンス
 
 | リファレンス | 対象ソース | 主な内容 |

@@ -105,3 +105,21 @@ struct FRasterResults
 | `r.Nanite.MaxPatchesPerGroup` | 1 | テッセレーションパッチバッチ上限 |
 | `r.Nanite.FilterPrimitives` | 0 | デバッグ用プリミティブフィルタ |
 | `r.Nanite.DepthBucketing` | 1 | 深度バケッティング最適化 |
+
+---
+
+> [!note]- 2パスカリングの遅延について
+> Pass 1 は前フレームの HZB を使うため、1フレームのカリング遅延が生じる。  
+> Post Pass でこの遅延による漏れ（前フレームでは不可視だったが今フレームで可視になったクラスター）を補完する。  
+> このため毎フレーム「Pass 1 + Post Pass」の2回カリングが実行されるが、  
+> 実際には Pass 1 で大部分が棄却されるため Post Pass のコストは小さい。
+
+> [!note]- EOutputBufferMode::DepthOnly の用途
+> シャドウパス（`EPipeline::Shadows`）では GBuffer は不要なため、  
+> `EOutputBufferMode::DepthOnly` を指定して深度テクスチャのみを出力する。  
+> この場合 `VisBuffer64` は確保されず、MaterialDepth も書き込まれない。
+
+> [!note]- ShadingMaskBuffer の役割
+> `ShadingMaskBuffer` は各ラスタービンがラスタライズされたかどうかのビットマスクを記録する。  
+> `ShadeBinning()` がこれを参照して、実際にピクセルが書き込まれたビンのみを分類対象にすることで、  
+> 空ビンへのシェーディングコストを削減する。

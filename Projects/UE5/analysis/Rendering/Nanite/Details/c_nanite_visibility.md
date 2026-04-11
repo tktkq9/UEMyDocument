@@ -86,6 +86,60 @@ class FOwnershipVisibilitySceneExtension : public ISceneExtension
 
 ---
 
+## コード実行フロー
+
+### エントリポイント
+
+```
+FDeferredShadingSceneRenderer::BeginInitViews()
+  │
+  └─ FNaniteVisibility::BeginVisibilityQuery()   NaniteVisibility.cpp:347
+       → クエリオブジェクト（FNaniteVisibilityQuery）を生成・登録
+       → GetVisibilityTask() で UE::Tasks::FTask を発行
+            PerformNaniteVisibility()
+              → ラスタービン・シェーディングビンごとに
+                可視プリミティブのビットを走査
+              → RasterBinVisibility / ShadingBinVisibility ビットマスクを構築
+
+FDeferredShadingSceneRenderer::EndInitViews() または RenderNanite()
+  │
+  └─ FNaniteVisibility::GetVisibilityResults()
+       → GetVisibilityTask() の完了を待つ（必要な場合のみ）
+       → FNaniteVisibilityResults* を返す
+            → DispatchBasePass() がビン可視判定に使用
+               IsRasterBinVisible() / IsShadingBinVisible()
+
+[オーナーシップ可視性]
+FDeferredShadingSceneRenderer::BeginInitViews()
+  └─ FOwnershipVisibilitySceneExtension::Update()
+       → ビューごとの bOwnerNoSee / bOnlyOwnerSee プリミティブを GPU バッファにアップロード
+       → カリングシェーダーが DrawGeometry() 内でオーナーシップフィルタを適用
+```
+
+### フロー詳細
+
+1. **BeginVisibilityQuery()** `NaniteVisibility.cpp:347`  
+   描画対象プリミティブのリスト（`FPrimitiveSceneInfo*` 配列）と `FNaniteRasterPipelines` / `FNaniteShadingPipelines` を受け取り、バックグラウンドタスクとして `PerformNaniteVisibility` を開始する。タスクは `DrawGeometry()` と並列実行される。
+
+2. **PerformNaniteVisibility()** `NaniteVisibility.cpp:267`  
+   プリミティブごとに登録されているラスタービン・シェーディングビンのインデックスを走査し、可視プリミティブに対応するビットを立てる。結果は `FNaniteVisibilityResults::RasterBinVisibility` / `ShadingBinVisibility` の uint32 配列（ビットマスク）に格納される。
+
+3. **GetVisibilityResults()** `NaniteVisibility.cpp:144`  
+   タスクの完了を待ってから `FNaniteVisibilityResults*` を返す。`DispatchBasePass()` はこの結果を参照し、可視でないビンのディスパッチをスキップしてシェーダー実行コストを削減する。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル:行 | 説明 |
+|--------------|------------|------|
+| `FNaniteVisibility::BeginVisibilityQuery()` | `NaniteVisibility.cpp:347` | 非同期可視性タスクの発行 |
+| `PerformNaniteVisibility()` | `NaniteVisibility.cpp:267` | ビットマスク構築タスク本体 |
+| `FNaniteVisibility::GetVisibilityResults()` | `NaniteVisibility.cpp:144` | タスク完了待ち + 結果返却 |
+| `FNaniteVisibilityResults::IsRasterBinVisible()` | `NaniteVisibility.cpp:164` | ラスタービンの可視判定 |
+| `FNaniteVisibilityResults::IsShadingBinVisible()` | `NaniteVisibility.cpp:169` | シェーディングビンの可視判定 |
+| `FOwnershipVisibilitySceneExtension::GetOwnershipVisibilityBuffer()` | `NaniteOwnershipVisibilitySceneExtension.h` | ビュー別オーナーシップビットマスクバッファ取得 |
+
+---
+
 ## 関連リファレンス
 
 | リファレンス | 対象ソース | 主な内容 |

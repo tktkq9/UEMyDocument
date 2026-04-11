@@ -100,6 +100,22 @@ struct FNaniteRasterBin
 
 ---
 
+## FPackedView — 主要フィールド
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `SVPositionToTranslatedWorld` | `FMatrix44f` | SVPosition → ワールド変換行列 |
+| `ViewToTranslatedWorld` | `FMatrix44f` | ビュー → ワールド変換行列 |
+| `ViewRect` | `FVector4f` | (MinX, MinY, MaxX, MaxY) |
+| `ViewSizeAndInvSize` | `FVector4f` | ビューサイズと逆数 |
+| `ClipSpaceScaleOffset` | `FVector4f` | クリップ空間スケール・オフセット |
+| `PreViewTranslation` | `FVector4f` | 浮動小数点精度補正用平行移動 |
+| `LODScale` | `float` | LOD スケール係数 |
+| `MinBoundsRadiusSq` | `float` | 最小バウンド半径²（カリング用）|
+| `StreamingPriorityCategory` | `uint32` | ストリーミング優先度カテゴリ |
+
+---
+
 ## 主要関数
 
 | 関数 | 引数 | 説明 |
@@ -108,3 +124,22 @@ struct FNaniteRasterBin
 | `CreatePackedViewArray()` | `TArray<FPackedViewParams>` | 複数ビューの配列を作成 |
 | `SetCullingViewOverrides()` | `FPackedView&`, override params | カリングビューパラメータを上書き |
 | `ShouldDrawSceneViewsInOneNanitePass()` | `FSceneViewFamily` | 複数ビューを1パスで描画できるか判定 |
+
+---
+
+> [!note]- FPackedView の GPU アップロード
+> `FPackedViewArray::GetOrCreateBuffer()` が RDG バッファを作成し、  
+> GPU 上でカリングシェーダーが直接インデックスアクセスできる形式でアップロードする。  
+> VR / マルチビューの場合、`FPackedViewArray::Views` に複数ビューが入り、  
+> `ShouldDrawSceneViewsInOneNanitePass()` が true であれば1回の DrawGeometry() で処理される。
+
+> [!note]- FNaniteGlobalShader vs FNaniteMaterialShader
+> `FNaniteGlobalShader` はカリング・ビニング・VisBuffer読み取り等の固定処理シェーダーに使う。  
+> `FNaniteMaterialShader` はマテリアル固有のシェーディング（GBuffer 書き込み）に使う。  
+> 両クラスの `ShouldCompilePermutation()` が Nanite 対応プラットフォーム（SM5以上）のみを選別する。
+
+> [!note]- FGlobalResources の永続性
+> `FGlobalResources` は `FRenderResource` を継承するシングルトン的リソース。  
+> `InitRasterContext()` で毎フレーム作るフレーム一時バッファとは異なり、  
+> `StatsBuffer` / `StreamingRequests` 等はシーンのライフタイムにわたって維持される。  
+> `InitRHI()` でバッファを確保し `ReleaseRHI()` で解放する。

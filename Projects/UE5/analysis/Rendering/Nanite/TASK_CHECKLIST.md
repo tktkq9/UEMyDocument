@@ -111,6 +111,27 @@ Rendering/Nanite/
 
 ---
 
+## Phase 3 — コード実行フロー追加・Reference 強化
+
+### Overview
+- [x] 03_nanite_overview: RenderNanite → DrawGeometry → DispatchBasePass 全体フロー追加
+
+### Details（`## コード実行フロー` 追加）
+- [x] a_nanite_cull_raster    : InitRasterContext → IRenderer::Create → DrawGeometry（2パス） → ExtractResults
+- [x] b_nanite_materials_shading: BuildShadingCommands → ShadeBinning → DispatchBasePass フロー
+- [x] c_nanite_visibility     : BeginVisibilityQuery → PerformNaniteVisibility（非同期タスク）→ GetVisibilityResults
+- [x] d_nanite_ray_tracing    : Add/Remove → UpdateStreaming → ProcessBuildRequests → BLAS 構築
+- [x] e_nanite_tess_voxel     : テッセレーション・ボクセル描画 フロー
+- [x] f_nanite_debug_editor   : AddVisualizationPasses / DrawHitProxies / FFeedbackManager フロー
+
+### Reference（メンバ変数テーブル化・`> [!note]-` 追加）
+- [x] ref_nanite_core         : FSharedContext / FRasterContext / FRasterResults テーブル化・3 callout
+- [x] ref_nanite_shared       : FPackedView テーブル・3 callout（GPU アップロード / グローバルシェーダー / 永続リソース）
+- [x] ref_nanite_cull_raster  : 3 callout（2パス遅延 / DepthOnly / ShadingMaskBuffer）
+- [x] ref_nanite_shading      : FShadeBinning / FNaniteShadingPipeline テーブル化・関数テーブル行番号追加・3 callout
+
+---
+
 ## 作業ルール
 
 1. 1セッションで **同グループをまとめて**依頼するのが効率的

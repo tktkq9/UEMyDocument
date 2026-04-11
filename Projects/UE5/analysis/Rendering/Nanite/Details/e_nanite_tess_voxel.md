@@ -77,6 +77,58 @@ namespace Nanite
 
 ---
 
+## コード実行フロー
+
+### テッセレーション フロー
+
+```
+r.Nanite.Tessellation = 1 の場合のみ有効
+
+IRenderer::DrawGeometry()
+  │  通常のクラスターカリングに加えて:
+  │
+  ├─ FRasterResults::VisiblePatches バッファへ
+  │    可視クラスターをパッチとして出力
+  │
+  └─ [テッセレーションパス]
+       TessellationTable のパターン（ルックアップテーブル）を参照
+         → パッチを細分化（DicingRate に基づくマイクロポリゴン生成）
+         → SW ラスタライザ（Compute）で VisBuffer に書き込み
+```
+
+### ボクセル描画 フロー
+
+```
+デバッグ / 内部ビジュアライゼーション用
+
+Nanite::DrawVisibleBricks()   Voxel.h
+  → シーンをボクセルグリッドに区切る
+  → 可視ブリックを Compute または Draw で描画
+  → デバッグビュー上に表示
+```
+
+### テッセレーションテーブル 生成フロー
+
+```
+ビルド時（NANITE_BUILD_TESSELLATION_TABLE マクロ有効時）:
+  TessellationTable.cpp でテッセレーションパターンを事前計算
+  → バイナリファイルに出力
+
+ランタイム（通常）:
+  事前生成済みバイナリをロードしてシェーダーバッファにアップロード
+  → DrawGeometry() 内のテッセレーションパスが参照
+```
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 説明 |
+|--------------|---------|------|
+| `FRasterResults::VisiblePatches` | `NaniteCullRaster.h` | テッセレーション用可視パッチリスト |
+| `Nanite::DrawVisibleBricks()` | `Voxel.h` | ボクセルブリック描画（デバッグ用）|
+| `TessellationTable` | `TessellationTable.cpp` | テッセレーションパターン事前生成・ロード |
+
+---
+
 ## 関連リファレンス
 
 | リファレンス | 対象ソース | 主な内容 |

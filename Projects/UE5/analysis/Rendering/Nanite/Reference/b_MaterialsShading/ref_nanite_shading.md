@@ -45,13 +45,55 @@ struct FNaniteShadingPipeline
 
 ---
 
+## FShadeBinning — メンバ変数
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `ShadingBinArgs` | `FRDGBufferRef` | IndirectDispatch 引数バッファ（x/y/z グループ数）|
+| `ShadingBinData` | `FRDGBufferRef` | ビン別データ（オフセット・フラグ） |
+| `ShadingBinStats` | `FRDGBufferRef` | デバッグ統計（有効時のみ） |
+| `FastClearVisualize` | `FRDGTextureRef` | ファストクリア可視化テクスチャ |
+| `DataByteOffset` | `uint32` | ビンデータの開始オフセット |
+
+---
+
+## FNaniteShadingPipeline — メンバ変数
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| `ComputePipelineState` | `FRHIComputePipelineState*` | CS パイプラインオブジェクト |
+| `Shader` | `TShaderRef<FNaniteMaterialShader>` | シェーダー参照 |
+| `bIsProgrammable` | `bool` | プログラマブルシェーダーか（マスク・WPO 等）|
+| `bForceFullyRough` | `bool` | 完全ラフ強制（パフォーマンスモード）|
+
+---
+
 ## 主要関数
 
-| 関数 | 説明 |
-|------|------|
-| `ShadeBinning(FRDGBuilder&, FRasterResults&, ...)` | VisBuffer のピクセルをマテリアルビンに分類 |
-| `BuildShadingCommands(FRDGBuilder&, ...)` | ビン別の Indirect Dispatch 引数を生成 |
-| `LoadBasePassPipeline(...)` | ベースパス用シェーディングパイプラインをロード |
-| `LoadLumenCardPipeline(...)` | Lumen Surface Cache キャプチャ用パイプラインをロード |
-| `DispatchBasePass(FRDGBuilder&, FShadeBinning&, ...)` | ビン単位でシェーダーをディスパッチ → GBuffer 書き込み |
-| `DispatchLumenMeshCapturePass(FRDGBuilder&, ...)` | Lumen カード用キャプチャパスをディスパッチ |
+| 関数 | ファイル:行 | 説明 |
+|------|-----------|------|
+| `ShadeBinning(FRDGBuilder&, FRasterResults&, ...)` | `NaniteShading.cpp:1443` | VisBuffer ピクセルをビンに分類（3 CS パス）|
+| `BuildShadingCommands(FRDGBuilder&, ...)` | `NaniteShading.h:49` | ビン別 IndirectDispatch 引数構築 |
+| `LoadBasePassPipeline(...)` | `NaniteShading.h:57` | BasePass 用シェーディングパイプラインロード |
+| `LoadLumenCardPipeline(...)` | `NaniteShading.h:65` | Lumen Surface Cache 用パイプラインロード |
+| `DispatchBasePass(FRDGBuilder&, FShadeBinning&, ...)` | `NaniteShading.cpp:1178` | ビン単位 CS ディスパッチ → GBuffer |
+| `DispatchLumenMeshCapturePass(FRDGBuilder&, ...)` | `NaniteShading.cpp:2472` | Lumen カードキャプチャパスのディスパッチ |
+
+---
+
+> [!note]- ShadeBinning の3パスCS構成
+> `ShadeBinning()` 内では以下の3つのコンピュートシェーダーを順次実行する:  
+> 1. `ClassifyPixels CS` — VisBuffer64 の各ピクセルから MaterialDepth を読み取り、ビンインデックスに変換  
+> 2. `ShadingBinBuildCS` — ビンごとのピクセル数をカウントして `ShadingBinData` を構築  
+> 3. `ShadingBinReserveCS` — ビン別オフセットを確定し、`ShadingBinArgs` に IndirectDispatch x/y/z を書き込む  
+
+> [!note]- BuildShadingCommands と DispatchBasePass の分離
+> `BuildShadingCommands()` は RenderBasePass の前（`DeferredShadingRenderer.cpp:2599`）で呼ばれ、  
+> `DispatchBasePass()` は RenderBasePass 内（`BasePassRendering.cpp:1543`）で呼ばれる。  
+> この分離により、マテリアル変更がない場合に `BuildShadingCommands()` の結果をキャッシュして再利用できる。
+
+> [!note]- bIsProgrammable のコスト影響
+> `FNaniteShadingPipeline::bIsProgrammable = true`（WPO / マスク / PDO 等）の場合、  
+> HW ラスタライザが使えず SW（Compute）ラスタに強制される。  
+> また専用のシェーダーパイプラインが必要なため、プログラマブルマテリアルの比率が高いと  
+> IndirectDispatch の回数が増加しパフォーマンスに影響する。

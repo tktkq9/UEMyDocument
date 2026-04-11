@@ -118,6 +118,69 @@ graph TD
 
 ---
 
+## コード実行フロー
+
+### エントリポイント
+
+```
+FDeferredShadingSceneRenderer::Render()
+  │
+  ├─ RenderNanite()                       DeferredShadingRenderer.cpp:1364
+  │    │
+  │    ├─ Nanite::InitRasterContext()     DeferredShadingRenderer.cpp:1451
+  │    │    → VisBuffer64 / DbgBuffer64 / ShadingMaskBuffer を RDG で確保
+  │    │
+  │    ├─ Nanite::IRenderer::Create()     DeferredShadingRenderer.cpp:1676
+  │    │    → FRasterContext / FSharedContext から具体的レンダラーを生成
+  │    │
+  │    ├─ NaniteRenderer->DrawGeometry()  DeferredShadingRenderer.cpp:1689
+  │    │    → Instance Culling → Cluster Culling → HW/SW Rasterize → VisBuffer
+  │    │
+  │    └─ NaniteRenderer->ExtractResults() DeferredShadingRenderer.cpp:1696
+  │         → FRasterResults（PageRequests / VisibilityResults 等）を取得
+  │
+  ├─ Nanite::BuildShadingCommands()       DeferredShadingRenderer.cpp:2599
+  │    → ENaniteMeshPass::BasePass / LumenCardCapture の IndirectDispatch 引数を構築
+  │
+  └─ RenderBasePass()
+       └─ RenderBasePassInternal()        BasePassRendering.cpp:1449
+            └─ RenderNaniteBasePass lambda  BasePassRendering.cpp:1516
+                 └─ Nanite::DispatchBasePass()  BasePassRendering.cpp:1543
+                      └─ ShadeBinning()    NaniteShading.cpp:1294
+                           → ClassifyPixels → BuildShadingBinArgs
+                      → IndirectDispatch × ビン数 → GBuffer 書き込み
+```
+
+### フロー詳細
+
+1. **RenderNanite()** `DeferredShadingRenderer.cpp:1364`  
+   可視性カリング完了後に呼ばれる。`InitRasterContext` でフレーム用バッファを確保し、`IRenderer::Create` で具象レンダラーを生成する。
+
+2. **DrawGeometry()** — 2パスカリング＋ラスタライズ  
+   内部でインスタンス→クラスター→三角形の順に GPU Driven カリングを実行。`ERasterScheduling::HardwareAndSoftwareOverlap` の場合は HW ラスタと SW ラスタを非同期コンピュートで同時実行する。結果は `VisBuffer64`（Depth 40bit + MaterialDepth 24bit）に書き込まれる。
+
+3. **BuildShadingCommands()** `DeferredShadingRenderer.cpp:2599`  
+   `FNaniteShadingCommands` に各マテリアルビンの IndirectDispatch 引数を構築する。BasePass と LumenCardCapture で別々に呼ばれる。
+
+4. **DispatchBasePass()** `NaniteShading.cpp:1178`  
+   `ShadeBinning()` でピクセルをビンに分類した後、ビン単位でコンピュートシェーダーをディスパッチして GBuffer に書き込む。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル:行 | 説明 |
+|--------------|------------|------|
+| `FDeferredShadingSceneRenderer::RenderNanite()` | `DeferredShadingRenderer.cpp:1364` | Nanite レンダリング全体のエントリ |
+| `Nanite::InitRasterContext()` | `DeferredShadingRenderer.cpp:1451` | VisBuffer64 等 RDG テクスチャの確保 |
+| `Nanite::IRenderer::Create()` | `NaniteCullRaster.h:181` | 具象レンダラー生成（Factory）|
+| `IRenderer::DrawGeometry()` | `NaniteCullRaster.h:197` | Instance/Cluster カリング + HW/SW ラスタ |
+| `IRenderer::ExtractResults()` | `NaniteCullRaster.h:250` | FRasterResults の書き出し |
+| `Nanite::BuildShadingCommands()` | `NaniteShading.h:49` | ビン別 IndirectDispatch 引数構築 |
+| `Nanite::DispatchBasePass()` | `NaniteShading.cpp:1178` | ビン単位 CS ディスパッチ → GBuffer 書き込み |
+| `Nanite::ShadeBinning()` | `NaniteShading.cpp:1443` | VisBuffer ピクセルのビン分類 |
+| `FDeferredShadingSceneRenderer::RenderBasePass()` | `BasePassRendering.cpp:1071` | BasePass 全体エントリ（Nanite + 非Nanite） |
+
+---
+
 ## 有効化条件（`Nanite.h`）
 
 ```cpp

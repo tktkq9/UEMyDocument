@@ -120,6 +120,65 @@ private:
 
 ---
 
+## コード実行フロー
+
+### デバッグビジュアライゼーション フロー
+
+```
+FDeferredShadingSceneRenderer::RenderNanite()
+  │  FRasterResults 取得後
+  │
+  └─ [View.CurrentNaniteVisualizationMode が None 以外の場合]
+       Nanite::AddVisualizationPasses()
+         → r.Nanite.Visualize の値に対応する EDebugViewMode を選択
+         → VisBuffer64 / DbgBuffer64 からデバッグ情報を抽出
+         → スクリーン上にオーバーレイ描画
+         → (Picking が有効な場合) DisplayPicking()
+              → マウスカーソル下のクラスター情報を GPU から読み出して表示
+```
+
+### エディタ選択 フロー
+
+```
+FDeferredShadingSceneRenderer::RenderHitProxies()
+  └─ Nanite::DrawHitProxies()
+       → EPipeline::HitProxy モードで IRenderer::Create()
+       → DrawGeometry() → VisBuffer（ヒットプロキシID版）
+       → HitProxyTexture に書き込み
+       → エディタがクリック位置の Actor を特定
+
+FDeferredShadingSceneRenderer::Render() [エディタビルド]
+  └─ Nanite::DrawEditorSelection()
+       → 選択された Nanite プリミティブにアウトラインオーバーレイ
+  └─ Nanite::DrawEditorVisualizeLevelInstance()
+       → レベルインスタンスの境界ボックスを描画
+```
+
+### フィードバック フロー
+
+```
+RenderNanite() 実行後
+  └─ Nanite::FFeedbackManager::Update()
+       → GPU から統計バッファ（クラスター数・ビン数）を非同期で読み返し
+       → 上限（r.Nanite.MaxClusters 等）を超えた場合に
+         スクリーンに警告メッセージを表示（GetStatusMessageId()）
+       → マテリアル警告（プログラマブルラスタ多用等）を
+         ReportMaterialPerformanceWarning() でログ出力
+```
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 説明 |
+|--------------|---------|------|
+| `Nanite::AddVisualizationPasses()` | `NaniteVisualize.h` | デバッグビューオーバーレイの追加 |
+| `Nanite::DisplayPicking()` | `NaniteVisualize.h` | マウス位置のクラスター情報表示 |
+| `Nanite::DrawHitProxies()` | `NaniteEditor.h` | エディタクリック判定用 HitProxy 描画 |
+| `Nanite::DrawEditorSelection()` | `NaniteEditor.h` | 選択アウトラインオーバーレイ |
+| `Nanite::DrawEditorVisualizeLevelInstance()` | `NaniteEditor.h` | レベルインスタンス境界描画 |
+| `Nanite::FFeedbackManager::Update()` | `NaniteFeedback.h` | GPU 統計フィードバック更新・警告表示 |
+
+---
+
 ## 関連リファレンス
 
 | リファレンス | 対象ソース | 主な内容 |
