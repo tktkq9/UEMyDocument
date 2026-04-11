@@ -207,3 +207,131 @@ Execute() 呼び出し時:
 |------------|----------|
 | [[ref_rdg_pass]] | `RenderGraphPass.h/.cpp` |
 | [[ref_rdg_private]] | `RenderGraphPrivate.cpp` |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+GraphBuilder.AddPass(Name, Params, Flags, Lambda)
+  │
+  ├─ TRDGLambdaPass<Params, Lambda> を FRDGAllocator で確保
+  ├─ ERDGPassTaskMode を Lambda の引数型から推論
+  │   FRHICommandListImmediate& → Inline
+  │   FRHICommandList&          → Await
+  │   FRDGAsyncTask, ...        → Async
+  │
+  ├─ SetupParameterPass()         RenderGraphBuilder.cpp:2624
+  │   └─ FRDGParameterStruct::Enumerate でリソース依存を収集
+  │      IF_RDG_ENABLE_TRACE → Trace.AddTexturePassDependency / AddBufferPassDependency
+  │
+  ├─ IF_RDG_ENABLE_DEBUG → UserValidation.ValidateAddPass(Params, ...)
+  │
+  └─ FRDGPassRegistry に登録
+
+──── Execute() 内 ────
+
+Compile()
+  ├─ SetupPassDependencies()      :2319
+  │   └─ 全パスの FTextureState / FBufferState を走査
+  │      FirstPass / LastPass / AccessModes を確定
+  │
+  ├─ CullPasses()
+  │   └─ NeverCull / 外部抽出 Producer を Root に DFS
+  │      カリングされたパスは FRDGPass::bCulled = true
+  │
+  ├─ MergeRenderPasses()
+  │   └─ 同一 RT を持つ隣接 Raster パスを統合
+  │      IsMergedRenderPassBegin() / IsMergedRenderPassEnd() フラグを設定
+  │
+  └─ SetupAsyncComputeRegions()
+      └─ AsyncCompute パスの FRDGPass::AsyncComputeFence を設置
+
+ExecutePasses()                   :2036
+  └─ [パスごとのループ]
+      ├─ ExecutePassPrologue()    :3395
+      ├─ ExecutePass()            :3482
+      │   ├─ Inline  → ExecuteSerialPass()  :3497（レンダースレッドで同期実行）
+      │   ├─ Await   → タスクグラフに投入し完了まで待機
+      │   └─ Async   → タスクグラフに投入・手動待機
+      └─ ExecutePassEpilogue()    :3428
+```
+
+### フロー詳細
+
+1. **AddPass → TRDGLambdaPass 生成**
+   ```cpp
+   // AddPass の内部（擬似コード）
+   auto* Pass = Allocator.Alloc<TRDGLambdaPass<Params, Lambda>>(
+       MoveTemp(Name), Params, Flags, TaskMode, MoveTemp(Lambda));
+   Passes.Insert(Pass);  // FRDGPassRegistry に追加
+   ```
+   - ラムダはこの時点では **実行されない**（defer される）
+   - `SetupParameterPass()` `:2624` でパラメータ構造体を走査してリソース参照を記録する
+
+2. **SetupParameterPass() — `:2624`**
+   ```
+   FRDGParameterStruct::EnumerateTextures(Func)
+     → UBMT_RDG_TEXTURE / SRV / UAV ごとに Func を呼び出す
+     → FRDGPass::TextureStates に (Texture, AccessMode) を追加
+   FRDGParameterStruct::EnumerateBuffers(Func)
+     → FRDGPass::BufferStates に (Buffer, AccessMode) を追加
+   ```
+   - この情報が `SetupPassDependencies()` での First/Last パス解決に使われる
+
+3. **CullPasses() — カリング判定**
+   ```
+   DFS（後ろから前に走査）:
+     NeverCull フラグのパス          → Root（常に残す）
+     QueueTextureExtraction のソース → Root
+     Root に依存するパス             → Root に昇格
+
+   bCulled = true のパスは ExecutePasses() でスキップされる
+   ```
+
+4. **MergeRenderPasses() — Raster パスのマージ**
+   ```
+   条件: 隣接する Raster パスが同一 FRenderTargetBinding を持つ
+         かつ NeverMerge フラグなし
+         かつ間にバリアが不要
+
+   マージされると:
+     先頭パス: IsMergedRenderPassBegin() == true  → BeginRenderPass を発行
+     末尾パス: IsMergedRenderPassEnd() == true    → EndRenderPass を発行
+     中間パス: どちらも false                    → BeginRenderPass/EndRenderPass を省略
+   ```
+
+5. **ExecutePass() — `:3482`**
+   ```cpp
+   ExecutePass(Pass):
+     IF bCulled → スキップ
+     ExecutePassPrologue(Pass)  :3395
+       ├─ BarrierBatchBegin を Submit（RHI Transition Begin）
+       ├─ Pass->GetPipeline() が AsyncCompute なら AsyncComputeFence を発行
+       └─ BeginRenderPass（IsMergedRenderPassBegin の場合のみ）
+     
+     ExecuteSerialPass(Pass)  :3497
+       ├─ Pass->Execute(RHICmdList) ← ユーザーのラムダを実行
+       └─ IF_RDG_ENABLE_DEBUG → UserValidation.ValidateExecutePassEnd(Pass)
+     
+     ExecutePassEpilogue(Pass)  :3428
+       ├─ EndRenderPass（IsMergedRenderPassEnd の場合のみ）
+       └─ BarrierBatchEnd を Submit（RHI Transition End）
+   ```
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|--------|------|
+| `FRDGBuilder::AddPass()` | `RenderGraphBuilder.h` | パス宣言のエントリ |
+| `FRDGBuilder::SetupParameterPass()` | `RenderGraphBuilder.cpp:2624` | パラメータ走査・リソース依存収集 |
+| `FRDGBuilder::SetupPassDependencies()` | `RenderGraphBuilder.cpp:2319` | 全パスの First/Last パス確定 |
+| `FRDGBuilder::ExecutePasses()` | `RenderGraphBuilder.cpp:2036` | パス実行ループ |
+| `FRDGBuilder::ExecutePass()` | `RenderGraphBuilder.cpp:3482` | 単一パスの実行制御 |
+| `FRDGBuilder::ExecuteSerialPass()` | `RenderGraphBuilder.cpp:3497` | シリアル実行（Inline モード） |
+| `FRDGBuilder::ExecutePassPrologue()` | `RenderGraphBuilder.cpp:3395` | バリア Begin・RenderPass 開始 |
+| `FRDGBuilder::ExecutePassEpilogue()` | `RenderGraphBuilder.cpp:3428` | バリア End・RenderPass 終了 |
+| `TRDGLambdaPass` | `RenderGraphPass.h` | [[ref_rdg_pass]] ラムダ保持パス型 |
+| `FRDGPassRegistry` | `RenderGraphPass.h` | [[ref_rdg_pass]] パス登録コンテナ |

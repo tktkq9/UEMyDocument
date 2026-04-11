@@ -241,3 +241,110 @@ auto* Params   = GraphBuilder.AllocParameters<FMyPassParams>();
 |------------|----------|
 | [[ref_rdg_builder]] | `RenderGraphBuilder.h/.inl/.cpp` |
 | [[ref_rdg_definitions]] | `RenderGraphDefinitions.h`, `RenderGraphFwd.h` |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+FRDGBuilder::Execute()                               RenderGraphBuilder.cpp:1755
+  │
+  ├─ FlushAccessModeQueue()                          :1779
+  ├─ SetupEmptyPass(EpiloguePass)                    :1782
+  ├─ WaitForParallelSetupTasks(Compile)              :1800
+  │
+  ├─ Compile()                                       :1891
+  │   ├─ SetupPassDependencies()                     :2319
+  │   ├─ CullPasses()
+  │   ├─ CompilePassOps()
+  │   ├─ MergeRenderPasses()
+  │   └─ SetupAsyncComputeRegions()
+  │
+  ├─ CollectPassBarriers [task]                      :1893
+  │   ├─ CompilePassBarriers()                       :3750
+  │   └─ CollectPassBarriers()                       :3839
+  │
+  ├─ AllocatePooledBuffers()
+  ├─ AllocatePooledTextures()
+  ├─ AllocateTransientResources()
+  │
+  └─ ExecutePasses()                                 :2036
+      └─ [パスごとのループ]
+          ├─ ExecutePassPrologue()                   :3395
+          ├─ [ラムダ実行 / Dispatch タスク]
+          └─ ExecutePassEpilogue()                   :3428
+```
+
+### フロー詳細
+
+1. **前処理 — `:1779`**
+   ```cpp
+   FlushAccessModeQueue();           // UseExternalAccessMode で登録済みリソースのアクセスモードを確定
+   SetupEmptyPass(EpiloguePass);     // :1782 — グラフ末尾の仮想パスを登録
+   WaitForParallelSetupTasks(Compile); // :1800 — AddSetupTask の完了を待機
+   ```
+   - `EpiloguePass` はリソース解放・`QueueTextureExtraction` 処理の起点となる仮想パス
+   - `ParallelSetup` フラグが有効な場合、DrawList 構築等の非同期タスクがここで待機される
+
+2. **Compile() — `RenderGraphBuilder.cpp:1316`（Execute から `:1891` で呼ばれる）**
+
+   | ステップ | 関数 | 役割 |
+   |---------|-----|------|
+   | 1 | `SetupPassDependencies()` `:2319` | パラメータ構造体を走査し FTextureState / FBufferState の First/Last 参照を記録 |
+   | 2 | `CullPasses()` | NeverCull / 外部抽出 Producer を Root に DFS でカリング（bCulled フラグ設定） |
+   | 3 | `CompilePassOps()` | bSkipRenderPass / bGenerateMips などのフラグを確定 |
+   | 4 | `MergeRenderPasses()` | 隣接する Raster パスの BeginRenderPass/EndRenderPass を統合 |
+   | 5 | `SetupAsyncComputeRegions()` | AsyncCompute パスをグラフィクスキューから分離しフェンスを設置 |
+
+3. **バリア計算 — `:1893`（並列タスク）**
+   ```
+   CollectPassBarriers task
+     ├─ CompilePassBarriers()  :3750 — 各パスの FRDGBarrierBatchBegin/End を生成
+     └─ CollectPassBarriers()  :3839 — Split Barrier: Begin を早期パスで、End を実使用パスまで遅延
+   ```
+   - `ParallelCompile` が有効な場合はタスクグラフで並列実行される
+   - 生成された `FRDGTransitionInfo`（64-bit ビットパック構造体）がバリアの内容を保持する
+
+4. **リソース確保 — Compile 後**
+   ```cpp
+   AllocatePooledBuffers();       // RDG 管理外のプールバッファを実際に確保
+   AllocatePooledTextures();      // プールテクスチャを実際に確保
+   AllocateTransientResources();  // トランジェントアロケータ（エイリアシング）でメモリ割り当て
+   ```
+   - `CreateTexture()` / `CreateBuffer()` の時点では GPU メモリは確保されない
+   - 確保はすべて `Execute()` 内のこのフェーズで行われる
+
+5. **ExecutePasses() — `:2036`**
+   ```
+   パスごとのループ:
+     ExecutePassPrologue()  :3395
+       ├─ BarrierBatchBegin を Submit → RHI Transition Begin 発行
+       ├─ RenderPassBegin（Raster パス）
+       └─ BarrierBatchEnd を Submit → RHI Transition End 発行
+
+     ラムダ実行:
+       ParallelExecute 有効 → タスクグラフで並列録画（FRDGDispatchPass）
+       通常               → ExecuteSerialPass() :3497 でシリアル録画
+
+     ExecutePassEpilogue()  :3428
+       ├─ RenderPassEnd（Raster パス）
+       └─ リソース解放（LastConsumer の場合 FRDGTexture を Pool に返却）
+   ```
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|--------|------|
+| `FRDGBuilder::Execute()` | `RenderGraphBuilder.cpp:1755` | グラフ実行のエントリ |
+| `FRDGBuilder::Compile()` | `RenderGraphBuilder.cpp:1316` | パスカリング・バリア計算 |
+| `FRDGBuilder::SetupPassDependencies()` | `RenderGraphBuilder.cpp:2319` | リソース依存関係の解析 |
+| `FRDGBuilder::CompilePassBarriers()` | `RenderGraphBuilder.cpp:3750` | バリアバッチ生成 |
+| `FRDGBuilder::CollectPassBarriers()` | `RenderGraphBuilder.cpp:3839` | Split Barrier 依存収集 |
+| `FRDGBuilder::ExecutePasses()` | `RenderGraphBuilder.cpp:2036` | パス実行ループ |
+| `FRDGBuilder::ExecutePassPrologue()` | `RenderGraphBuilder.cpp:3395` | バリア Begin・RenderPass 開始 |
+| `FRDGBuilder::ExecutePassEpilogue()` | `RenderGraphBuilder.cpp:3428` | バリア End・リソース解放 |
+| `FRDGBuilder::ExecuteSerialPass()` | `RenderGraphBuilder.cpp:3497` | シリアルパス実行 |
+| `FRDGParameterStruct` | `RenderGraphParameter.h` | [[ref_rdg_parameter]] パラメータ走査 |
+| `FRDGBarrierBatchBegin/End` | `RenderGraphPass.h` | [[ref_rdg_pass]] Split Barrier バッチ |

@@ -120,3 +120,136 @@ FRDGBuilder デストラクタ
 | [[ref_rdg_validation]] | `RenderGraphValidation.h/.cpp` |
 | [[ref_rdg_trace]] | `RenderGraphTrace.h/.cpp` |
 | [[ref_rdg_private]] | `RenderGraphPrivate.cpp` |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+──── バリデーション呼び出しタイミング ────
+
+FRDGBuilder::CreateTexture(Desc, Name, Flags)
+  └─ IF_RDG_ENABLE_DEBUG
+      → UserValidation.ValidateCreateTexture(Desc, Name, Flags)
+         → Desc が有効か、Name が null でないかを検証
+
+FRDGBuilder::RegisterExternalTexture(PooledRT, Name, Flags)
+  └─ IF_RDG_ENABLE_DEBUG
+      → UserValidation.ValidateRegisterExternalTexture(PooledRT, Name, Flags)
+         → 同一リソースの二重登録を検出
+
+FRDGBuilder::AddPass(Name, Params, Flags, Lambda)
+  ├─ IF_RDG_ENABLE_DEBUG
+  │   → UserValidation.ValidateAddPass(Params, Metadata, Name, Flags)  [パラメータ前検証]
+  │      → Params 内の全 RDG リソースがグラフに登録済みか確認
+  │      → UAV 書き込みが NeverCull なしで参照されているかを確認
+  │      → AsyncCompute / Await フラグと Inline 引数の整合性確認
+  └─ IF_RDG_ENABLE_DEBUG
+      → UserValidation.ValidateAddPass(Pass)  [パス生成後の最終検証]
+
+FRDGBuilder::Execute()
+  ├─ IF_RDG_ENABLE_DEBUG → UserValidation.ValidateExecuteBegin()
+  │
+  ├─ [パスごとのループ]
+  │   ├─ IF_RDG_ENABLE_DEBUG → UserValidation.ValidateExecutePassBegin(Pass)
+  │   │   → SetAllowRHIAccess(Pass, true)  ← パスラムダ中のみ GetRHI() を許可
+  │   ├─ [ラムダ実行]
+  │   └─ IF_RDG_ENABLE_DEBUG → UserValidation.ValidateExecutePassEnd(Pass)
+  │       → SetAllowRHIAccess(Pass, false) ← ラムダ外での GetRHI() を禁止に戻す
+  │
+  └─ IF_RDG_ENABLE_DEBUG → UserValidation.ValidateExecuteEnd()
+
+──── トレース呼び出しタイミング（RDG_ENABLE_TRACE） ────
+
+FRDGBuilder コンストラクタ
+  └─ IF_RDG_ENABLE_TRACE → Trace.OutputGraphBegin()
+      → GraphStartCycles を記録、bEnabled = RDGChannel.IsEnabled()
+
+FRDGBuilder::CreateTexture() / CreateBuffer()
+  └─ IF_RDG_ENABLE_TRACE → Trace.AddResource(Resource)
+      → ResourceOrder をインクリメント
+      → UE_TRACE: RDG_RESOURCE イベント（名前・サイズ・フォーマット）を送信
+
+FRDGBuilder::SetupParameterPass()  ← AddPass から呼ばれる
+  └─ IF_RDG_ENABLE_TRACE
+      → Trace.AddTexturePassDependency(Texture, Pass)
+      → Trace.AddBufferPassDependency(Buffer, Pass)
+         → UE_TRACE: RDG_DEPENDENCY イベント（リソース → パスの有向グラフ）
+
+FRDGBuilder::Execute() 完了
+  └─ IF_RDG_ENABLE_TRACE → Trace.OutputGraphEnd(GraphBuilder)
+      → GraphStartCycles からの経過時間を計算
+      → TransientAllocationStats を収集
+      → UE_TRACE: RDG_GRAPH_END イベントを送信
+
+──── ImmediateMode が有効な場合の特殊フロー ────
+
+r.RDG.ImmediateMode = 1 の場合:
+  AddPass(Name, Params, Flags, Lambda)
+    → 通常: ラムダを登録して defer
+    → ImmediateMode: 登録と同時にラムダを即実行
+       バリア計算・カリング・マージは省略
+       → クラッシュ時のコールスタックが AddPass 地点を指す
+```
+
+### フロー詳細
+
+1. **ValidateAddPass() のスタック**
+   ```
+   FRDGBuilder::AddPass(Name, Params, Flags, Lambda)
+     │
+     └─ [RDG_ENABLE_DEBUG]
+         FRDGUserValidation::ValidateAddPass(Params, Metadata, Name, Flags)
+           ├─ FRDGParameterStruct::EnumerateTextures で全テクスチャを走査
+           │   → ResourceMap.Contains(Texture) == false → ensureMsgf で警告
+           ├─ EnumerateBuffers で全バッファを走査（同様）
+           └─ Flags の整合性確認（AsyncCompute + Inline 引数 → エラー）
+   ```
+
+2. **SetAllowRHIAccess — ラムダ外での GetRHI() 禁止**
+   ```cpp
+   // ExecutePassBegin 前後で切り替わる（静的メソッド）
+   FRDGUserValidation::SetAllowRHIAccess(Pass, true);
+   // ← この区間のみ FRDGTexture::GetRHI() が呼べる
+   Pass->Execute(RHICmdList);  // ユーザーラムダ実行
+   FRDGUserValidation::SetAllowRHIAccess(Pass, false);
+   // ← ここ以降で GetRHI() を呼ぶと ensure でエラー
+   ```
+   - `GRDGAllowRHIAccess` フラグが `FRDGTexture::GetRHI()` 内でチェックされる
+   - ラムダ外での `GetRHI()` 呼び出しをビルド時ではなく実行時に検出できる
+
+3. **FRDGTrace::AddResource() — CreateTexture 直後**
+   ```cpp
+   // FRDGBuilder::CreateTexture の末尾（擬似コード）
+   FRDGTexture* Texture = Allocator.Alloc<FRDGTexture>(Desc, Name, Flags);
+   IF_RDG_ENABLE_TRACE(Trace.AddResource(Texture));
+   // → bEnabled チェック → UE_TRACE_LOG(RDGChannel, RDGResource, ...)
+   //    ResourceOrder++ でタイムライン上の順序情報を付与
+   ```
+
+4. **ImmediateMode での実行パス比較**
+
+   | フェーズ | 通常モード | ImmediateMode |
+   |---------|-----------|---------------|
+   | AddPass | ラムダを登録のみ | ラムダを即実行 |
+   | Compile | Execute() 内で実施 | スキップ |
+   | バリア最適化 | Split Barrier 使用 | 即時バリア発行 |
+   | カリング | CullPasses() で実施 | スキップ（全パス実行） |
+   | RenderPass マージ | MergeRenderPasses() | スキップ |
+   | クラッシュ時スタック | Execute() 内を指す | AddPass() 地点を指す |
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|--------|------|
+| `FRDGUserValidation::ValidateAddPass()` | `RenderGraphValidation.h` | [[ref_rdg_validation]] パス追加の検証 |
+| `FRDGUserValidation::ValidateExecutePassBegin()` | `RenderGraphValidation.h` | [[ref_rdg_validation]] ラムダ前検証 |
+| `FRDGUserValidation::SetAllowRHIAccess()` | `RenderGraphValidation.h` | [[ref_rdg_validation]] GetRHI アクセス制御 |
+| `FRDGBarrierValidation::ValidateBarrierBatchBegin()` | `RenderGraphValidation.h` | [[ref_rdg_validation]] バリアバッチ検証 |
+| `FRDGTrace::AddResource()` | `RenderGraphTrace.h` | [[ref_rdg_trace]] リソース情報をトレース送信 |
+| `FRDGTrace::AddTexturePassDependency()` | `RenderGraphTrace.h` | [[ref_rdg_trace]] テクスチャ依存をトレース送信 |
+| `FRDGTrace::OutputGraphEnd()` | `RenderGraphTrace.h` | [[ref_rdg_trace]] グラフ統計をトレース送信 |
+| `IF_RDG_ENABLE_DEBUG` | `RenderGraphDefinitions.h` | [[ref_rdg_definitions]] デバッグ条件コンパイルマクロ |
+| `IF_RDG_ENABLE_TRACE` | `RenderGraphDefinitions.h` | [[ref_rdg_definitions]] トレース条件コンパイルマクロ |

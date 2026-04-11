@@ -203,3 +203,103 @@ bool IsCulled()        const; // 参照パスがなくカリングされたか
 | [[ref_rdg_resources]] | `RenderGraphResources.h/.inl/.cpp` |
 | [[ref_rdg_texture_subresource]] | `RenderGraphTextureSubresource.h` |
 | [[ref_rdg_allocator]] | `RenderGraphAllocator.h/.cpp`, `RenderGraphResourcePool.cpp` |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+──── リソース宣言フェーズ（AddPass 前） ────
+
+GraphBuilder.CreateTexture(Desc, Name)
+  └─ FRDGTexture を Allocator で確保（宣言のみ・GPU メモリ未確保）
+     IF_RDG_ENABLE_TRACE → Trace.AddResource(Texture)
+     IF_RDG_ENABLE_DEBUG → UserValidation.ValidateCreateTexture(...)
+
+GraphBuilder.RegisterExternalTexture(PooledRT, Name)
+  └─ FRDGTexture を外部テクスチャにバインドして登録
+     IPooledRenderTarget::GetRenderTargetItem().TargetableTexture を保持
+     MultiFrame フラグなしは Execute() 後に Pool に返却
+
+GraphBuilder.CreateSRV / CreateUAV
+  └─ FRDGShaderResourceView / FRDGUnorderedAccessView を宣言
+
+GraphBuilder.QueueTextureExtraction(RDGTexture, &OutPtr)
+  └─ EpiloguePass の依存として登録（Execute 後に OutPtr へ書き戻される）
+
+──── Execute() 内リソース確保フェーズ ────
+
+FRDGBuilder::Execute()
+  │
+  ├─ Compile()
+  │   └─ SetupPassDependencies()
+  │       └─ 各リソースの FirstPass / LastPass を確定（カリング判定の基礎）
+  │
+  ├─ AllocatePooledTextures()
+  │   └─ CreateTexture() で作成した非 Transient テクスチャを FRenderTargetPool から確保
+  │
+  ├─ AllocateTransientResources()
+  │   └─ Transient テクスチャ／バッファを FRHITransientResourceAllocator でエイリアシング確保
+  │      同フレーム内で LastConsumer に達したリソースは即座に解放され再利用される
+  │
+  └─ ExecutePasses() → ExecutePassEpilogue()
+      └─ LastConsumer に達したリソースを Pool に返却
+         QueueTextureExtraction の OutPtr に pooled テクスチャを書き戻し
+```
+
+### フロー詳細
+
+1. **CreateTexture() — 宣言のみ**
+   ```cpp
+   FRDGTextureRef Tex = GraphBuilder.CreateTexture(
+       FRDGTextureDesc::Create2D(...), TEXT("MyTex"));
+   // この時点: FRDGTexture ノードのみ生成。FRHITexture* = nullptr
+   // GPU メモリ確保は Execute() 内の AllocatePooledTextures / AllocateTransientResources
+   ```
+   - `ERDGTextureFlags::MultiFrame` が付いていないテクスチャは Transient 扱いになり得る
+   - `r.RDG.TransientResourceAllocator=1` の場合は Transient として確保される
+
+2. **RegisterExternalTexture() — 外部 RHI テクスチャの統合**
+   ```cpp
+   FRDGTextureRef ExTex = GraphBuilder.RegisterExternalTexture(
+       SceneRenderTargets.SceneColor, ERDGTextureFlags::MultiFrame);
+   // IPooledRenderTarget が保持する FRHITexture* を RDG に紐付ける
+   // FRDGTexture::PooledRenderTarget に IPooledRenderTarget の参照を保持
+   ```
+   - `MultiFrame` フラグ付きは Execute() 後もアロケータが解放しない
+   - `SkipTracking` フラグ付きはバリア計算をスキップ（読み取り専用外部テクスチャに使用）
+
+3. **QueueTextureExtraction() → Execute() 後の書き戻し**
+   ```cpp
+   TRefCountPtr<IPooledRenderTarget> ExtractedRT;
+   GraphBuilder.QueueTextureExtraction(RDGTex, &ExtractedRT);
+
+   GraphBuilder.Execute();
+   // ↑ Execute() 完了後、ExtractedRT.IsValid() == true
+   // EpiloguePass が LastConsumer となり pooled テクスチャを OutPtr に書き戻す
+   ```
+
+4. **Transient リソースのエイリアシング**
+   ```
+   フレーム内のメモリ使用:
+     Pass A → [Tex1 確保] → Pass A 実行 → [Tex1 解放] → [Tex2 が Tex1 のメモリを再利用]
+   
+   r.RDG.Debug.ExtendResourceLifetimes=1 にするとエイリアシングが無効化され
+   全リソースが同時確保される → 最大メモリ使用量の調査に使う
+   ```
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|--------|------|
+| `FRDGBuilder::CreateTexture()` | `RenderGraphBuilder.h` | テクスチャノードの宣言 |
+| `FRDGBuilder::RegisterExternalTexture()` | `RenderGraphBuilder.h` | 外部テクスチャの統合 |
+| `FRDGBuilder::QueueTextureExtraction()` | `RenderGraphBuilder.h` | Execute 後の書き戻し登録 |
+| `FRDGBuilder::AllocatePooledTextures()` | `RenderGraphBuilder.cpp` | Execute 時のプール確保 |
+| `FRDGBuilder::AllocateTransientResources()` | `RenderGraphBuilder.cpp` | Transient エイリアシング確保 |
+| `FRDGTexture` | `RenderGraphResources.h` | [[ref_rdg_resources]] テクスチャノード |
+| `FRDGBuffer` | `RenderGraphResources.h` | [[ref_rdg_resources]] バッファノード |
+| `FRHITransientResourceAllocator` | `RHITransientResourceAllocator.h` | Transient メモリ管理 |
+| `FRenderTargetPool` | `RenderTargetPool.h` | [[ref_rdg_allocator]] テクスチャプール |

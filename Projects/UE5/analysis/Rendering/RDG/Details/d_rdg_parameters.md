@@ -231,3 +231,131 @@ FScreenPassTexture AddMyPostProcessPass(
 | [[ref_rdg_blackboard]] | `RenderGraphBlackboard.h/.cpp` |
 | [[ref_rdg_utils]] | `RenderGraphUtils.h/.cpp` |
 | [[ref_rdg_event]] | `RenderGraphEvent.h/.inl/.cpp` |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+──── パラメータ構造体の解析フロー ────
+
+GraphBuilder.AddPass(Name, PassParams, Flags, Lambda)
+  └─ SetupParameterPass(Pass)         RenderGraphBuilder.cpp:2624
+      └─ FRDGParameterStruct::EnumerateTextures(Func)
+          → BEGIN_SHADER_PARAMETER_STRUCT で生成された
+            FShaderParametersMetadata::FMember 配列を走査
+          → UBMT_RDG_TEXTURE / UBMT_RDG_TEXTURE_SRV / UBMT_RDG_TEXTURE_UAV
+            のメンバを発見するたびに Func(TextureRef, AccessMode) を呼び出す
+         FRDGParameterStruct::EnumerateBuffers(Func)
+          → UBMT_RDG_BUFFER_SRV / UBMT_RDG_BUFFER_UAV を同様に走査
+
+──── Blackboard のインデックス解決フロー ────
+
+FRDGBlackboard::Create<FMyStruct>()
+  └─ FRDGBlackboard::GetStructIndex<FMyStruct>()
+      └─ FRDGBlackboard::FStruct::AllocateIndex()
+          → 型ごとに一意の static uint32 インデックスを割り当て（初回呼び出し時のみ）
+     Allocator.Alloc<FMyStruct>(Args...)  ← FRDGAllocator でスタック確保
+     Blackboard[index] = StructPtr       ← インデックス配列に格納
+
+FRDGBlackboard::GetChecked<FMyStruct>()
+  └─ GetStructIndex<FMyStruct>() で同一インデックスを取得
+     Blackboard[index] が nullptr なら ensure + エラーメッセージ
+     非 nullptr なら static_cast<FMyStruct*> を返す
+
+──── RDG_EVENT_SCOPE がプロファイラに届くまで ────
+
+RDG_EVENT_SCOPE(GraphBuilder, "PostProcess")
+  └─ FRDGScope_RHI スコープオブジェクトを構築
+      → GraphBuilder.RHIScopeStack に Push
+      → AddPass 時に Pass->Scope = CurrentScope として記録
+
+GraphBuilder.Execute()
+  └─ ExecutePassPrologue()
+      └─ Pass の Scope チェーンを辿って CPU/GPU ブレッドクラムノードを発行
+         FRDGScope_RHI::BeginCPU() → BeginBreadcrumbCPU → BeginBreadcrumbGPU
+         → RenderDoc / PIX / Insights のタイムラインに階層イベントとして表示
+```
+
+### フロー詳細
+
+1. **FRDGParameterStruct の Enumerate — SetupParameterPass から呼ばれる**
+   ```cpp
+   // AddPass の内部（RenderGraphBuilder.cpp:2624）
+   void SetupParameterPass(FRDGPass* Pass)
+   {
+       Pass->ParameterStruct.EnumerateTextures(
+           [Pass](FRDGTextureRef Texture, ERHIAccess Access)
+           {
+               // FRDGPass::TextureStates に (Texture, Access) を追加
+               Pass->TextureStates.FindOrAdd(Texture).AddAccess(Access);
+           });
+       // バッファも同様
+   }
+   ```
+   - `FShaderParametersMetadata` が各メンバの型（UBMT_xxx）とオフセットを保持
+   - `FRDGParameter::MemberPtr` でポインタを進め、各メンバの `FRDGTextureRef` を取得する
+
+2. **Blackboard のインデックス割り当て**
+   ```cpp
+   // FRDGBlackboard::Create<FMyStruct>() の内部
+   template <typename T>
+   T& FRDGBlackboard::Create(...)
+   {
+       // static 変数によるゼロコスト型インデックス（スレッドセーフな初回割り当て）
+       const uint32 Index = FRDGBlackboard::FStruct::AllocateIndex<T>();
+       // FRDGAllocator でスタック確保（Execute 後に一括解放）
+       T* Ptr = Allocator.Alloc<T>(...);
+       Structs[Index] = Ptr;
+       return *Ptr;
+   }
+   ```
+   - インデックスはプロセス内でグローバルに単調増加する（型ごとに固定）
+   - `RDG_REGISTER_BLACKBOARD_STRUCT` マクロで型名を登録しておくとデバッグ表示が改善される
+
+3. **RDG_EVENT_SCOPE → プロファイラへの届け方**
+   ```
+   コード記述時（グラフ構築フェーズ）:
+     RDG_EVENT_SCOPE(GraphBuilder, "Lumen")
+       → FRDGScope_RHI(GraphBuilder, "Lumen") のコンストラクタ呼び出し
+       → GraphBuilder.CurrentScope = &ThisScope
+
+   AddPass 呼び出し時:
+     Pass->CPUScope = GraphBuilder.CurrentScope
+     Pass->GPUScope = GraphBuilder.CurrentScope（パイプラインごと）
+
+   Execute 時（ExecutePassPrologue）:
+     Pass->CPUScope->BeginCPU(RHICmdList)
+       → RHICmdList.BeginBreadcrumb(Node)  ← GPU プロファイラへ送信
+     Pass->CPUScope->EndCPU(RHICmdList)    ← 次のスコープに移行時
+   ```
+
+4. **RDG_EVENT_NAME と動的文字列**
+   ```cpp
+   // RDG_EVENTS_STRING_COPY ビルド（Development / Debug）
+   RDG_EVENT_NAME("Bloom %dx%d", W, H)
+     → FRDGEventName::FRDGEventName(Format, ...)
+     → vsprintf で FString::FormattedEventName に展開
+     → AddPass の Name 引数として渡す
+
+   // RDG_EVENTS_STRING_REF ビルド（低コスト）
+   RDG_EVENT_NAME("Bloom %dx%d", W, H)
+     → Format ポインタのみ保持（展開しない）
+     → 静的文字列しか安全に使えない
+   ```
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|--------|------|
+| `FRDGParameterStruct::EnumerateTextures()` | `RenderGraphParameter.h` | [[ref_rdg_parameter]] テクスチャ依存の走査 |
+| `FRDGParameterStruct::EnumerateBuffers()` | `RenderGraphParameter.h` | [[ref_rdg_parameter]] バッファ依存の走査 |
+| `FShaderParametersMetadata` | `ShaderParameterMetadata.h` | UBMT_xxx メンバ情報を保持 |
+| `FRDGBlackboard::Create<T>()` | `RenderGraphBlackboard.h` | [[ref_rdg_blackboard]] 型インデックスで格納 |
+| `FRDGBlackboard::GetChecked<T>()` | `RenderGraphBlackboard.h` | [[ref_rdg_blackboard]] 型インデックスで取得 |
+| `FRDGBlackboard::FStruct::AllocateIndex<T>()` | `RenderGraphBlackboard.h` | 型ごとの static インデックス割り当て |
+| `FRDGEventName` | `RenderGraphEvent.h` | [[ref_rdg_event]] GPU プロファイル名 |
+| `FRDGScope_RHI` | `RenderGraphEvent.h` | [[ref_rdg_event]] RHI ブレッドクラムスコープ |
+| `FRDGBuilder::SetupParameterPass()` | `RenderGraphBuilder.cpp:2624` | パラメータ走査エントリ |
