@@ -4,6 +4,8 @@
 - 対象: `D:\UnrealEngine\Engine\Source\Runtime\Renderer\`
 - 上位: [[00_engine_overview]]
 - 下位: [[02_lumen_overview]] | [[03_nanite_overview]] | [[04_vsm_overview]] | [[05_postprocess_overview]] | [[06_megalights_overview]] | [[07_raytracing_overview]] | [[08_substrate_overview]] | [[09_gpuscene_overview]] | [[10_rdg_overview]] | [[11_mpp_overview]]
+- Details: [[a_deferred_renderer]] | [[b_scene]] | [[c_view]] | [[d_visibility]]
+- Reference: [[ref_deferred_shading_renderer]] | [[ref_scene_renderer]] | [[ref_scene]] | [[ref_view_info]]
 
 ---
 
@@ -270,3 +272,93 @@ FDeferredShadingRenderer::Render()
 | `DeferredShadingRenderer.cpp` | Render() の全体フロー確認 |
 | `GPUScene.cpp` | GPUドリブンなインスタンス管理 |
 | `PostProcess/TemporalAA.cpp` | TAA/TSR の差異 |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+FSceneRenderBuilder::Execute()                         SceneRenderBuilder.cpp
+  │
+  └─ [レンダーコマンドキュー内]
+      │
+      ├─ FRDGBuilder GraphBuilder(RHICmdList, ...)       SceneRenderBuilder.cpp:872
+      │
+      ├─ FSceneRenderer::CreateSceneRenderer(ViewFamily) SceneRendering.cpp
+      │   └─ new FDeferredShadingSceneRenderer(...)
+      │       ├─ FSceneView → FViewInfo に変換して Views 配列を構築
+      │       └─ FPerViewPipelineState を初期化
+      │
+      ├─ Renderer->Render(GraphBuilder, SceneUpdateInputs)
+      │   └─ FDeferredShadingSceneRenderer::Render()    DeferredShadingRenderer.cpp:1736
+      │       ├─ OnRenderBegin()                        :1790
+      │       ├─ CommitFinalPipelineState()              :1820
+      │       ├─ BeginUpdateLumenSceneTasks()            :1873
+      │       ├─ VirtualShadowMapArray.Initialize()      :1869
+      │       ├─ FSceneTextures::InitializeViewFamily()  :2046
+      │       ├─ BeginInitViews()                        :2052
+      │       │   └─ FrustumCull / ComputeRelevance（並列タスク）
+      │       ├─ GPUScene.UploadDynamicPrimitive...()    :2172
+      │       ├─ EndInitViews()                          :2316
+      │       ├─ RenderPrepassAndVelocity()              :2594
+      │       │   ├─ RenderPrePass()                    :2384
+      │       │   └─ RenderNanite()                     :2405
+      │       ├─ RenderLumenSceneLighting()              :2899
+      │       ├─ RenderBasePass()                        :2905
+      │       ├─ RenderDiffuseIndirectAndAmbientOcclusion() :3265
+      │       ├─ RenderLights()                         :3314
+      │       ├─ RenderDeferredReflectionsAndSkyLighting() :3339
+      │       ├─ RenderTranslucency()                   :3654
+      │       ├─ AddPostProcessingPasses()               :3943
+      │       └─ OnRenderFinish()                       :4000
+      │
+      └─ GraphBuilder.Execute()                          SceneRenderBuilder.cpp:915
+```
+
+### フロー詳細
+
+1. **FSceneRenderer 生成 — CreateSceneRenderer()**
+   ```cpp
+   // ViewFamily.Scene->GetShadingPath() に応じてレンダラーを生成
+   FSceneRenderer* Renderer = FSceneRenderer::CreateSceneRenderer(ViewFamily, HitProxyConsumer);
+   // PC / Console → FDeferredShadingSceneRenderer
+   // Mobile       → FMobileSceneRenderer
+   ```
+   - コンストラクタで `FSceneView` → `FViewInfo` への変換と `FPerViewPipelineState` の確保を行う
+
+2. **CommitFinalPipelineState() — `:1820`**
+   - 各ビューの GI 方式（Lumen/SSGI）・反射方式（Lumen/SSR）・AO 方式を確定
+   - `FFamilyPipelineState::bNanite` / `bHZBOcclusion` を確定
+   - 以降 `ShouldRenderNanite()` / `ShouldRenderPrePass()` は確定値を返す
+
+3. **BeginInitViews / EndInitViews — `:2052` / `:2316`**
+   - 視錐台カリング → HZB オクルージョン → ComputeRelevance をタスクグラフで並列実行
+   - 完了後に `FViewInfo::PrimitiveVisibilityMap` と `DynamicMeshElements` が確定
+
+4. **主要パスの実行順序**
+
+   | 順序 | パス | 出力先 |
+   |-----|------|--------|
+   | 1 | RenderPrePass | SceneDepth（深度のみ） |
+   | 2 | RenderNanite | VisBuffer64（InstanceID + TriangleID） |
+   | 3 | RenderLumenSceneLighting | Lumen Surface Cache |
+   | 4 | RenderBasePass | GBuffer A/B/C/D（非 Nanite メッシュ） |
+   | 5 | RenderDiffuseIndirect | DiffuseIndirect / AO テクスチャ |
+   | 6 | RenderLights | SceneColor（Direct Lighting） |
+   | 7 | RenderDeferredReflections | SceneColor（反射・スカイライト） |
+   | 8 | RenderTranslucency | SceneColor（半透明） |
+   | 9 | AddPostProcessingPasses | 最終 ViewFamily テクスチャ |
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|--------|------|
+| `FSceneRenderBuilder` | `SceneRenderBuilder.cpp` | レンダーコマンドをキューに積み実行 |
+| `FSceneRenderer::CreateSceneRenderer()` | `SceneRendering.cpp` | レンダラーファクトリ |
+| `FDeferredShadingSceneRenderer` | `DeferredShadingRenderer.h:316` | [[ref_deferred_shading_renderer]] メインレンダラー |
+| `FDeferredShadingSceneRenderer::Render()` | `DeferredShadingRenderer.cpp:1736` | レンダリングエントリ |
+| `FScene` | `ScenePrivate.h` | [[ref_scene]] レンダースレッド側シーンデータ |
+| `FViewInfo` | `SceneRendering.h:1131` | [[ref_view_info]] レンダースレッド拡張ビュー |
+| `FRDGBuilder` | `RenderGraphBuilder.h` | [[10_rdg_overview]] RDG グラフ管理 |
