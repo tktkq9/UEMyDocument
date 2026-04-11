@@ -134,3 +134,74 @@ GraphBuilder.Execute();
 | `RenderGraphValidation.h` | デバッグ検証ロジック |
 | `RenderGraphTrace.h` | RDG トレース出力 |
 | `RenderGraph.h` | 上記を一括 include |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+FSceneRenderBuilder::Execute()          SceneRenderBuilder.cpp
+  │
+  └─ [レンダーコマンドキュー内]
+       │
+       ├─ FRDGBuilder GraphBuilder(      SceneRenderBuilder.cpp:872
+       │      RHICmdList,
+       │      RDG_EVENT_NAME(...),
+       │      ERDGBuilderFlags::Parallel,
+       │      Scene->GetShaderPlatform())
+       │
+       ├─ RenderNode.Function(GraphBuilder, ...) ← Render() 関数呼び出し
+       │     例: FDeferredShadingSceneRenderer::Render(GraphBuilder, ...)
+       │       └─ 各サブシステムへの AddPass 呼び出し群
+       │           ├─ GraphBuilder.CreateTexture(...)
+       │           ├─ GraphBuilder.RegisterExternalTexture(...)
+       │           ├─ GraphBuilder.AddPass(...)  ← ラムダは defer される
+       │           └─ GraphBuilder.QueueTextureExtraction(...)
+       │
+       └─ GraphBuilder.Execute()         SceneRenderBuilder.cpp:915
+             └─ → 【Execute() 内部フロー】（Details/a_rdg_builder.md 参照）
+```
+
+### フロー詳細
+
+1. **FRDGBuilder 生成** — `SceneRenderBuilder.cpp:872`
+   ```cpp
+   FRDGBuilder GraphBuilder(
+       RHICmdList,
+       RDG_EVENT_NAME("%s", FunctionInputs.FullPath),
+       ERDGBuilderFlags::Parallel,
+       Scene->GetShaderPlatform());
+   ```
+   - [[ref_rdg_allocator]] の `FRDGAllocator` を TLS から取得
+   - Prologue パスを `Passes` レジストリに登録
+   - `RDG_ENABLE_TRACE` が有効なら `FRDGTrace::OutputGraphBegin()` は Execute 直前に実施
+
+2. **Render() 関数 —— パス宣言フェーズ** （[[a_rdg_builder]] 参照）
+   ```cpp
+   // レンダラーが CreateTexture / AddPass を呼ぶ段階
+   // この時点でラムダは登録されるだけで実行されない
+   FDeferredShadingSceneRenderer::Render(GraphBuilder, ...);
+   ```
+   - `AddPass()` ごとに `TRDGLambdaPass` が生成され `FRDGPassRegistry` に登録
+   - パラメータ構造体が参照するリソースは [[ref_rdg_parameter]] で追跡される
+   - `ERDGBuilderFlags::ParallelSetup` が有効なら `AddSetupTask` は並列タスクで走る
+
+3. **GraphBuilder.Execute()** — `RenderGraphBuilder.cpp:1755`
+   - グラフ全体のコンパイル → GPU リソース確保 → パス実行 → 後処理
+   - 詳細フローは [[a_rdg_builder]] の「コード実行フロー」セクション参照
+
+4. **Execute 後クリーンアップ**
+   - `QueueTextureExtraction` で登録した外部ポインタに pooled テクスチャを書き戻し
+   - `FRDGBuilder` のデストラクタで `FRDGAllocator::ReleaseAll()` を呼びメモリを一括解放
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|--------|------|
+| `FSceneRenderBuilder` | `SceneRenderBuilder.cpp` | レンダーコマンドをキューに積み実行 |
+| `FRDGBuilder` | `RenderGraphBuilder.h/.cpp` | グラフ全体の管理・実行 |
+| `FDeferredShadingSceneRenderer::Render()` | `DeferredShadingRenderer.cpp` | 代表的なレンダー関数エントリ |
+| `FRDGAllocator` | `RenderGraphAllocator.h` | グラフ内 CPU メモリのスタック管理 |
+| `FRDGTrace` | `RenderGraphTrace.h` | Insights トレース |
