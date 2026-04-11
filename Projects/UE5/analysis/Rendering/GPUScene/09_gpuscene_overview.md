@@ -121,6 +121,59 @@ class FGPUScenePrimitiveCollector
 
 ---
 
+## コード実行フロー
+
+### エントリポイント
+
+```
+FDeferredShadingSceneRenderer::Render()                         DeferredShadingRenderer.cpp
+  │
+  ├─[A] FGPUSceneScopeBeginEndHelper (RAII ctor)               :1799
+  │      └─ FGPUScene::BeginRender()                           GPUScene.cpp:726
+  │           ├─ DynamicPrimitivesOffset をリセット
+  │           └─ RegisterBuffers() → CachedRegisteredBuffers
+  │
+  ├─[B] FScene::UpdateAllPrimitives()                          RendererScene.cpp
+  │      └─ FGPUScene::Update()                               RendererScene.cpp:6541
+  │           └─ UpdateInternal()                             GPUScene.cpp:883
+  │                ├─ PrimitivesToUpdate をイテレート
+  │                ├─ ScatterUpload バッファに差分データ書き込み
+  │                └─ FillSceneUniformBuffer() → SceneUB 更新
+  │
+  ├─[C] UpdateGPULights()                                      GPUScene.cpp:765
+  │
+  ├─[D] UploadDynamicPrimitiveShaderDataForView()              DeferredShadingRenderer.cpp:2172
+  │      └─ View.DynamicPrimitiveCollector を GPU 動的領域へ upload
+  │
+  └─[E] FGPUSceneScopeBeginEndHelper (RAII dtor)
+         └─ FGPUScene::EndRender()                            GPUScene.cpp:746
+              └─ DynamicPrimitivesOffset / CachedRegisteredBuffers をリセット
+```
+
+### フロー詳細
+
+1. **[A] BeginRender** (`GPUScene.cpp:726`) — RAII スコープ開始。動的プリミティブ領域の先頭インデックスを確定し、フレーム用 RDG バッファを登録する
+2. **[B] Update / UpdateInternal** (`GPUScene.cpp:1978/883`) — `RendererScene.cpp:6541` から呼ばれ、変化プリミティブのデータを Scatter Upload バッファに書き込み CS でGPU バッファへ scatter する
+3. **[C] UpdateGPULights** (`GPUScene.cpp:765`) — ライト変化の差分のみ ByteAddressBuffer に upload する（オプションで非同期タスク）
+4. **[D] UploadDynamicPrimitiveShaderDataForView** (`GPUScene.cpp:1993`) — `InitViews` 中に登録された動的プリミティブを GPU バッファの動的領域へ upload する
+5. **[E] EndRender** (`GPUScene.cpp:746`) — RAII スコープ終了。動的スロットをリセットし次フレーム用に領域を空ける
+
+### 関与クラス・関数一覧
+
+| クラス/関数 | ファイル:行 | 役割 |
+|------------|-----------|------|
+| `FGPUSceneScopeBeginEndHelper` | `GPUScene.h:513` | BeginRender/EndRender の RAII ラッパー |
+| `FGPUScene::BeginRender()` | `GPUScene.cpp:726` | フレーム開始処理 |
+| `FGPUScene::Update()` | `GPUScene.cpp:1978` | 差分 Scatter Upload のエントリ |
+| `FGPUScene::UpdateInternal()` | `GPUScene.cpp:883` | 実際の upload・SceneUB 更新 |
+| `FGPUScene::UpdateGPULights()` | `GPUScene.cpp:765` | ライトデータ差分 upload |
+| `FGPUScene::UploadDynamicPrimitiveShaderDataForView()` | `GPUScene.cpp:1993` | 動的プリミティブ upload |
+| `FGPUScene::EndRender()` | `GPUScene.cpp:746` | フレーム終了・動的スロット解放 |
+| `FGPUScenePrimitiveCollector` | `GPUScene.h` | 動的プリミティブの収集・登録 |
+| `FSpanAllocator` | `SpanAllocator.h` | インスタンスデータスロット管理 |
+
+---
+
 ## 主要ソースファイル一覧
 
 | ファイル | 役割 |
