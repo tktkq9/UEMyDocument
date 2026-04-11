@@ -12,6 +12,49 @@
 
 ---
 
+## コード実行フロー
+
+### エントリポイント
+
+```
+FDeferredShadingSceneRenderer::RenderLights()
+  │
+  ├─ RenderVirtualShadowMapProjection()  (ディレクショナルライト)
+  │    VirtualShadowMapProjection.cpp:437
+  │    └─ RenderVirtualShadowMapProjectionCommon()     :226
+  │         ├─ SMRT CS ディスパッチ（ShadowMask を生成）
+  │         └─ CompositeVirtualShadowMapMask()
+  │
+  ├─ RenderVirtualShadowMapProjection()  (ローカルライト)
+  │    VirtualShadowMapProjection.cpp:474
+  │    └─ RenderVirtualShadowMapProjectionCommon()
+  │
+  └─ RenderVirtualShadowMapProjectionOnePass()  (全ライト一括: タイル最適化時)
+       VirtualShadowMapProjection.cpp:392
+       └─ 全 VSM ID のシャドウを ShadowMaskBits テクスチャに一括書き込み
+            └─ CompositeVirtualShadowMapFromMaskBits() で各ライトに展開
+```
+
+### フロー詳細
+
+1. **RenderVirtualShadowMapProjectionCommon()** (`:226`) — SMRT コンピュートシェーダーを実行。物理ページプールをサンプリングし、各フラグメントの遮蔽率（0.0〜1.0）を計算して中間マスクテクスチャに書き込む
+2. **SMRT** — `RayCount` 本のマイクロレイを各ライトに向けてトレース。`SamplesPerRay` 個のサンプルで深度差を比較し、半影を確率的に表現する
+3. **CompositeVirtualShadowMapMask()** — SMRT が生成した中間マスクを最終 `ShadowMaskTexture` にブレンドする（加算 or RGB 乗算）
+4. **OnePass** (`:392`) — 多数のライトがある場合、全 VSM を1パスで `ShadowMaskBits`（ビット圧縮テクスチャ）に書き込む。タイル単位の Indirect Dispatch でシャドウを受けないタイルを完全スキップする
+
+### 関与クラス・関数一覧
+
+| クラス/関数 | ファイル:行 | 役割 |
+|------------|-----------|------|
+| `RenderVirtualShadowMapProjection()` (clipmap) | `VirtualShadowMapProjection.cpp:437` | ディレクショナルライト投影 |
+| `RenderVirtualShadowMapProjection()` (local) | `VirtualShadowMapProjection.cpp:474` | ローカルライト投影 |
+| `RenderVirtualShadowMapProjectionCommon()` | `VirtualShadowMapProjection.cpp:226` | 共通 SMRT 処理 |
+| `RenderVirtualShadowMapProjectionOnePass()` | `VirtualShadowMapProjection.cpp:392` | 全ライト一括ワンパス投影 |
+| `CompositeVirtualShadowMapMask()` | `VirtualShadowMapProjection.cpp` | マスク合成 |
+| `CreateVirtualShadowMapMaskBits()` | `VirtualShadowMapProjection.cpp` | ビット圧縮マスクテクスチャ生成 |
+
+---
+
 ## 投影パスの概要
 
 ```
@@ -195,3 +238,11 @@ class FVirtualShadowMapPageManagementShader : public FVirtualShadowMapGlobalShad
 | `r.Shadow.Virtual.CullBackfacingPixels` | 1 | 裏面ピクセルのシャドウカリング |
 | `r.Shadow.Virtual.Visualize.Layout` | 0 | 可視化レイアウト（0=全画面,1=サムネイル,2=分割） |
 | `r.Shadow.Virtual.Stats.Visible` | 0 | デバッグ統計表示 |
+
+---
+
+## 関連リファレンス
+
+- [[ref_vsm_projection]] — RenderVirtualShadowMapProjection / FTiledVSMProjection リファレンス
+- [[ref_vsm_shaders]] — FVirtualShadowMapGlobalShader 基底クラス
+- [[ref_vsm_array]] — FVirtualShadowMapProjectionShaderData リファレンス

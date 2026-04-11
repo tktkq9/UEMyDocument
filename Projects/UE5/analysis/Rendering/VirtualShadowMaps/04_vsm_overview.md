@@ -87,6 +87,58 @@ graph TD
 
 ---
 
+## コード実行フロー
+
+### エントリポイント
+
+```
+FDeferredShadingSceneRenderer::Render()
+  │
+  ├─[A] FVirtualShadowMapArray::Initialize()          VirtualShadowMapArray.cpp:815
+  │      └─ CacheManager から物理ページプール・前フレームデータを受け取る
+  │
+  ├─[B] AllocateDirectional() / AllocateLocal()
+  │      └─ ライトごとに VirtualShadowMapId を割り当て
+  │
+  ├─[C] FVirtualShadowMapArray::BeginMarkPages()      VirtualShadowMapArray.cpp:2106
+  │      └─ GBuffer・シャドウレシーバーから必要ページのフラグを立てる
+  │
+  ├─[D] FVirtualShadowMapArray::BuildPageAllocations() VirtualShadowMapArray.cpp:2818
+  │      └─ 要求フラグ → 物理ページ割り当て（静的キャッシュ済みはスキップ）
+  │
+  ├─[E] FVirtualShadowMapArray::RenderVirtualShadowMapsNanite()  :3789
+  │      └─ Nanite::IRenderer::Create → DrawGeometry (EPipeline::Shadows)
+  │
+  ├─[F] FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite()  :3956
+  │      └─ 通常メッシュを深度専用パスで描画
+  │
+  ├─[G] FVirtualShadowMapArray::UpdateHZB()           VirtualShadowMapArray.cpp:4395
+  │      └─ 物理ページプールの HZB を再構築（次フレームカリング用）
+  │
+  ├─[H] RenderVirtualShadowMapProjection()            VirtualShadowMapProjection.cpp:437
+  │      └─ SMRT でシャドウマスクを生成し ShadowMaskTexture に書き込む
+  │
+  └─[I] FVirtualShadowMapArray::PostRender()          VirtualShadowMapArray.cpp:1729
+         └─ ExtractFrameData() で CacheManager にフレームデータを引き渡す
+```
+
+### 関与クラス・関数一覧
+
+| クラス/関数 | ファイル:行 | 役割 |
+|------------|-----------|------|
+| `FVirtualShadowMapArray::Initialize()` | `VirtualShadowMapArray.cpp:815` | フレーム初期化・リソース受け取り |
+| `FVirtualShadowMapArray::BeginMarkPages()` | `VirtualShadowMapArray.cpp:2106` | 必要ページのフラグ生成 |
+| `FVirtualShadowMapArray::BuildPageAllocations()` | `VirtualShadowMapArray.cpp:2818` | 物理ページ割り当て |
+| `FVirtualShadowMapArray::RenderVirtualShadowMapsNanite()` | `VirtualShadowMapArray.cpp:3789` | Nanite ジオメトリ描画 |
+| `FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite()` | `VirtualShadowMapArray.cpp:3956` | 非Nanite メッシュ描画 |
+| `FVirtualShadowMapArray::UpdateHZB()` | `VirtualShadowMapArray.cpp:4395` | 物理ページ HZB 再構築 |
+| `RenderVirtualShadowMapProjection()` | `VirtualShadowMapProjection.cpp:437` | SMRT 投影パス |
+| `FVirtualShadowMapArray::PostRender()` | `VirtualShadowMapArray.cpp:1729` | フレームデータを CacheManager に引き渡し |
+| `FVirtualShadowMapArrayCacheManager::ProcessInvalidations()` | `VirtualShadowMapCacheManager.cpp:1883` | シーン変更によるキャッシュ無効化 |
+| `FVirtualShadowMapArrayCacheManager::ExtractFrameData()` | `VirtualShadowMapCacheManager.cpp:1456` | フレームデータ永続化 |
+
+---
+
 ## 主要クラス・構造体
 
 ```cpp

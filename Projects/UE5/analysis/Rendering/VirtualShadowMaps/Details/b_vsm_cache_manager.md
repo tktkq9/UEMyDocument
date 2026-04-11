@@ -122,6 +122,54 @@ FPhysicalPageMetaData (ページごとのメタデータ)
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（無効化パイプライン）
+
+```
+FScene::UpdateAllPrimitives()
+  └─ FVirtualShadowMapInvalidationSceneUpdater::PostSceneUpdate()
+       └─ FInvalidatingPrimitiveCollector::UpdatedTransform() / Added() / Removed()
+
+FVirtualShadowMapInvalidationSceneUpdater::PostGPUSceneUpdate()
+  └─ FVirtualShadowMapArrayCacheManager::ProcessInvalidations()  VirtualShadowMapCacheManager.cpp:1883
+       ├─ FInstancePageInvalidationCS (GPU でページフラグをクリア)
+       └─ キャッシュ済みページを無効化 → 次フレームで再描画扱いになる
+```
+
+### エントリポイント（フレーム間データ転送）
+
+```
+FVirtualShadowMapArray::PostRender()                VirtualShadowMapArray.cpp:1729
+  └─ FVirtualShadowMapArrayCacheManager::ExtractFrameData()  VirtualShadowMapCacheManager.cpp:1456
+       ├─ RDG バッファを PooledBuffer に抽出（永続化）
+       ├─ PhysicalPageMetaData を更新（LRU 情報）
+       └─ PerLightCacheEntry::UpdateCachedFrameData() → 次フレーム用データ保存
+
+次フレーム Initialize()
+  └─ CacheManager から前フレームデータを受け取る
+       └─ キャッシュ済みページは BuildPageAllocations() でスキップ
+```
+
+### フロー詳細
+
+1. **PostSceneUpdate()** — プリミティブのトランスフォーム変化・追加・削除を `FInvalidatingPrimitiveCollector` に収集する
+2. **ProcessInvalidations()** (`VirtualShadowMapCacheManager.cpp:1883`) — 収集した変化プリミティブのバウンドと物理ページの投影範囲を GPU 上で比較し、重なりがあるページフラグをクリアする
+3. **ExtractFrameData()** (`VirtualShadowMapCacheManager.cpp:1456`) — フレーム終了時に RDG バッファを `FVirtualShadowMapArrayFrameData` に抽出して永続化する
+4. 次フレーム `Initialize()` で前フレームデータを受け取り、キャッシュ済みページをスキップして差分のみ再描画する
+
+### 関与クラス・関数一覧
+
+| クラス/関数 | ファイル:行 | 役割 |
+|------------|-----------|------|
+| `FVirtualShadowMapInvalidationSceneUpdater::PostGPUSceneUpdate()` | `VirtualShadowMapCacheManager.cpp` | GPUScene 更新後に無効化実行 |
+| `FVirtualShadowMapArrayCacheManager::ProcessInvalidations()` | `VirtualShadowMapCacheManager.cpp:1883` | GPU でページフラグをクリア |
+| `FVirtualShadowMapArrayCacheManager::ExtractFrameData()` | `VirtualShadowMapCacheManager.cpp:1456` | フレームデータ永続化 |
+| `FVirtualShadowMapArrayCacheManager::SetPhysicalPoolSize()` | `VirtualShadowMapCacheManager.cpp:1137` | 物理プールリサイズ（リサイズ時は全キャッシュ無効化）|
+| `FInvalidatingPrimitiveCollector` | `VirtualShadowMapCacheManager.h` | 無効化対象プリミティブの収集 |
+
+---
+
 ## 主要 CVar
 
 | CVar | デフォルト | 説明 |
@@ -136,3 +184,10 @@ FPhysicalPageMetaData (ページごとのメタデータ)
 | `r.Shadow.Virtual.Cache.DeformableMeshesInvalidate` | 1 | 変形メッシュの無効化 |
 | `r.Shadow.Virtual.Cache.CPUCullInvalidationsOutsideLightRadius` | 1 | ライト半径外の無効化をCPUでカリング |
 | `r.Shadow.Virtual.AllocatePagePoolAsReservedResource` | 1 | 予約リソースとしてプールを確保 |
+
+---
+
+## 関連リファレンス
+
+- [[ref_vsm_cache_manager]] — FVirtualShadowMapArrayCacheManager / FVirtualShadowMapPerLightCacheEntry リファレンス
+- [[ref_vsm_array]] — FVirtualShadowMapArray リファレンス

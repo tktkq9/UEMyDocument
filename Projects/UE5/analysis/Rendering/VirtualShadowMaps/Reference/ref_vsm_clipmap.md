@@ -135,3 +135,22 @@ struct FLevelData
 | `r.Shadow.Virtual.SMRT.TexelDitherScaleDirectional` | 2.0 | テクセルディザースケール |
 | `r.FirstPerson.Shadow.Virtual.Clipmap.PixelRequestBias` | 2.0 | 一人称ページ要求バイアス |
 | `r.FirstPerson.Shadow.Virtual.Clipmap.RequestMinLevelClamp` | 8 | 一人称最小レベルクランプ |
+
+---
+
+> [!note]- GetLevelRadius の指数スケール
+> `FVirtualShadowMapClipmap::GetLevelRadius(float AbsoluteLevel)` は `2^AbsoluteLevel` スケールでワールド空間半径を計算する。  
+> Level 8 は近距離（約 256m）、Level 18 は遠距離（約 262km）をカバーする。  
+> 1レベル上がるごとに半径が2倍になり、仮想ページの解像度は半分になる（ページ数は同じ）。  
+> これにより近傍は高解像度、遠距離は自動的に低解像度となる連続的なシャドウ品質が実現する。
+
+> [!note]- CornerRelativeOffset とクリップマップの移動
+> `FLevelData::CornerRelativeOffset` はクリップマップの仮想アドレス空間内の原点オフセット。  
+> カメラが移動するとオフセットが更新されるが、ページ単位でのスナップ（整数ページ移動のみ）により  
+> 大部分のページが再利用でき、境界部分のみ再描画する仕組みになっている。  
+> シェーダー内で `ClipmapCornerRelativeOffset` としてサンプリング座標の補正に使われる。
+
+> [!note]- bIsFirstPersonShadow の専用クリップマップ
+> `bIsFirstPersonShadow = true` の場合、通常シーン用クリップマップとは別に専用クリップマップが生成される。  
+> 一人称視点のウェポン・ハンドはカメラ極近傍に存在し、通常クリップマップの最近傍レベルでも解像度不足になるため、  
+> 専用の近距離クリップマップが必要。ページ要求バイアスを `r.FirstPerson.Shadow.Virtual.Clipmap.PixelRequestBias` で調整できる。

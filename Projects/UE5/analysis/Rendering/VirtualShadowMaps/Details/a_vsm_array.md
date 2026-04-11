@@ -111,6 +111,60 @@ Nanite は `EPipeline::Shadows` モードでラスタライズし、
 
 ---
 
+## コード実行フロー
+
+### エントリポイント
+
+```
+FDeferredShadingSceneRenderer::Render()
+  └─ FVirtualShadowMapArray::Initialize()          VirtualShadowMapArray.cpp:815
+       ├─ CacheManager::SetPhysicalPoolSize()      VirtualShadowMapCacheManager.cpp:1137
+       ├─ AllocateDirectional() / AllocateLocal()
+       │
+       ├─ BeginMarkPages()                         VirtualShadowMapArray.cpp:2106
+       │    ├─ FMarkPagesByDepthCS (ピクセル別ページマーキング)
+       │    └─ FMarkCoarsePagesByFrustumCS (粗ページマーキング)
+       │
+       ├─ BuildPageAllocations()                   VirtualShadowMapArray.cpp:2818
+       │    ├─ AllocateNewPageMappingsCS (新規ページ割り当て)
+       │    └─ PropagateMappedMipsCS (MIPマッピング伝播)
+       │
+       ├─ RenderVirtualShadowMapsNanite()          VirtualShadowMapArray.cpp:3789
+       │    └─ Nanite::IRenderer::Create → DrawGeometry (EPipeline::Shadows)
+       │
+       ├─ RenderVirtualShadowMapsNonNanite()       VirtualShadowMapArray.cpp:3956
+       │    └─ 深度専用パスでメッシュ描画
+       │
+       ├─ UpdateHZB()                              VirtualShadowMapArray.cpp:4395
+       │
+       └─ PostRender()                             VirtualShadowMapArray.cpp:1729
+            └─ ExtractFrameData() → CacheManager に引き渡し
+```
+
+### フロー詳細
+
+1. **Initialize()** — `CacheManager` から物理ページプールと前フレームデータを受け取り、フレーム用 RDG リソースを初期化する
+2. **BeginMarkPages()** — GBuffer の深度・法線を参照し、各ピクセルがどの仮想ページを必要とするかフラグを立てる。Froxel（体積照明）や半透明も対象
+3. **BuildPageAllocations()** — フラグが立った仮想ページに物理ページを割り当て。静的キャッシュ済みページはスキップし差分のみ更新する
+4. **RenderVirtualShadowMapsNanite()** — `EPipeline::Shadows` / `EOutputBufferMode::DepthOnly` モードで Nanite カリング・ラスタライズを実行。物理ページプールに直接書き込む
+5. **RenderVirtualShadowMapsNonNanite()** — Nanite 以外のメッシュを深度専用パスで描画
+6. **UpdateHZB()** — 次フレームのオクルージョンカリング用に物理ページプールの HZB を再構築する
+7. **PostRender()** — フレームデータ（PageTable / PageFlags / ProjectionData）を `CacheManager::ExtractFrameData()` で永続バッファに保存する
+
+### 関与クラス・関数一覧
+
+| クラス/関数 | ファイル:行 | 役割 |
+|------------|-----------|------|
+| `FVirtualShadowMapArray::Initialize()` | `VirtualShadowMapArray.cpp:815` | フレーム初期化 |
+| `FVirtualShadowMapArray::BeginMarkPages()` | `VirtualShadowMapArray.cpp:2106` | ページ要求フラグ生成 |
+| `FVirtualShadowMapArray::BuildPageAllocations()` | `VirtualShadowMapArray.cpp:2818` | 物理ページ割り当て |
+| `FVirtualShadowMapArray::RenderVirtualShadowMapsNanite()` | `VirtualShadowMapArray.cpp:3789` | Nanite 深度描画 |
+| `FVirtualShadowMapArray::RenderVirtualShadowMapsNonNanite()` | `VirtualShadowMapArray.cpp:3956` | 非Nanite 深度描画 |
+| `FVirtualShadowMapArray::UpdateHZB()` | `VirtualShadowMapArray.cpp:4395` | 物理ページ HZB 更新 |
+| `FVirtualShadowMapArray::PostRender()` | `VirtualShadowMapArray.cpp:1729` | フレーム後処理・データ永続化 |
+
+---
+
 ## 主要 CVar
 
 | CVar | デフォルト | 説明 |
@@ -127,3 +181,11 @@ Nanite は `EPipeline::Shadows` モードでラスタライズし、
 | `r.Shadow.Virtual.NonNanite.IncludeInCoarsePages` | 1 | 非Naniteを粗ページに含めるか |
 | `r.Shadow.Virtual.NonNanite.UseHZB` | 1 | 非Nanite HZBオクルージョン |
 | `r.Shadow.Virtual.DynamicRes.MaxPagePoolLoadFactor` | 0.85 | 動的解像度ページプール負荷係数 |
+
+---
+
+## 関連リファレンス
+
+- [[ref_vsm_array]] — FVirtualShadowMapArray / FVirtualShadowMapProjectionShaderData リファレンス
+- [[ref_vsm_cache_manager]] — FVirtualShadowMapArrayCacheManager リファレンス
+- [[ref_vsm_shaders]] — FVirtualShadowMapGlobalShader 基底クラス

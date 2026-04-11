@@ -214,3 +214,21 @@ GPU→CPUフィードバックバッファ管理（Nanite性能統計等）。
 | `r.Shadow.Virtual.DynamicRes.MaxResolutionLodBias` | 2.0 | 動的解像度最大LODバイアス |
 | `r.Shadow.Virtual.DynamicRes.MaxComputeResolutionLodBiasLocal` | 99999.0 | ローカル最大コンピュートLODバイアス |
 | `r.Shadow.Virtual.DynamicRes.MaxComputeResolutionLodBiasDirectional` | 99999.0 | ディレクショナル最大コンピュートLODバイアス |
+
+---
+
+> [!note]- ISceneExtension としての永続性
+> `FVirtualShadowMapArrayCacheManager` は `ISceneExtension` を継承するため、`FScene` と同じライフタイムを持つ。  
+> `FVirtualShadowMapArray`（フレームスコープ）とは異なり、物理ページプールや `PerLightCacheEntry` をフレームをまたいで保持し続ける。  
+> `SetPhysicalPoolSize()` でプールをリサイズする際は全キャッシュが強制無効化される（`VirtualShadowMapCacheManager.cpp:1137`）。
+
+> [!note]- ProcessInvalidations の GPU 実行
+> `ProcessInvalidations()` (`VirtualShadowMapCacheManager.cpp:1883`) はシーン変更を CPU で収集した後、GPU 上で実際の無効化を行う。  
+> プリミティブのバウンドスフィアと各物理ページの投影領域を GPU 上で比較し、重なりがあるページフラグのみをクリアする。  
+> これにより「プリミティブが動いた場合、その影が映るページだけを無効化する」という効率的な差分更新が実現できる。
+
+> [!note]- FVirtualShadowMapArrayFrameData と PooledBuffer
+> `ExtractFrameData()` (`VirtualShadowMapCacheManager.cpp:1456`) はフレーム終了時に RDG バッファ（フレーム一時）を  
+> `TRefCountPtr<FRDGPooledBuffer>` 形式の `FVirtualShadowMapArrayFrameData` に抽出して永続化する。  
+> 次フレームの `Initialize()` でこのデータを `FRDGBuilder::RegisterExternalBuffer()` で RDG に再登録し、  
+> キャッシュ済みページの読み取りに利用する。

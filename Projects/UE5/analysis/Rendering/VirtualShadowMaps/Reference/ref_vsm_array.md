@@ -162,3 +162,21 @@ constexpr int32 MaxNPFDiagnosticSlotsMultiPage = 96;
 | `r.Shadow.Virtual.Stats.Visible` | 0 | デバッグ統計表示 |
 | `r.Shadow.Virtual.Visualize.Layout` | 0 | 可視化レイアウト |
 | `r.Shadow.Virtual.Visualize.LightName` | "" | 可視化対象ライト名 |
+
+---
+
+> [!note]- FVirtualShadowMapArray のライフサイクル（フレームスコープ）
+> `FVirtualShadowMapArray` は `FDeferredShadingRenderer` のメンバとしてフレームごとに生成・破棄される一時オブジェクト。  
+> 物理ページプールなどの永続リソースは所有せず、`FVirtualShadowMapArrayCacheManager`（`ISceneExtension`）が保持する。  
+> `Initialize()` でリソースを借り受け、`PostRender()` でフレームデータを `CacheManager` に返す。
+
+> [!note]- ClipmapLevel_ClipmapLevelCountRemaining の符号による判別
+> `FVirtualShadowMapProjectionShaderData::ClipmapLevel_ClipmapLevelCountRemaining` は正の値の場合クリップマップレベルを表し、  
+> -1 の場合はローカルライトを表す。シェーダー内でこの符号を見てディレクショナル/ローカルを判別している。  
+> クリップマップレベル番号（8〜18）はワールド空間の半径スケールに直結し、レベルが1増えるごとに半径が2倍になる。
+
+> [!note]- RenderVirtualShadowMapsNanite と EPipeline::Shadows
+> `RenderVirtualShadowMapsNanite()` は `Nanite::IRenderer::Create()` に `FSharedContext::Pipeline = EPipeline::Shadows` と  
+> `EOutputBufferMode::DepthOnly` を渡して実行する。これにより VisBuffer64 は確保されず、  
+> シャドウデプスのみが VSM 物理ページプールの該当スロットに直接書き込まれる。  
+> クリップマップの各レベルが個別の `FPackedView` として Nanite ビュー配列に入り、1回の DrawGeometry() で全レベルを処理できる。

@@ -105,3 +105,22 @@ class FMarkPagesFrustumCullCS : public FVirtualShadowMapPageManagementShader
             VIRTUAL_SHADOW_MAP_PAGE_MANAGEMENT_SHADER_GROUP_SIZE_XY, 1)]
 void MarkPagesCS(...) { ... }
 ```
+
+---
+
+> [!note]- ModifyCompilationEnvironment での HLSL 2021 有効化
+> `FVirtualShadowMapGlobalShader::ModifyCompilationEnvironment()` は `OutEnvironment.SetDefine(TEXT("HLSL_2021"), 1)` を設定する。  
+> HLSL 2021 はテンプレート関数・演算子オーバーロード・`constexpr` 等の C++20 ライクな機能を提供し、  
+> VSM シェーダーの共通ユーティリティ関数を型安全に記述できるようにしている。  
+> `ShouldCompilePermutation()` は SM5 以上のプラットフォームに限定しモバイル向けではコンパイルしない。
+
+> [!note]- DefaultCSGroupXY=8 と DefaultCSGroupX=256 の使い分け
+> `FVirtualShadowMapPageManagementShader` は2種類のグループサイズを持つ。  
+> `DefaultCSGroupXY = 8` は 2D ディスパッチ（`BeginMarkPages` のようなスクリーンスペース処理）に使われ、8×8=64スレッドで1タイルを処理する。  
+> `DefaultCSGroupX = 256` は 1D ディスパッチ（`BuildPageAllocations` のようなページリスト処理）に使われる。  
+> グループサイズはコンパイル時定数として `ModifyCompilationEnvironment()` 経由でシェーダーマクロに注入されるため、実行時変更不可。
+
+> [!note]- FVirtualShadowMapGlobalShader の継承ツリー
+> VSM の全 CS シェーダーは `FVirtualShadowMapPageManagementShader → FVirtualShadowMapGlobalShader → FGlobalShader` の階層を持つ。  
+> 投影パスの PS/CS は直接 `FVirtualShadowMapGlobalShader → FGlobalShader` を継承する。  
+> `DECLARE_GLOBAL_SHADER` + `SHADER_USE_PARAMETER_STRUCT` の組み合わせで型安全なパラメータバインドが実現されている。

@@ -126,6 +126,58 @@ FVirtualShadowMapProjectionShaderData
 
 ---
 
+## 関連リファレンス
+
+- [[ref_vsm_clipmap]] — FVirtualShadowMapClipmap / FVirtualShadowMapClipmapConfig リファレンス
+- [[ref_vsm_array]] — FVirtualShadowMapArray リファレンス
+- [[ref_vsm_cache_manager]] — FVirtualShadowMapPerLightCacheEntry リファレンス
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+FDeferredShadingSceneRenderer::InitShadowInfos() (ライト収集フェーズ)
+  └─ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap() (コンストラクタ)
+       ├─ GetLevelRadius() でレベルごとのワールド半径を計算
+       ├─ GetViewMatrices() で各レベルの正射影ビュー行列を構築
+       ├─ FVirtualShadowMapArray::AllocateDirectional() で VSM ID を確保
+       └─ CacheManager::FindCreateLightCacheEntry() でキャッシュエントリを取得・作成
+
+FVirtualShadowMapArray::BeginMarkPages()         VirtualShadowMapArray.cpp:2106
+  └─ クリップマップの各レベルに対してページマーキング CS を実行
+
+FVirtualShadowMapArray::RenderVirtualShadowMapsNanite()
+  └─ FVirtualShadowMapArray::AddRenderViews(Clipmap, ...)
+       └─ 各レベルを Nanite::FPackedView として追加 → DrawGeometry
+
+FVirtualShadowMapClipmap::UpdateCachedFrameData() (PostRender 時)
+  └─ キャッシュエントリに現フレームの投影データを保存
+```
+
+### フロー詳細
+
+1. **コンストラクタ** — ディレクショナルライト1つに対して `FVirtualShadowMapClipmap` を生成する。レベル数（デフォルト: 8〜18）分の `FLevelData` を作り、各レベルの正射影ビュー行列と VSM ID を確定する
+2. **AllocateDirectional()** — レベル数分の連続した `VirtualShadowMapId` を `FVirtualShadowMapArray` から確保する
+3. **BeginMarkPages()** — 各レベルの視錐台でページマーキング CS をディスパッチする。近レベルは高解像度、遠レベルは粗いページをマークする
+4. **AddRenderViews()** — 各クリップマップレベルを `Nanite::FPackedView` に変換して Nanite のビュー配列に追加する。Nanite は `EPipeline::Shadows` でこれらをバッチレンダリングする
+5. **UpdateCachedFrameData()** — フレーム終了時にキャッシュエントリに投影データ・HZB メタデータを保存し、次フレームで再利用できるようにする
+
+### 関与クラス・関数一覧
+
+| クラス/関数 | 説明 |
+|------------|------|
+| `FVirtualShadowMapClipmap` (ctor) | クリップマップ初期化・レベルデータ構築 |
+| `GetLevelRadius()` (static) | 指数スケールでレベル半径を計算 |
+| `GetViewMatrices(int32 ClipmapIndex)` | レベルごとの正射影ビュー行列取得 |
+| `FVirtualShadowMapArray::AddRenderViews()` | クリップマップを Nanite ビュー配列に追加 |
+| `UpdateCachedFrameData()` | フレームデータをキャッシュエントリに保存 |
+| `GetDynamicDepthCullRange()` | 動的ジオメトリのカリング深度範囲を返す |
+
+---
+
 ## 主要 CVar
 
 | CVar | デフォルト | 説明 |
