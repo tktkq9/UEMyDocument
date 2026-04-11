@@ -121,7 +121,7 @@ RenderLumen(GraphBuilder, SceneTextures, ...);
 
 ### e: Diffuse GI（1件）
 
-- [ ] `Details/e_lumen_diffuse_gi.md` — Diffuse GI 実行フロー
+- [x] `Details/e_lumen_diffuse_gi.md` — Diffuse GI 実行フロー
 
 **追記内容**:
 - `RenderLumenDiffuseIndirect()` エントリから `RenderScreenProbeGather()` までのコールチェーン
@@ -133,7 +133,7 @@ RenderLumen(GraphBuilder, SceneTextures, ...);
 
 ### f: Reflections（1件）
 
-- [ ] `Details/f_lumen_reflections.md` — Reflections 実行フロー
+- [x] `Details/f_lumen_reflections.md` — Reflections 実行フロー
 
 **追記内容**:
 - `RenderLumenReflections()` エントリからトレース・ReSTIR・Compose までの全コールチェーン
@@ -152,11 +152,11 @@ RenderLumen(GraphBuilder, SceneTextures, ...);
 | `b_lumen_scene_lighting.md` | [x] 完了 |
 | `c_lumen_tracing.md` | [x] 完了 |
 | `d_lumen_radiance_cache.md` | [x] 完了 |
-| `e_lumen_diffuse_gi.md` | [ ] 未着手 |
-| `f_lumen_reflections.md` | [ ] 未着手 |
+| `e_lumen_diffuse_gi.md` | [x] 完了 |
+| `f_lumen_reflections.md` | [x] 完了 |
 
 **合計**: 7 ファイル  
-**完了数**: 5 / 7
+**完了数**: 7 / 7
 
 ---
 

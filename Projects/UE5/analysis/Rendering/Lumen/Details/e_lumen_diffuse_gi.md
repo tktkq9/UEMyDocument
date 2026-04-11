@@ -189,6 +189,120 @@ r.Lumen.ShortRangeAO.Enable = 1
 
 ---
 
+## コード実行フロー
+
+### エントリポイント
+
+Diffuse GI は Lighting フェーズの `RenderDiffuseIndirectAndAmbientOcclusion()` から呼ばれる。
+
+```
+RenderDiffuseIndirectAndAmbientOcclusion()   (IndirectLightRendering.cpp:977)
+  │
+  └─ [DiffuseIndirectMethod == Lumen 時]
+      RenderLumenFinalGather(GraphBuilder, SceneTextures, FrameTemporaries, ...)
+        │                    (LumenScreenProbeGather.cpp:2094)
+        │
+        ├─ [UseReSTIRGather() == true 時]
+        │   RenderLumenReSTIRGather(...)
+        │
+        └─ [通常時]
+            RenderLumenScreenProbeGather(...)
+              │                (LumenScreenProbeGather.cpp:2156)
+              │
+              ├─ FScreenProbeDownsampleDepthUniformCS    ← Probe 均一配置 + 深度ダウンサンプル
+              ├─ FScreenProbeAdaptivePlacementMarkCS     ← 適応 Probe のマーク
+              ├─ FScreenProbeAdaptivePlacementSpawnCS    ← 適応 Probe の生成
+              │
+              ├─ [UseRadianceCache() == true 時]
+              │   LumenRadianceCache::UpdateRadianceCaches(...)   ← Radiance Cache 更新
+              │                             (LumenRadianceCache.cpp:1215)
+              │
+              ├─ [UseImportanceSampling() == true 時]
+              │   GenerateImportanceSamplingRays(...)             ← IS レイ方向生成
+              │
+              ├─ TraceScreenProbes(...)                 ← Probe からのレイトレース
+              │   (LumenScreenProbeTracing.cpp)
+              │
+              ├─ FilterScreenProbes(...)                ← Probe ラジアンスのフィルタリング
+              │   (LumenScreenProbeFiltering.cpp)
+              │
+              ├─ [UseShortRangeAmbientOcclusion() 時]
+              │   ComputeScreenSpaceShortRangeAO(...)   ← 近距離 AO 計算
+              │
+              ├─ InterpolateAndIntegrate(...)           ← Probe 補間 + GBuffer へ積分
+              │   └─ FScreenProbeIntegrateCS
+              │
+              └─ UpdateHistoryScreenProbeGather(...)    ← テンポラル蓄積
+                  └─ FScreenProbeTemporalReprojectionCS
+
+        [どちらのパスの後も]
+        └─ ComputeLumenTranslucencyGIVolume(...)        ← 半透明 GI Volume 更新
+```
+
+### フロー詳細
+
+1. **Probe 配置** — 画面タイルグリッドに均一 Probe を生成し、深度・法線を低解像度にダウンサンプル（`LumenScreenProbeGather.cpp`）
+   ```cpp
+   // 均一 Probe の深度・法線を取得
+   FScreenProbeDownsampleDepthUniformCS::FParameters* PassParameters = ...;
+   // 適応 Probe のマーク → 生成（輝度変化が大きい領域に追加配置）
+   FScreenProbeAdaptivePlacementMarkCS::FParameters* MarkParams = ...;
+   FScreenProbeAdaptivePlacementSpawnCS::FParameters* SpawnParams = ...;
+   ```
+   - 参照: [[ref_lumen_screen_probe_gather]]
+
+2. **Radiance Cache + Importance Sampling** — 遠距離補間用 Probe を更新し IS レイ方向を事前生成（`LumenScreenProbeGather.cpp:2525, 2553`）
+   ```cpp
+   LumenRadianceCache::UpdateRadianceCaches(
+       GraphBuilder, FrameTemporaries, InputArray, OutputArray, ...);
+
+   if (LumenScreenProbeGather::UseImportanceSampling(View))
+       GenerateImportanceSamplingRays(GraphBuilder, View, SceneTextures,
+           RadianceCacheParameters, BRDFProbabilityDensityFunction, ...);
+   ```
+   - 参照: [[ref_lumen_screen_probe_importance]] | [[ref_lumen_radiance_cache]]
+
+3. **TraceScreenProbes + FilterScreenProbes** — Probe からレイを飛ばし Surface Cache をサンプリング、フィルタリング（`LumenScreenProbeGather.cpp:2576, 2590`）
+   ```cpp
+   TraceScreenProbes(GraphBuilder, Scene, View, FrameTemporaries,
+       bTraceMeshSDFs, SceneTextures, LightingChannelsTexture,
+       RadianceCacheParameters, ScreenProbeParameters, MeshSDFGridParameters, ...);
+
+   FScreenProbeGatherParameters GatherParameters;
+   FilterScreenProbes(GraphBuilder, View, SceneTextures,
+       ScreenProbeParameters, GatherParameters, ComputePassFlags);
+   ```
+   - 参照: [[ref_lumen_screen_probe_tracing]] | [[ref_lumen_screen_probe_filtering]]
+
+4. **InterpolateAndIntegrate + UpdateHistoryScreenProbeGather** — Probe を補間して全解像度に展開、テンポラル蓄積（`LumenScreenProbeGather.cpp:2639, 2662`）
+   ```cpp
+   // Probe の補間・GBuffer へ積分 → DiffuseIndirect / RoughSpecularIndirect を生成
+   InterpolateAndIntegrate(GraphBuilder, SceneTextures, View, FrameTemporaries,
+       ScreenProbeParameters, GatherParameters, IntegrateParameters, ...);
+
+   // テンポラル再投影（ShortRangeAO 履歴の更新も含む）
+   UpdateHistoryScreenProbeGather(GraphBuilder, View, ViewIndex,
+       SceneTextures, FrameTemporaries, ...);
+   ```
+   - 参照: [[ref_lumen_screen_probe_gather]] | [[ref_lumen_short_range_ao]]
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|------------|--------|------|
+| `RenderLumenFinalGather()` | `LumenScreenProbeGather.cpp` | Diffuse GI トップレベルエントリ（ReSTIR / 通常分岐） |
+| `RenderLumenScreenProbeGather()` | `LumenScreenProbeGather.cpp` | Screen Probe Gather メインパス |
+| `FScreenProbeDownsampleDepthUniformCS` | `LumenScreenProbeGather.cpp` | 均一 Probe 配置・深度ダウンサンプル |
+| `FScreenProbeAdaptivePlacementMarkCS/SpawnCS` | `LumenScreenProbeGather.cpp` | 適応 Probe の選定・生成 |
+| `GenerateImportanceSamplingRays()` | `LumenScreenProbeImportanceSampling.cpp` | BRDF 重要度サンプリングレイ生成 |
+| `TraceScreenProbes()` | `LumenScreenProbeTracing.cpp` | Probe からのレイトレース |
+| `FilterScreenProbes()` | `LumenScreenProbeFiltering.cpp` | Probe ラジアンスのフィルタリング |
+| `ComputeScreenSpaceShortRangeAO()` | `LumenScreenSpaceBentNormal.cpp` | 近距離 AO 計算 |
+| `InterpolateAndIntegrate()` | `LumenScreenProbeGather.cpp` | Probe 補間 + GBuffer への積分 |
+| `UpdateHistoryScreenProbeGather()` | `LumenScreenProbeGather.cpp` | テンポラル蓄積・履歴更新 |
+
+---
+
 ## 関連ソースファイル
 
 | ファイル | 役割 |

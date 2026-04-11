@@ -225,6 +225,107 @@ r.Lumen.Reflections.Temporal.MaxFramesAccumulated
 
 ---
 
+## コード実行フロー
+
+### エントリポイント
+
+反射は Lighting フェーズの `RenderDiffuseIndirectAndAmbientOcclusion()` から呼ばれる。
+
+```
+RenderDiffuseIndirectAndAmbientOcclusion()   (IndirectLightRendering.cpp:977)
+  │
+  └─ [ReflectionsMethod == Lumen 時]
+      RenderLumenReflections(GraphBuilder, View, SceneTextures, FrameTemporaries,
+                             MeshSDFGridParameters, RadianceCacheParameters,
+                             ELumenReflectionPass::Opaque, ...)
+        │                    (LumenReflections.cpp:1154)
+        │
+        ├─ SetupCompositeParameters()          ← MaxRoughnessToTrace 等の合成パラメータ設定
+        │
+        ├─ ReflectionTileClassification(...)   ← タイル分類（Roughness・有効ピクセル判定）
+        │
+        ├─ FReflectionGenerateRaysCS           ← レイ方向バッファを生成（DownsampledDepth も）
+        │
+        ├─ TraceReflections(...)               ← SW RT パス（LumenReflectionTracing.cpp:1109）
+        │   または
+        │   RenderLumenHardwareRayTracingReflections(...)  ← HW RT パス
+        │
+        ├─ FLumenReflectionResolveCS           ← ヒット輝度を解像度に展開（空間再構成）
+        │
+        ├─ [bTemporal == true 時]
+        │   FLumenReflectionDenoiserTemporalCS ← テンポラル蓄積（前フレーム再投影）
+        │   FLumenReflectionDenoiserSpatialCS  ← 空間バイラテラルフィルタ
+        │
+        └─ SpecularIndirect を返す
+
+[追加パス - 別途 RenderLumenReflections() を呼ぶ]
+  ├─ RenderLumenFrontLayerTranslucencyReflections(...)   ← 半透明前面レイヤーの反射
+  │   └─ ELumenReflectionPass::FrontLayerTranslucency
+  └─ SingleLayerWater → ELumenReflectionPass::SingleLayerWater
+```
+
+### フロー詳細
+
+1. **ReflectionTileClassification** — Roughness と有効ピクセルでタイルを3分類（`LumenReflections.cpp:1285`）
+   ```cpp
+   ReflectionTileParameters = ReflectionTileClassification(
+       GraphBuilder, View, SceneTextures, FrameTemporaries,
+       ReflectionTracingParameters, ReflectionsConfig.FrontLayerReflectionGBuffer,
+       ComputePassFlags);
+   ```
+   - Clear / Resolve / Tracing の3種の IndirectArgs を生成
+   - 参照: [[ref_lumen_reflections]]
+
+2. **FReflectionGenerateRaysCS** — GBuffer から反射レイを生成、DownsampledDepth と RayBuffer に書き込む（`LumenReflections.cpp:1319`）
+   ```cpp
+   // DownsampledDepth（半解像度）と RayBuffer（方向・距離）を生成
+   FReflectionGenerateRaysCS::FParameters* PassParameters = ...;
+   PermutationVector.Set<FReflectionGenerateRaysCS::FRadianceCache>(bUseRadianceCache);
+   PermutationVector.Set<FReflectionGenerateRaysCS::FFrontLayerTranslucency>(bFrontLayer);
+   ```
+   - `MaxRoughnessToTrace` 以上の Roughness は Radiance Cache に委譲
+   - 参照: [[ref_lumen_reflection_tracing]]
+
+3. **TraceReflections / RenderLumenHardwareRayTracingReflections** — レイトレースパス（`LumenReflections.cpp:1400`）
+   ```cpp
+   TraceReflections(GraphBuilder, Scene, View, FrameTemporaries,
+       bTraceMeshObjects, SceneTextures, ReflectionTracingParameters,
+       ReflectionTileParameters, MeshSDFGridParameters, bUseRadianceCache,
+       DiffuseIndirectMethod, RadianceCacheParameters, ...);
+   ```
+   - SW RT: Mesh SDF → Global SDF → FarField → RadianceCache の多段フォールバック
+   - HW RT: `UseHardwareRayTracedReflections()` が true の場合に Inline RT / RGS を使用
+   - 参照: [[ref_lumen_reflection_tracing]] | [[ref_lumen_reflection_hwrt]]
+
+4. **FLumenReflectionResolveCS → テンポラル → 空間フィルタ** — 解像度展開・ノイズ除去（`LumenReflections.cpp:1513, 1652, 1710`）
+   ```cpp
+   // Resolve: ダウンスケールしたトレース結果をフル解像度に展開
+   FLumenReflectionResolveCS: bUseSpatialReconstruction で近傍サンプルを利用
+
+   // Temporal: 前フレームの SpecularAndSecondMomentHistory と指数移動平均
+   FLumenReflectionDenoiserTemporalCS: PermutationVector.Set<FValidHistory>(...);
+
+   // Spatial: バイラテラルフィルタで残存ノイズを平滑化
+   FLumenReflectionDenoiserSpatialCS: bSpatial = GLumenReflectionBilateralFilter != 0;
+   ```
+   - 参照: [[ref_lumen_reflections]]
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|------------|--------|------|
+| `RenderLumenReflections()` | `LumenReflections.cpp` | 反射のトップレベルエントリ（全パス共通） |
+| `ReflectionTileClassification()` | `LumenReflections.cpp` | Roughness によるタイル分類 |
+| `FReflectionGenerateRaysCS` | `LumenReflections.cpp` | 反射レイ方向バッファの生成 |
+| `TraceReflections()` | `LumenReflectionTracing.cpp` | SW RT トレースパス |
+| `RenderLumenHardwareRayTracingReflections()` | `LumenReflectionHardwareRayTracing.cpp` | HW RT トレースパス |
+| `FLumenReflectionResolveCS` | `LumenReflections.cpp` | トレース結果の解像度展開・空間再構成 |
+| `FLumenReflectionDenoiserTemporalCS` | `LumenReflections.cpp` | テンポラル蓄積デノイザー |
+| `FLumenReflectionDenoiserSpatialCS` | `LumenReflections.cpp` | 空間バイラテラルフィルタ |
+| `FReflectionTemporalState` | `LumenViewState.h` | 反射の前フレーム履歴（SpecularAndSecondMomentHistory 等） |
+
+---
+
 ## 関連ソースファイル
 
 | ファイル | 役割 |
