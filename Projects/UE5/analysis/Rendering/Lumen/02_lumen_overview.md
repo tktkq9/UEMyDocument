@@ -67,6 +67,7 @@ graph TD
     Tracing --> Ref
     GI --> Out[最終ライティング合成]
     Ref --> Out
+    Out --> SC2[SceneColor]
 ```
 
 ---
@@ -81,6 +82,7 @@ graph TD
 | ④ | Radiance Cache | 遠距離用プローブキャッシュ（Tracing から更新） | [[d_lumen_radiance_cache]] |
 | ⑤ | Diffuse GI | Screen Probe Gather + Radiance Cache で間接光 | [[e_lumen_diffuse_gi]] |
 | ⑥ | Reflections | Roughness別トレース + ReSTIR | [[f_lumen_reflections]] |
+| ⑦ | 最終ライティング合成 | Diffuse GI + 反射 + AO → SceneColor 加算書き込み | [[g_lumen_final_composite]] |
 
 ---
 
@@ -117,7 +119,7 @@ FDeferredShadingSceneRenderer::Render()
   │   RenderLumenSceneLighting(GraphBuilder, FrameTemporaries, ...) // LumenSceneLighting.cpp:217
   │
   ├─ [GBuffer 描画後 / Lighting フェーズ]
-  │   RenderDiffuseIndirectAndAmbientOcclusion(...)                 // IndirectLightRendering.cpp:977
+  │   RenderDiffuseIndirectAndAmbientOcclusion(...)                 // IndirectLightRendering.cpp:977  → [[g_lumen_final_composite]]
   │     │
   │     ├─ [DiffuseIndirectMethod == Lumen の場合]
   │     │   RenderLumenFinalGather(...)                             // LumenScreenProbeGather.cpp:2094
