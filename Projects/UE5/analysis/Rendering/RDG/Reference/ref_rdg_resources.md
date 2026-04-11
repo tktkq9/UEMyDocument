@@ -1,7 +1,16 @@
-# REF: RDG リソース型
+# リファレンス：RenderGraphResources.h / RenderGraphResources.inl / RenderGraphResources.cpp
 
-- 対象ファイル: `RenderGraphResources.h`, `RenderGraphResources.inl`, `RenderGraphDefinitions.h`
-- 関連Details: [[b_rdg_resources]]
+- グループ: b - Resources
+- 上位: [[b_rdg_resources]]
+- 関連: [[ref_rdg_texture_subresource]] | [[ref_rdg_allocator]] | [[ref_rdg_builder]]
+- ソース: `Engine/Source/Runtime/RenderCore/Public/RenderGraphResources.h`
+- ソース: `Engine/Source/Runtime/RenderCore/Public/RenderGraphResources.inl`
+- ソース: `Engine/Source/Runtime/RenderCore/Private/RenderGraphResources.cpp`
+
+## 概要
+
+RDG 管理リソース型（テクスチャ・バッファ・View・Uniform Buffer）の全定義。  
+型ヒエラルキー: `FRDGResource` → `FRDGViewableResource` → `FRDGTexture` / `FRDGBuffer`。
 
 ---
 

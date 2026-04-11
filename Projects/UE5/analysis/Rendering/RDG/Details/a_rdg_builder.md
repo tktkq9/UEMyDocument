@@ -232,3 +232,12 @@ auto* Obj      = GraphBuilder.AllocObject<FMyClass>(Arg1, Arg2);
 auto& Arr      = GraphBuilder.AllocArray<FMyStruct>();
 auto* Params   = GraphBuilder.AllocParameters<FMyPassParams>();
 ```
+
+---
+
+## 関連リファレンス
+
+| リファレンス | 対象ソース |
+|------------|----------|
+| [[ref_rdg_builder]] | `RenderGraphBuilder.h/.inl/.cpp` |
+| [[ref_rdg_definitions]] | `RenderGraphDefinitions.h`, `RenderGraphFwd.h` |

@@ -198,3 +198,12 @@ Execute() 呼び出し時:
 6. ExecutePasses()
    ← パスを順番に実行（並列モード時は Task グラフ経由）
 ```
+
+---
+
+## 関連リファレンス
+
+| リファレンス | 対象ソース |
+|------------|----------|
+| [[ref_rdg_pass]] | `RenderGraphPass.h/.cpp` |
+| [[ref_rdg_private]] | `RenderGraphPrivate.cpp` |

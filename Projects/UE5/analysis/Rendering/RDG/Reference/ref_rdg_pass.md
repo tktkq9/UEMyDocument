@@ -1,7 +1,15 @@
-# REF: RDG パス型・フラグ
+# リファレンス：RenderGraphPass.h / RenderGraphPass.cpp
 
-- 対象ファイル: `RenderGraphPass.h`, `RenderGraphDefinitions.h`
-- 関連Details: [[c_rdg_pass]]
+- グループ: c - Pass
+- 上位: [[c_rdg_pass]]
+- 関連: [[ref_rdg_private]] | [[ref_rdg_builder]]
+- ソース: `Engine/Source/Runtime/RenderCore/Public/RenderGraphPass.h`
+- ソース: `Engine/Source/Runtime/RenderCore/Private/RenderGraphPass.cpp`
+
+## 概要
+
+RDG パスの型定義・実行フラグ・並列化モードの全定義。  
+`FRDGPass` 基底クラスと `TRDGLambdaPass` / `FRDGDispatchPass` の派生クラスを含む。
 
 ---
 

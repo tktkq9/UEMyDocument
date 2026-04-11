@@ -1,7 +1,16 @@
-# REF: FRDGBuilder
+# リファレンス：RenderGraphBuilder.h / RenderGraphBuilder.inl / RenderGraphBuilder.cpp
 
-- 対象ファイル: `RenderGraphBuilder.h`, `RenderGraphBuilder.inl`
-- 関連Details: [[a_rdg_builder]]
+- グループ: a - Builder
+- 上位: [[a_rdg_builder]]
+- 関連: [[ref_rdg_definitions]] | [[ref_rdg_pass]]
+- ソース: `Engine/Source/Runtime/RenderCore/Public/RenderGraphBuilder.h`
+- ソース: `Engine/Source/Runtime/RenderCore/Public/RenderGraphBuilder.inl`
+- ソース: `Engine/Source/Runtime/RenderCore/Private/RenderGraphBuilder.cpp`
+
+## 概要
+
+レンダーグラフ全体を管理するメインクラス `FRDGBuilder` の全 API 定義。  
+グラフの構築・コンパイル・実行を担う。
 
 ---
 

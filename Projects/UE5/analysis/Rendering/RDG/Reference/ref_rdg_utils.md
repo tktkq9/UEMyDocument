@@ -1,7 +1,15 @@
-# REF: RDG Event・Utils・マクロ
+# リファレンス：RenderGraphUtils.h / RenderGraphUtils.cpp
 
-- 対象ファイル: `RenderGraphEvent.h/.inl`, `RenderGraphUtils.h`, `RenderGraphBlackboard.h`, `RenderGraphParameter.h`
-- 関連Details: [[d_rdg_parameters]]
+- グループ: d - Parameters
+- 上位: [[d_rdg_parameters]]
+- 関連: [[ref_rdg_parameter]] | [[ref_rdg_event]] | [[ref_rdg_builder]]
+- ソース: `Engine/Source/Runtime/RenderCore/Public/RenderGraphUtils.h`
+- ソース: `Engine/Source/Runtime/RenderCore/Private/RenderGraphUtils.cpp`
+
+## 概要
+
+レンダリングコードでよく使われる RDG ユーティリティ関数群。  
+リソース状態確認・レンダーターゲットバインド・クリア・コピー・スクリーンパスラッパーを含む。
 
 ---
 

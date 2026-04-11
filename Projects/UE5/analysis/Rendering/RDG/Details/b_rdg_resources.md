@@ -193,3 +193,13 @@ bool IsCulled()        const; // 参照パスがなくカリングされたか
 | `FRDGTextureUAVRef` | `FRDGUnorderedAccessView*`（テクスチャ） |
 | `FRDGBufferUAVRef` | `FRDGUnorderedAccessView*`（バッファ） |
 | `TRDGUniformBufferRef<T>` | `FRDGUniformBuffer*`（型付き） |
+
+---
+
+## 関連リファレンス
+
+| リファレンス | 対象ソース |
+|------------|----------|
+| [[ref_rdg_resources]] | `RenderGraphResources.h/.inl/.cpp` |
+| [[ref_rdg_texture_subresource]] | `RenderGraphTextureSubresource.h` |
+| [[ref_rdg_allocator]] | `RenderGraphAllocator.h/.cpp`, `RenderGraphResourcePool.cpp` |

@@ -3,8 +3,8 @@
 - 取得日: 2026-04-10
 - 対象: `D:\UnrealEngine\Engine\Source\Runtime\RenderCore\Public\RenderGraph*.h`
 - 上位: [[01_rendering_overview]]
-- Details: [[a_rdg_builder]] | [[b_rdg_resources]] | [[c_rdg_pass]] | [[d_rdg_parameters]]
-- Reference: [[ref_rdg_builder]] | [[ref_rdg_resources]] | [[ref_rdg_pass]] | [[ref_rdg_utils]]
+- Details: [[a_rdg_builder]] | [[b_rdg_resources]] | [[c_rdg_pass]] | [[d_rdg_parameters]] | [[e_rdg_debug_trace]]
+- Reference: [[ref_rdg_builder]] | [[ref_rdg_resources]] | [[ref_rdg_pass]] | [[ref_rdg_utils]] | [[ref_rdg_definitions]] | [[ref_rdg_allocator]] | [[ref_rdg_parameter]] | [[ref_rdg_blackboard]] | [[ref_rdg_event]] | [[ref_rdg_validation]] | [[ref_rdg_trace]]
 
 ---
 
