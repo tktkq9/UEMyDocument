@@ -228,3 +228,29 @@ struct FVisibleMeshDrawCommand
 // フレーム一時配列型
 using FMeshCommandOneFrameArray = TArray<FVisibleMeshDrawCommand, SceneRenderingAllocator>;
 ```
+
+---
+
+> [!note]- FMeshDrawCommand の生成から RHI 発行まで
+> `BuildMeshDrawCommands()` 内では  
+> 1. `InitializeShaderBindings()` でバインディング領域確保  
+> 2. `SetDrawParametersAndFinalize()` で `CachedPipelineId` + 描画引数確定  
+> 3. `DrawListContext->FinalizeCommand()` で格納先に書き込み  
+>  
+> 発行時は `SubmitMeshDrawCommandsRange()` → `SubmitDraw()` の順で、  
+> `FMeshDrawCommandStateCache` が PSO/バインディングの差分のみを RHI に適用する。
+
+> [!note]- MatchesForDynamicInstancing の条件
+> `FMeshDrawCommand::MatchesForDynamicInstancing()` `MeshPassProcessor.cpp:1018` は以下をすべて満たす場合に `true` を返す:
+> - `CachedPipelineId` が同一（同じ PSO）
+> - `VertexStreams` が同一（同じ頂点バッファ配置）
+> - `IndexBuffer` が同一
+> - `ShaderBindings` が `MatchesForDynamicInstancing()` で等しい  
+>   （GPUScene の InstanceData オフセット以外が同一）  
+> 条件を満たすと `StateBucketId` が同じ値になり、`SubmitMeshDrawCommandsRange` でまとめてインスタンス描画される。
+
+> [!note]- FCachedPassMeshDrawList のライフサイクル
+> `FCachedPassMeshDrawList::MeshDrawCommands` はシーン（`FScene`）のライフタイムに準じる。  
+> プリミティブの変換やマテリアル変更では `CacheMeshDrawCommands()` が再度呼ばれ、  
+> 古いコマンドが上書きされる（スパース配列の該当エントリのみ更新）。  
+> `CommandProcessedFrameNumber` ビット配列はキャッシュの有効性追跡に使われる。

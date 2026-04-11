@@ -41,7 +41,7 @@ class FRadianceCacheClipmap {
     float Extent;       // クリップマップの半辺長
 
     FVector3d CornerWorldSpace;        // グリッドコーナー位置（倍精度）
-    FVector3f CornerTranslatedWorldSpace; // 翻訳済みワールド座標
+    FVector3f CornerTranslatedWorldSpace; // 移動済みワールド座標
 
     float ProbeTMin;   // レイの最小距離（自己交差防止）
 

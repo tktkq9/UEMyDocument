@@ -170,18 +170,49 @@ public:
 
 ## EShaderFrequency（シェーダーステージ）
 
-```cpp
-enum EShaderFrequency : uint8
-{
-    SF_Vertex   = 0,   // 頂点シェーダー
-    SF_Hull     = 1,   // ハルシェーダー（テッセレーション）
-    SF_Domain   = 2,   // ドメインシェーダー
-    SF_Pixel    = 3,   // ピクセルシェーダー
-    SF_Geometry = 4,   // ジオメトリシェーダー
-    SF_Compute  = 5,   // コンピュートシェーダー
-    SF_RayGen   = 6,   // レイジェネレーション
-    // ...
-    SF_NumFrequencies,
-    SF_NumGraphicsFrequencies = SF_Compute,
-};
-```
+| 値 | 数値 | 説明 |
+|----|------|------|
+| `SF_Vertex` | 0 | 頂点シェーダー |
+| `SF_Hull` | 1 | ハルシェーダー（テッセレーション） |
+| `SF_Domain` | 2 | ドメインシェーダー |
+| `SF_Pixel` | 3 | ピクセルシェーダー |
+| `SF_Geometry` | 4 | ジオメトリシェーダー |
+| `SF_Compute` | 5 | コンピュートシェーダー |
+| `SF_RayGen` | 6 | レイジェネレーション |
+| `SF_NumFrequencies` | — | ステージ総数 |
+| `SF_NumGraphicsFrequencies` | = SF_Compute | グラフィクスステージ数 |
+
+---
+
+## FMeshMaterialShaderElementData — メンバ変数
+
+| 変数 | 型 | 説明 |
+|-----|----|------|
+| `NumTexCoords` | `uint32` | テクスチャ座標チャンネル数 |
+| `LODFadeAlpha` | `float` | LOD フェードアルファ |
+| `LODFadeOneMinusAlpha` | `float` | 1 - LODFadeAlpha |
+| `ReverseCulling` | `float` | カリング反転フラグ（-1.0 または 1.0） |
+| `bDitheredLODTransition` | `bool` | ディザ LOD トランジション有効か |
+| `bHoveredWithWidgetAxis` | `bool` | エディタウィジェットホバー中か |
+
+---
+
+> [!note]- FMeshMaterialShader::GetShaderBindings の呼び出しチェーン
+> `BuildMeshDrawCommands()` 内でシェーダーごとに以下の順で呼ばれる:  
+> 1. `FMeshMaterialShader::GetShaderBindings()` — View UB・Primitive UB・Pass UB を Add()  
+> 2. `FVertexFactoryShaderParameters::GetElementShaderBindings()` — VertexFactory 固有リソースを Add()  
+> 3. 派生クラスの `GetShaderBindings()` — パス固有リソースを Add()  
+>  
+> 各 Add() は `FMeshDrawSingleShaderBindings` の内部バイト配列に書き込む。  
+> バイト配列は `FMeshDrawShaderBindings::Initialize()` で事前確保済みのため、再アロケーションは発生しない。
+
+> [!note]- ShouldCompilePermutation の役割
+> `FMeshMaterialShader::ShouldCompilePermutation()` はシェーダーコンパイル時（エディタ/ビルド時）に呼ばれ、  
+> 「この VertexFactory × Platform × PermutationId の組み合わせをコンパイルするか」を決定する。  
+> 実行時には呼ばれない。不必要な組み合わせを除外することでビルド時間とシェーダーキャッシュサイズを削減する。
+
+> [!note]- TMeshProcessorShaders と FMeshProcessorShaders の違い
+> `TMeshProcessorShaders<VS, PS, ...>` は型情報を持つテンプレート版で、コンパイル時型安全が得られる。  
+> `FMeshProcessorShaders` は型消去版（`TShaderRef<FShader>` のみ保持）。  
+> `BuildMeshDrawCommands()` テンプレートは `TMeshProcessorShaders` を受け取り、  
+> 内部で `operator FMeshProcessorShaders()` による暗黙変換を経て使用する。

@@ -182,3 +182,70 @@ SubmitMeshDrawCommands() 内:
     ((!UE_BUILD_SHIPPING && !UE_BUILD_TEST) || VALIDATE_MESH_COMMAND_BINDINGS \
      || WANTS_DRAW_MESH_EVENTS || WITH_DEBUG_VIEW_MODES)
 ```
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+─── 静的コマンド生成（シーン追加時 1 回のみ）───────────────────────
+FPrimitiveSceneInfo::AddStaticMeshes()          PrimitiveSceneInfo.cpp:1537
+  └─ CacheMeshDrawCommands()                    PrimitiveSceneInfo.cpp:583
+       └─ FPassProcessorManager::CreateMeshPassProcessor()
+            └─ AddMeshBatch() → BuildMeshDrawCommands()
+                 └─ FCachedPassMeshDrawListContextImmediate::FinalizeCommand()
+                      MeshPassProcessor.cpp:2032
+                      → FCachedPassMeshDrawList に永続保存
+
+─── 動的コマンド生成（毎フレーム）──────────────────────────────────
+GatherDynamicMeshElements()
+  └─ FMeshPassProcessor::AddMeshBatch()
+       └─ BuildMeshDrawCommands()
+            └─ FDynamicPassMeshDrawListContext::FinalizeCommand()
+                 → FMeshCommandOneFrameArray に追加
+
+─── DrawCall 発行（毎フレーム）──────────────────────────────────────
+SubmitMeshDrawCommands()              MeshPassProcessor.cpp:1604
+  └─ SubmitMeshDrawCommandsRange()   MeshPassProcessor.cpp:1616
+       └─ FMeshDrawCommand::SubmitDraw()
+            ├─ SubmitDrawBegin()   PSO セット・バインディング適用
+            └─ SubmitDrawEnd()     DrawIndexedPrimitive / DrawPrimitive
+```
+
+### フロー詳細
+
+1. **静的コマンドキャッシュ生成** `PrimitiveSceneInfo.cpp:583`  
+   `FPrimitiveSceneInfo::CacheMeshDrawCommands()` が全 EMeshPass に対して `FMeshPassProcessor` を生成し、静的メッシュの `FMeshBatch` を処理。結果は `FScene` の `FCachedPassMeshDrawList` に保存され、プリミティブが変化しない限り再利用される。
+
+2. **可視コマンドのコピー** （フレーム初期化フェーズ）  
+   `FViewInfo::VisibleMeshDrawCommands[EMeshPass]` に、`PrimitiveVisibilityMap` で可視になった静的コマンドがコピーされる。動的コマンドはこのフレームで同配列に直接追加される。
+
+3. **ソート**  
+   `FMeshDrawCommandSortKey::PackedData` の昇順でコマンド配列をソート。BasePass は PSO 変更最小化（シェーダーハッシュ順）、半透明は後ろ→前の Z ソート。
+
+4. **ダイナミックインスタンシング判定**  
+   `FMeshDrawCommand::MatchesForDynamicInstancing()` `MeshPassProcessor.cpp:1018` で同一 PSO・頂点ストリーム・バインディングのコマンドをグループ化し、インスタンスとしてまとめる。
+
+5. **SubmitMeshDrawCommandsRange()** `MeshPassProcessor.cpp:1616`  
+   コマンドをループし、各コマンドに対して `FMeshDrawCommand::SubmitDraw()` を呼ぶ。`FMeshDrawCommandStateCache` でコマンド間の PSO・バインディングの差分のみを適用する。
+
+6. **FMeshDrawCommand::SubmitDraw()** `MeshPassProcessor.h:1416`  
+   - `SubmitDrawBegin()`: `SetGraphicsPipelineState()` + `ShaderBindings.SetOnCommandList()` + プリミティブ ID バッファ設定
+   - `SubmitDrawEnd()`: `DrawIndexedPrimitive()` または `DrawPrimitive()`
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル:行 | 説明 |
+|--------------|------------|------|
+| `FPrimitiveSceneInfo::CacheMeshDrawCommands()` | `PrimitiveSceneInfo.cpp:583` | 静的コマンドキャッシュの生成 |
+| `FPrimitiveSceneInfo::AddStaticMeshes()` | `PrimitiveSceneInfo.cpp:1537` | シーン追加時の静的メッシュ登録エントリ |
+| `FCachedPassMeshDrawListContextImmediate::FinalizeCommand()` | `MeshPassProcessor.cpp:2032` | 静的キャッシュへの書き込み |
+| `SubmitMeshDrawCommands()` | `MeshPassProcessor.cpp:1604` | コマンド配列全体の発行 |
+| `SubmitMeshDrawCommandsRange()` | `MeshPassProcessor.cpp:1616` | 範囲指定の発行（並列分割用）|
+| `FMeshDrawCommand::SubmitDraw()` | `MeshPassProcessor.h:1416` | 1 コマンドの PSO セット + DrawCall |
+| `FMeshDrawCommand::SubmitDrawBegin()` | `MeshPassProcessor.h:1387` | PSO・バインディング適用 |
+| `FMeshDrawCommand::SubmitDrawEnd()` | `MeshPassProcessor.h:1397` | DrawIndexedPrimitive 発行 |
+| `FMeshDrawCommand::MatchesForDynamicInstancing()` | `MeshPassProcessor.cpp:1018` | 動的インスタンシング判定 |
+| `CalculateMeshStaticSortKey()` | `MeshPassProcessor.cpp:1772` | VS/PS ハッシュからソートキー生成 |

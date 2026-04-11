@@ -214,3 +214,84 @@ inline const TCHAR* GetMeshPassName(EMeshPass::Type MeshPass)
     }
 }
 ```
+
+---
+
+## コード実行フロー
+
+### エントリポイント（AddSimpleMeshPass 経由の動的パス）
+
+```
+FDeferredShadingSceneRenderer::RenderXxxPass()
+  │
+  └─ AddSimpleMeshPass(GraphBuilder, PassParams, Scene, View, ...)
+       │  SimpleMeshDrawCommandPass.h
+       │
+       ├─ GraphBuilder.AddPass(PassName, PassParams, ERDGPassFlags::Raster,
+       │      [PassPrologueCallback, AddMeshBatchesCallback, ...]
+       │      lambda: RHI コマンドリストで実行)
+       │
+       └─ [RDG Execute 時に lambda 実行]
+            │
+            ├─ PassPrologueCallback(RHICmdList)
+            │    SetViewport() 等のプロローグ処理
+            │
+            ├─ FDynamicPassMeshDrawListContext DrawListContext(...)
+            │
+            ├─ AddMeshBatchesCallback(&DrawListContext)
+            │    │
+            │    └─ FMyMeshPassProcessor Processor(Scene, View, ..., &DrawListContext)
+            │         Processor.AddMeshBatch(Mesh, Mask, Proxy)
+            │           └─ BuildMeshDrawCommands()
+            │                └─ DrawListContext.FinalizeCommand()
+            │                     → FMeshCommandOneFrameArray に追加
+            │
+            └─ DrawDynamicMeshPassPrivate()
+                 └─ SubmitMeshDrawCommands(VisibleCommands, ...)
+                      └─ FMeshDrawCommand::SubmitDraw() × N
+```
+
+### エントリポイント（静的コマンドの利用パス）
+
+```
+RenderPrePass / RenderBasePass / RenderShadowDepth 等
+  │
+  ├─ FViewInfo::VisibleMeshDrawCommands[EMeshPass] に静的コマンドをコピー済み
+  │
+  ├─ [動的コマンドを追加]
+  │    FMeshPassProcessor 経由で FMeshCommandOneFrameArray に追加
+  │
+  └─ FParallelMeshDrawCommandPass::DispatchDraw()
+       │  並列 RHI コマンドリストに分割して発行
+       └─ SubmitMeshDrawCommandsRange() × 並列スレッド数
+```
+
+### フロー詳細
+
+1. **AddSimpleMeshPass()** `SimpleMeshDrawCommandPass.h`  
+   2 つのコールバック（`AddMeshBatchesCallback` と `PassPrologueCallback`）を受け取り、RDG パスのラムダに包んで `GraphBuilder.AddPass()` に渡す。GPU 実行は `Execute()` まで遅延される。
+
+2. **AddMeshBatchesCallback()** （呼び出し元が定義するラムダ）  
+   `FDynamicPassMeshDrawListContext` を引数に受け取り、描画するメッシュに対して `FMeshPassProcessor::AddMeshBatch()` を呼んでコマンドを生成する。
+
+3. **DrawDynamicMeshPassPrivate()** `MeshPassProcessor.h:2461`  
+   `FMeshCommandOneFrameArray` に蓄積されたコマンドを `ApplyViewOverridesToMeshDrawCommands()` でビューオーバーライド（bReverseCulling 等）を適用した後、`SubmitMeshDrawCommands()` に渡す。
+
+4. **DepthPass の静的コマンド再利用**  
+   `EarlyZPassMode != DDM_None` の場合、シーン追加時にキャッシュされた `EMeshPass::DepthPass` のコマンドが `FViewInfo::VisibleMeshDrawCommands[DepthPass]` にコピーされ、そのまま `SubmitMeshDrawCommands()` で発行される。動的オブジェクトのみ毎フレーム追加される。
+
+5. **パス登録** `REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR`  
+   マクロが `FRegisterPassProcessorCreateFunction` のスタティックインスタンスを生成し、モジュール初期化時に `FPassProcessorManager::JumpTable` にファクトリ関数を登録する。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 説明 |
+|--------------|---------|------|
+| `AddSimpleMeshPass()` | `SimpleMeshDrawCommandPass.h` | 動的パス追加の高レベルヘルパー |
+| `DrawDynamicMeshPassPrivate()` | `MeshPassProcessor.h:2461` | ビューオーバーライド + 発行 |
+| `ApplyViewOverridesToMeshDrawCommands()` | `MeshPassProcessor.cpp:1649` | bReverseCulling 等の適用 |
+| `FParallelMeshDrawCommandPass::DispatchDraw()` | `ParallelMeshDrawCommandPass.h` | 並列 RHI 発行 |
+| `FPassProcessorManager::CreateMeshPassProcessor()` | `MeshPassProcessor.h:2353` | JumpTable からプロセッサを生成 |
+| `REGISTER_MESHPASSPROCESSOR_AND_PSOCOLLECTOR` | `MeshPassProcessor.h:2425` | パス登録マクロ |
+| `SetupDepthPassState()` | `MeshPassUtils.h` | DepthPass 用レンダーステート設定 |
+| `SetupBasePassState()` | `MeshPassUtils.h` | BasePass 用レンダーステート設定 |

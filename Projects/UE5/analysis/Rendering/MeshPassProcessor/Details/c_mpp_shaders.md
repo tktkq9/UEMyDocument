@@ -208,3 +208,72 @@ TShaderRef<FMyVS> VS = Material.GetShader<FMyVS>(VFType, PermutationId);
 // - FLandscapeVertexFactory   : ランドスケープ
 // - FSplineMeshVertexFactory  : スプラインメッシュ
 ```
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+BuildMeshDrawCommands<PassShadersType, ShaderElementDataType>()
+  │
+  ├─ FMeshDrawCommand::InitializeShaderBindings(PassShaders)
+  │    各シェーダーのバインディング領域（バイト配列）を確保
+  │
+  ├─ [VertexShader バインディング]
+  │    GetSingleShaderBindings(SF_Vertex, DataOffset)
+  │      → FMeshDrawSingleShaderBindings vsBindings
+  │    PassShaders.VertexShader->GetShaderBindings(
+  │        Scene, FeatureLevel, Proxy, MatProxy, Mat,
+  │        DrawRenderState, ShaderElementData, vsBindings)
+  │      │
+  │      ├─ FMeshMaterialShader::GetShaderBindings()
+  │      │    View UB、Primitive UB を Add()
+  │      │
+  │      └─ FVertexFactory::GetShaderBindings()
+  │           VertexFactory 固有パラメータを Add()
+  │
+  ├─ [PixelShader バインディング]
+  │    GetSingleShaderBindings(SF_Pixel, DataOffset)
+  │    PassShaders.PixelShader->GetShaderBindings(...)
+  │      └─ マテリアルテクスチャ・サンプラーを Add()
+  │
+  └─ (GeometryShader / HullShader / DomainShader も同様)
+```
+
+### フロー詳細
+
+1. **InitializeShaderBindings()** `MeshPassProcessor.h`  
+   `FMeshProcessorShaders` を受け取り、各シェーダーステージ（SF_Vertex, SF_Pixel 等）に必要なバイト数を計算してインライン配列または Heap 配列を確保する。
+
+2. **GetSingleShaderBindings()** `MeshPassProcessor.h:978`  
+   ステージごとに `FMeshDrawSingleShaderBindings` ビューを返す。`DataOffset` を内部で進めることで、各ステージが独自の連続メモリ領域に書き込む。
+
+3. **FMeshMaterialShader::GetShaderBindings()** `MeshMaterialShader.h`  
+   - `View` の `ViewUniformBuffer` を Add()
+   - `PrimitiveSceneProxy` の `PrimitiveUniformBuffer` を Add()
+   - `DrawRenderState` の PassUniformBuffer を Add()
+   - `ShaderElementData` から LOD フェード値等を Add()
+
+4. **FVertexFactory::GetShaderBindings()** （各 VF 実装）  
+   VertexFactory 固有のバッファ（ボーン行列 UB、スプラインパラメータ等）を Add()。呼び出しは `VertexFactoryParameters.GetElementShaderBindings()` 経由。
+
+5. **派生シェーダーの追加バインディング**  
+   `FBasePassVS::GetShaderBindings()` 等、具体的なシェーダークラスが `Super::GetShaderBindings()` を呼んだ後に追加リソースを Add() する。
+
+6. **SetOnCommandList()** `MeshPassProcessor.h:1008`  
+   `SubmitDrawBegin()` から呼ばれ、蓄積されたバインディングを `FRHICommandList` に一括適用する。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 説明 |
+|--------------|---------|------|
+| `FMeshMaterialShader::GetShaderBindings()` | `MeshMaterialShader.h` | View/Primitive UB のバインド |
+| `FMeshDrawShaderBindings::Initialize()` | `MeshPassProcessor.h` | バインディング領域確保 |
+| `FMeshDrawShaderBindings::GetSingleShaderBindings()` | `MeshPassProcessor.h:978` | ステージ別 Bindings ビュー取得 |
+| `FMeshDrawSingleShaderBindings::Add()` | `MeshPassProcessor.h` | リソースをバインディング領域に書き込み |
+| `FMeshDrawShaderBindings::SetOnCommandList()` | `MeshPassProcessor.h:1008` | バインディングを RHI コマンドに適用 |
+| `FMeshDrawShaderBindings::MatchesForDynamicInstancing()` | `MeshPassProcessor.cpp:1018` | 動的インスタンシング可否の比較 |
+| `FVertexFactory::GetShaderBindings()` | 各 VF 実装 | VertexFactory 固有リソースのバインド |
+| `DECLARE_SHADER_TYPE` / `IMPLEMENT_MATERIAL_SHADER_TYPE` | `MeshMaterialShader.h` | シェーダークラスのメタデータ登録マクロ |

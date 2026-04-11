@@ -197,3 +197,43 @@ void LogVisibleMeshDrawCommandStats(
     EMeshPass::Type MeshPassType,
     int32 ViewIndex);
 ```
+
+---
+
+## FMeshBatch — メンバ変数
+
+| 変数 | 型 | 説明 |
+|-----|----|------|
+| `Elements` | `TArray<FMeshBatchElement, TInlineAllocator<1>>` | バッチ要素（複数 LOD 等）|
+| `VertexFactory` | `const FVertexFactory*` | 頂点データ供給源 |
+| `MaterialRenderProxy` | `const FMaterialRenderProxy*` | マテリアルリソース |
+| `bDitheredLODTransition` | `uint32:1` | ディザ LOD トランジション |
+| `bReverseCulling` | `uint32:1` | カリング反転 |
+| `bDisableBackfaceCulling` | `uint32:1` | バックフェースカリング無効 |
+| `bWireframe` | `uint32:1` | ワイヤーフレーム描画 |
+| `bUseForDepthPass` | `uint32:1` | DepthPass 参加 |
+| `bUseAsOccluder` | `uint32:1` | HZB オクルーダーとして使用 |
+| `LODIndex` | `uint8` | LOD レベル |
+| `Type` | `EPrimitiveType` | PT_TriangleList 等のトポロジー |
+| `MeshScreenSizeSquared` | `float` | スクリーン占有率²（LOD 判定用）|
+
+---
+
+> [!note]- AddSimpleMeshPass と FParallelMeshDrawCommandPass の使い分け
+> **`AddSimpleMeshPass`**: 動的コマンドを生成して即 RDG パスとして実行するシンプルな高レベル API。  
+> シングルスレッドの DrawListContext を使う。  
+>  
+> **`FParallelMeshDrawCommandPass`**: 静的キャッシュ済みコマンドを並列 RHI コマンドリストで発行する。  
+> `DispatchDraw()` が内部で `TaskGraph` を使って `SubmitMeshDrawCommandsRange()` を並列実行する。  
+> BasePass / DepthPass 等の大量コマンドパスで使われる。
+
+> [!note]- FInstanceCullingManager の役割
+> `FInstanceCullingManager` は GPU ドリブンインスタンスカリングを管理する。  
+> `AddSimpleMeshPass` に渡すと、インスタンスカリング引数バッファが自動的に準備され、  
+> `DrawIndirect` による GPU カリング済み描画が可能になる。  
+> `IsEnabled()` が false の場合（カリング無効プラットフォーム等）は CPU 側で通常の `DrawIndexedPrimitive` にフォールバックする。
+
+> [!note]- SetupXxxPassState ユーティリティの意図
+> `MeshPassUtils.h` の `SetupDepthPassState()` / `SetupBasePassState()` 等は  
+> `FMeshPassProcessorRenderState` をよく使われる設定で初期化するヘルパー。  
+> 各パスの `AddMeshBatch()` 冒頭でこれらを呼び、その後パス固有の追加設定を上書きするパターンが一般的。

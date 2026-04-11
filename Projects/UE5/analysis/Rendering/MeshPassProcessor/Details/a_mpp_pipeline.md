@@ -194,3 +194,61 @@ class FCachedPassMeshDrawListContext : public FMeshPassDrawListContext { ... };
 // 動的コマンドのフレーム一時リスト書き込み先
 class FDynamicPassMeshDrawListContext : public FMeshPassDrawListContext { ... };
 ```
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+[サブクラス::AddMeshBatch()]         MeshPassProcessor.h:2224
+  │  マテリアル・シェーダー解決
+  │  PSO パラメータ確定
+  │
+  └─ BuildMeshDrawCommands<PS,SD>()  MeshPassProcessor.h:2247
+       │
+       ├─ InitializeShaderBindings()   バインディング領域確保
+       ├─ GetShaderBindings()×シェーダー数
+       ├─ SetDrawParametersAndFinalize()  PSO ID・描画引数確定
+       │
+       └─ DrawListContext->FinalizeCommand()
+            │
+            ├─ [静的] FCachedPassMeshDrawListContextImmediate::FinalizeCommand()
+            │         MeshPassProcessor.cpp:2032
+            │         → FCachedPassMeshDrawList::MeshDrawCommands に保存
+            │
+            └─ [動的] FDynamicPassMeshDrawListContext::FinalizeCommand()
+                      MeshPassProcessor.h:1820
+                      → FMeshCommandOneFrameArray に追加
+```
+
+### フロー詳細
+
+1. **AddMeshBatch()** `MeshPassProcessor.h:2224`  
+   サブクラスが実装する純粋仮想関数。`FMeshBatch` からマテリアル・シェーダーを解決し、`BuildMeshDrawCommands()` を呼ぶ。
+
+2. **BuildMeshDrawCommands()** `MeshPassProcessor.h:2247`  
+   テンプレート関数。`PassShadersType` にシェーダーセット、`ShaderElementDataType` に LOD フェード等の要素データを受け取る。内部で以下を順に実行する:
+   - `FGraphicsMinimalPipelineStateInitializer` 構築（BoundShaderState + BlendState + DepthStencilState + RasterizerState）
+   - `FMeshDrawCommand::InitializeShaderBindings(Shaders)` でバインディング領域を確保
+   - シェーダーごとに `GetSingleShaderBindings()` → `GetShaderBindings()` でリソースをバインド
+   - `SetDrawParametersAndFinalize()` で `CachedPipelineId` と描画引数を確定
+
+3. **DrawListContext->FinalizeCommand()** `MeshPassProcessor.h:1677`  
+   `DrawListContext` の実装に応じて格納先が変わる:
+   - **静的パス**: `FCachedPassMeshDrawListContextImmediate::FinalizeCommand` `MeshPassProcessor.cpp:2032` → `FScene` の `FCachedPassMeshDrawList` に永続保存
+   - **動的パス**: `FDynamicPassMeshDrawListContext::FinalizeCommand` `MeshPassProcessor.h:1820` → `FMeshCommandOneFrameArray`（フレーム一時）に追加
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル:行 | 説明 |
+|--------------|------------|------|
+| `FMeshPassProcessor::AddMeshBatch()` | `MeshPassProcessor.h:2224` | 純粋仮想。サブクラスがオーバーライド |
+| `FMeshPassProcessor::BuildMeshDrawCommands()` | `MeshPassProcessor.h:2247` | PSO・バインディング・コマンド生成コア |
+| `FMeshDrawCommand::InitializeShaderBindings()` | `MeshPassProcessor.h` | シェーダーバインディング領域の確保 |
+| `FMeshDrawCommand::SetDrawParametersAndFinalize()` | `MeshPassProcessor.h` | 描画引数と PSO ID を確定 |
+| `FMeshPassDrawListContext::FinalizeCommand()` | `MeshPassProcessor.h:1677` | 格納先への書き込み（仮想）|
+| `FCachedPassMeshDrawListContextImmediate::FinalizeCommand()` | `MeshPassProcessor.cpp:2032` | 静的キャッシュへの書き込み |
+| `FDynamicPassMeshDrawListContext::FinalizeCommand()` | `MeshPassProcessor.h:1820` | 動的フレームリストへの追加 |
+| `FPassProcessorManager::CreateMeshPassProcessor()` | `MeshPassProcessor.h:2353` | EMeshPass からファクトリ経由でプロセッサを生成 |

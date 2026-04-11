@@ -121,3 +121,74 @@ FDeferredShadingRenderer::RenderXxxPass()
 | `Public/MeshPassUtils.h` | `PassProcessorRenderState` ユーティリティ |
 | `Public/SimpleMeshDrawCommandPass.h` | `AddSimpleMeshPass()` ヘルパー |
 | `Private/MeshDrawCommandStats.h/.cpp` | デバッグ統計 |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+─── シーン追加時（静的コマンドキャッシュ）─────────────────────
+UPrimitiveComponent::MarkRenderStateDirty() or AddToScene()
+  └─ ENQUEUE_RENDER_COMMAND
+       └─ FScene::AddPrimitive()
+            └─ FPrimitiveSceneInfo::AddStaticMeshes()   PrimitiveSceneInfo.cpp:1537
+                 └─ CacheMeshDrawCommands()              PrimitiveSceneInfo.cpp:583
+                      └─ EMeshPass ごとに:
+                           FPassProcessorManager::CreateMeshPassProcessor()
+                             └─ AddMeshBatch() → BuildMeshDrawCommands()
+                                  └─ FCachedPassMeshDrawListContextImmediate::FinalizeCommand()
+                                       MeshPassProcessor.cpp:2032
+                                       → FCachedPassMeshDrawList に永続保存
+
+─── 毎フレーム（可視性 & DrawCall）─────────────────────────────
+FDeferredShadingSceneRenderer::BeginInitViews()
+  └─ FrustumCull → PrimitiveVisibilityMap 確定
+       └─ ComputeRelevance → PrimitiveViewRelevanceMap 確定
+            └─ GatherDynamicMeshElements
+                 └─ FMeshPassProcessor::AddMeshBatch() [動的プリミティブ]
+                      └─ BuildMeshDrawCommands()
+                           └─ FDynamicPassMeshDrawListContext::FinalizeCommand()
+
+FDeferredShadingSceneRenderer::RenderXxxPass()
+  └─ VisibleMeshDrawCommands に静的コマンドをコピー (可視フラグ分)
+  └─ SortMeshDrawCommands() (FMeshDrawCommandSortKey 昇順)
+  └─ SubmitMeshDrawCommands()              MeshPassProcessor.cpp:1604
+       └─ SubmitMeshDrawCommandsRange()   MeshPassProcessor.cpp:1616
+            └─ FMeshDrawCommand::SubmitDraw()
+                 ├─ SubmitDrawBegin(): PSO セット・バインディング適用
+                 └─ SubmitDrawEnd():  DrawIndexedPrimitive / DrawPrimitive
+```
+
+### フロー詳細
+
+1. **キャッシュ生成** `PrimitiveSceneInfo.cpp:583`  
+   プリミティブのシーン追加時に `CacheMeshDrawCommands()` が全 EMeshPass を対象にプロセッサを生成し `FMeshDrawCommand` を確定させる。以後プリミティブ変化がなければ再生成なし。
+
+2. **可視性フィルタリング**  
+   `FrustumCull` + HZB オクルージョンで `PrimitiveVisibilityMap` を確定。`ComputeRelevance` で各プリミティブがどのパスに参加するかを `FPrimitiveViewRelevance` に記録する。
+
+3. **動的コマンド生成**  
+   `GatherDynamicMeshElements` がスケルタルメッシュ等の動的プリミティブに対して `AddMeshBatch()` を呼び出し、`FMeshCommandOneFrameArray` にコマンドを積む。
+
+4. **ソート & インスタンシング**  
+   `FMeshDrawCommandSortKey::PackedData` の昇順ソート後、`MatchesForDynamicInstancing()` で連続する同 PSO コマンドをインスタンスとしてまとめる。
+
+5. **DrawCall 発行**  
+   `SubmitMeshDrawCommandsRange()` がループで `FMeshDrawCommand::SubmitDraw()` を呼ぶ。`FMeshDrawCommandStateCache` により、前コマンドと同じ PSO / バインディングはスキップして RHI 呼び出しを最小化する。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル:行 | 説明 |
+|--------------|------------|------|
+| `FPrimitiveSceneInfo::CacheMeshDrawCommands()` | `PrimitiveSceneInfo.cpp:583` | 静的コマンドキャッシュ生成エントリ |
+| `FPassProcessorManager::CreateMeshPassProcessor()` | `MeshPassProcessor.h:2353` | EMeshPass からプロセッサをファクトリ生成 |
+| `FMeshPassProcessor::AddMeshBatch()` | `MeshPassProcessor.h:2224` | 純粋仮想。PSO・シェーダー解決の入口 |
+| `FMeshPassProcessor::BuildMeshDrawCommands()` | `MeshPassProcessor.h:2247` | FMeshDrawCommand 生成コア（テンプレート）|
+| `FCachedPassMeshDrawListContextImmediate::FinalizeCommand()` | `MeshPassProcessor.cpp:2032` | 静的キャッシュへの書き込み |
+| `FDynamicPassMeshDrawListContext::FinalizeCommand()` | `MeshPassProcessor.h:1820` | 動的フレームリストへの追加 |
+| `SubmitMeshDrawCommands()` | `MeshPassProcessor.cpp:1604` | コマンド配列全体の RHI 発行 |
+| `SubmitMeshDrawCommandsRange()` | `MeshPassProcessor.cpp:1616` | 並列分割対応の範囲指定発行 |
+| `FMeshDrawCommand::SubmitDraw()` | `MeshPassProcessor.h:1416` | 1 コマンドの PSO + Draw 発行 |
+| `FMeshDrawCommand::MatchesForDynamicInstancing()` | `MeshPassProcessor.cpp:1018` | 動的インスタンシング可否判定 |
