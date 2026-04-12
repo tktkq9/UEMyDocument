@@ -1,7 +1,7 @@
 # Lumen Screen Probe Gather シェーダー詳細
 
 - グループ: e - Diffuse GI
-- GPU 概要: [[01_gpu_overview]]
+- GPU 概要: [[01_lumen_gpu_overview]]
 - CPU 詳細: [[e_lumen_diffuse_gi]]
 - リファレンス: [[ref_screen_probe_gather]] | [[ref_restir_bent_normal]]
 

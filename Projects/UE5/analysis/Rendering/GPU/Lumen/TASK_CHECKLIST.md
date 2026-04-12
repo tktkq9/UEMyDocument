@@ -2,6 +2,7 @@
 
 ## 概要
 - [x] `../01_gpu_overview.md` … GPU 全処理実行順 + CPU対応表（全体）
+- [x] `01_lumen_gpu_overview.md` … Lumen GPU 全処理実行順 + CPU対応表
 
 ---
 

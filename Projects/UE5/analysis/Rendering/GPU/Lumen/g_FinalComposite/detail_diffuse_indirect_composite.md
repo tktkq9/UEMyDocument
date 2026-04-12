@@ -1,7 +1,7 @@
 # Lumen DiffuseIndirectComposite シェーダー詳細
 
 - グループ: g - Final Composite
-- GPU 概要: [[01_gpu_overview]]
+- GPU 概要: [[01_lumen_gpu_overview]]
 - CPU 詳細: [[g_lumen_final_composite]]
 - リファレンス: [[ref_diffuse_indirect_composite]]
 

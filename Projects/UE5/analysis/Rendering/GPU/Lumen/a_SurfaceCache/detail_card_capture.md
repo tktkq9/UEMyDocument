@@ -1,7 +1,7 @@
 # Lumen Card Capture シェーダー詳細
 
 - グループ: a - Surface Cache
-- GPU 概要: [[01_gpu_overview]]
+- GPU 概要: [[01_lumen_gpu_overview]]
 - CPU 詳細: [[a_lumen_surface_cache]]
 - リファレンス: [[ref_card_shaders]]
 

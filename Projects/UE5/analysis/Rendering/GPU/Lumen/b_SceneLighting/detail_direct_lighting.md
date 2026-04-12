@@ -1,7 +1,7 @@
 # Lumen Scene Direct Lighting シェーダー詳細
 
 - グループ: b - Scene Lighting
-- GPU 概要: [[01_gpu_overview]]
+- GPU 概要: [[01_lumen_gpu_overview]]
 - CPU 詳細: [[b_lumen_scene_lighting]]
 - リファレンス: [[ref_direct_lighting]]
 

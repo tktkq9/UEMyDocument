@@ -1,7 +1,7 @@
 # Lumen SDF トレーシング シェーダー詳細
 
 - グループ: c - Tracing
-- GPU 概要: [[01_gpu_overview]]
+- GPU 概要: [[01_lumen_gpu_overview]]
 - CPU 詳細: [[c_lumen_tracing]]
 - リファレンス: [[ref_sdf_tracing]]
 

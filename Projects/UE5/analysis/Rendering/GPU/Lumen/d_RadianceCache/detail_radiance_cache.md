@@ -1,7 +1,7 @@
 # Lumen Radiance Cache シェーダー詳細
 
 - グループ: d - Radiance Cache
-- GPU 概要: [[01_gpu_overview]]
+- GPU 概要: [[01_lumen_gpu_overview]]
 - CPU 詳細: [[d_lumen_radiance_cache]]
 - リファレンス: [[ref_radiance_cache]]
 

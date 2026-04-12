@@ -1,7 +1,7 @@
 # Lumen Reflections シェーダー詳細
 
 - グループ: f - Reflections
-- GPU 概要: [[01_gpu_overview]]
+- GPU 概要: [[01_lumen_gpu_overview]]
 - CPU 詳細: [[f_lumen_reflections]]
 - リファレンス: [[ref_reflection_tracing]] | [[ref_reflection_denoiser]]
 
