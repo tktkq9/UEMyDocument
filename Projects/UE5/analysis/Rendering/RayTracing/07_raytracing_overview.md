@@ -162,3 +162,69 @@ class FRayTracingShaderBindingTable
 | `RayTracingDecals.h/.cpp` | デカールの RT 対応 |
 | `RayTracingDynamicGeometryUpdateManager.cpp` | 動的ジオメトリの BLAS 更新管理 |
 | `RaytracingOptions.h` | RT オプション構造体の定義 |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+FDeferredShadingSceneRenderer::Render()
+  │
+  ├─ [1] RayTracing::OnRenderBegin()
+  │       フレーム開始時の RT シーン状態リセット
+  │
+  ├─ [2] RayTracing::CreateGatherInstancesTaskData()
+  │   RayTracing::AddView()
+  │       ビューごとの FGatherInstancesTaskData / FSceneOptions を初期化
+  │
+  ├─ [3] RayTracing::BeginGatherInstances()          // 並列タスク開始
+  │       └─ FrustumCullTask 完了後に各 BLAS → TLAS 登録
+  │           ├─ RayTracing::CullPrimitiveByFlags()
+  │           └─ RayTracing::ShouldCullBounds()
+  │
+  ├─ [4] RayTracing::BeginGatherDynamicRayTracingInstances()
+  │       スケルタルメッシュ等の動的 BLAS を非同期更新
+  │
+  ├─ [5] RayTracing::FinishGatherInstances()         // レンダースレッド
+  │       ├─ FRayTracingScene::Update()              // GPU インスタンスバッファ転送
+  │       └─ FRayTracingScene::Build()               // TLAS 構築 RDG パス
+  │
+  ├─ [6] RayTracing::FinishGatherVisibleShaderBindings()
+  │       └─ AddRayTracingLocalShaderBindingWriterTasks()  // 並列バインド書き込み
+  │           └─ SetRayTracingShaderBindings()              // RHI 反映
+  │
+  ├─ [7] RayTracingShadows::RenderRayTracingShadows()      // 光源ごと
+  │       └─ IScreenSpaceDenoiser::Denoise()
+  │
+  ├─ [8] RenderRayTracingAmbientOcclusion()                // 有効時のみ
+  │       └─ GScreenSpaceDenoiser->DenoiseAmbientOcclusion()
+  │
+  ├─ [9] RenderRayTracingSkyLight()                        // r.RayTracing.SkyLight=1
+  │
+  ├─ [10] RenderRayTracingReflections()                    // 有効時のみ
+  │        └─ IScreenSpaceDenoiser::DenoiseReflections()
+  │
+  └─ [11] RenderRayTracingTranslucency()                   // 有効時のみ
+```
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|------------|--------|------|
+| `RayTracing::OnRenderBegin()` | `RayTracing.cpp` | フレーム開始リセット |
+| `RayTracing::FGatherInstancesTaskData` | `RayTracing.cpp` | 並列タスクデータホルダー |
+| `FRayTracingScene::Update()` | `RayTracingScene.cpp` | GPU バッファ転送 |
+| `FRayTracingScene::Build()` | `RayTracingScene.cpp` | TLAS RDG パス |
+| `RayTracing::FinishGatherVisibleShaderBindings()` | `RayTracing.cpp` | SBT バインド確定 |
+| `SetRayTracingShaderBindings()` | `RayTracingMaterialHitShaders.h` | RHI 反映 |
+
+### サブシステムドキュメント
+
+| ドキュメント | 内容 |
+|------------|------|
+| [[a_rt_scene]] | TLAS / BLAS 構築・GatherInstances・フラスタムカリング |
+| [[b_rt_shadow_ao]] | RT シャドウ・RT AO・RT スカイライト |
+| [[c_rt_reflection]] | RT リフレクション・RT 半透明 |
+| [[d_rt_materials_sbt]] | マテリアルヒットシェーダー・SBT 管理 |

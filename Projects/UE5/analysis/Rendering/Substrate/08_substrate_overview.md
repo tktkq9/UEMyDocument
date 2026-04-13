@@ -159,3 +159,97 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 | `SubstrateRoughRefraction.cpp` | 不透明粗面屈折パス |
 | `SubstrateVisualize.cpp` | デバッグビジュアライゼーション |
 | `Glint/` | グリント（マイクロファセットきらめき）処理サブフォルダ |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+FDeferredShadingSceneRenderer::Render()
+  │
+  ├─ [A] Substrate::InitialiseSubstrateFrameSceneData()       // Substrate.cpp
+  │       ├─ EffectiveMaxBytesPerPixel / ClosurePerPixel 算出
+  │       ├─ MaterialTextureArray を RDG 上に確保（Texture2DArray<uint>）
+  │       ├─ TopLayerTexture を確保
+  │       ├─ ClosureOffsetTexture を確保
+  │       └─ FSubstrateGlobalUniformParameters をバインド
+  │
+  ├─ [B] BasePass 実行（各マテリアルシェーダー）
+  │       ├─ Substrate::BindSubstrateBasePassUniformParameters()
+  │       └─ 各ピクセルで MaterialTextureArrayUAV へクロージャデータ書き込み
+  │
+  ├─ [C] Substrate::AddSubstrateMaterialClassificationPass()  // Shadow パスと並行可
+  │       ├─ ステンシルにタイル種別ビット書き込み（0x10/0x20/0x40/0x80）
+  │       └─ ClassificationTileListBuffer / IndirectArgsBuffer 生成
+  │
+  ├─ [C'] Substrate::AddSubstrateMaterialClassificationIndirectArgsPass()
+  │       └─ Indirect Draw/Dispatch 引数バッファ確定
+  │
+  ├─ [D] DeferredLighting パス（Substrate タイル単位 Indirect Draw）
+  │       ├─ SetTileParameters(Fast)    → FSubstrateTilePassVS → Fast シェーダー
+  │       ├─ SetTileParameters(Single)  → Single シェーダー
+  │       └─ SetTileParameters(Complex) → Complex シェーダー（複数クロージャ）
+  │
+  ├─ [E] Substrate::AddSubstrateOpaqueRoughRefractionPasses() // 屈折マテリアルあり時
+  │       └─ OpaqueRoughRefractionTexture → SceneColor 合成
+  │
+  └─ [F] Substrate::AddSubstrateDebugPasses()                 // デバッグ時のみ
+```
+
+### フロー詳細
+
+1. **InitialiseSubstrateFrameSceneData** — リソース確保とサイズ決定
+   ```cpp
+   void Substrate::InitialiseSubstrateFrameSceneData(
+       FRDGBuilder& GraphBuilder, FSceneRenderer& SceneRenderer);
+   // r.Substrate.AllocationMode=1 → PersistentMax 以下にはサイズを縮小しない
+   ```
+
+2. **BasePass バインド** — 各マテリアルシェーダーに Substrate パラメータを注入
+   ```cpp
+   void Substrate::BindSubstrateBasePassUniformParameters(
+       FRDGBuilder& GraphBuilder,
+       const FViewInfo& View,
+       FSubstrateBasePassUniformParameters& Out);
+   ```
+
+3. **分類パス** — ステンシルビット + タイルリスト生成
+   ```cpp
+   void Substrate::AddSubstrateMaterialClassificationPass(
+       FRDGBuilder& GraphBuilder,
+       const FMinimalSceneTextures& SceneTextures,
+       const FDBufferTextures& DBufferTextures,
+       const TArray<FViewInfo>& Views);
+   // r.Substrate.AsyncClassification=1 → Shadow パスと並行実行
+   ```
+
+4. **タイル単位ライティング** — `FSubstrateTilePassVS` + Indirect Draw
+   ```cpp
+   FSubstrateTileParameter TileParams = Substrate::SetTileParameters(
+       GraphBuilder, View, ESubstrateTileType::Fast); // Fast/Single/Complex を切り替え
+   ```
+
+5. **RoughRefraction** — 粗い屈折テクスチャから屈折先 SceneColor をサンプリング
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|------------|--------|------|
+| `Substrate::InitialiseSubstrateFrameSceneData()` | `Substrate.cpp` | フレームリソース確保 |
+| `FSubstrateSceneData` | `Substrate.h` | シーン単位データホルダー |
+| `FSubstrateViewData` | `Substrate.h` | ビュー単位データ・タイルバッファ |
+| `FSubstrateGlobalUniformParameters` | `Substrate.h` | GPU UBO（シェーダーバインドポイント "Substrate"） |
+| `Substrate::AddSubstrateMaterialClassificationPass()` | `Substrate.cpp` | 分類パス本体 |
+| `FSubstrateTilePassVS` | `Substrate.h` | タイル展開 VS |
+| `Substrate::SetTileParameters()` | `Substrate.h` | タイルパラメータ取得 |
+| `Substrate::AddSubstrateOpaqueRoughRefractionPasses()` | `SubstrateRoughRefraction.cpp` | 屈折パス |
+
+### サブシステムドキュメント
+
+| ドキュメント | 内容 |
+|------------|------|
+| [[a_substrate_material]] | クロージャ・レイヤー構造・MaterialTextureArray への書き込み |
+| [[b_substrate_classify]] | タイル分類パス（ステンシルビット・Fast/Single/Complex タイルリスト） |
+| [[c_substrate_lighting]] | ライティングパス・RoughRefraction・SubSurface |
