@@ -7,6 +7,9 @@ Vault/.obsidian/workspace-mobile.json
 Thumbs.db
 desktop.ini
 
+# Claude Code ローカル設定（個人情報含む）
+.claude/settings.local.json
+
 # 一時ファイル
 *.tmp
 *.bak
