@@ -1,7 +1,7 @@
 # B: FScene — シーンデータ管理
 
 - 対象: `ScenePrivate.h`, `Scene.cpp`
-- 上位: [[01_rendering_overview]]
+- 上位: [[23_scene_renderer_overview]]
 - Reference: [[ref_scene]]
 
 ---

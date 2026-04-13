@@ -1,7 +1,7 @@
 # D: 可視性カリング — BeginInitViews / HZB / ComputeRelevance
 
 - 対象: `SceneVisibility.cpp`, `SceneRendering.h`
-- 上位: [[01_rendering_overview]]
+- 上位: [[23_scene_renderer_overview]]
 - Reference: [[ref_view_info]] | [[ref_scene_renderer]]
 
 ---

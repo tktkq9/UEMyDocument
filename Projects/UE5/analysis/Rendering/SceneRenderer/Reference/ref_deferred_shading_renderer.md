@@ -1,7 +1,7 @@
 # リファレンス：DeferredShadingRenderer.h / DeferredShadingRenderer.cpp
 
 - グループ: a - DeferredRenderer
-- 上位: [[01_rendering_overview]]
+- 上位: [[23_scene_renderer_overview]]
 - 関連: [[ref_scene_renderer]] | [[ref_scene]] | [[ref_view_info]]
 - ソース: `Engine/Source/Runtime/Renderer/Private/DeferredShadingRenderer.h`
 - ソース: `Engine/Source/Runtime/Renderer/Private/DeferredShadingRenderer.cpp`

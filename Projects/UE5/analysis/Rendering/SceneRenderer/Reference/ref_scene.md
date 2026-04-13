@@ -1,7 +1,7 @@
 # リファレンス：ScenePrivate.h / Scene.cpp（FScene）
 
 - グループ: c - Scene
-- 上位: [[01_rendering_overview]]
+- 上位: [[23_scene_renderer_overview]]
 - 関連: [[ref_scene_renderer]] | [[ref_view_info]]
 - ソース: `Engine/Source/Runtime/Renderer/Private/ScenePrivate.h`
 - ソース: `Engine/Source/Runtime/Renderer/Private/Scene.cpp`

@@ -1,7 +1,7 @@
 # C: FSceneRenderer / FViewInfo — ビューとレンダラー基底
 
 - 対象: `SceneRendering.h`
-- 上位: [[01_rendering_overview]]
+- 上位: [[23_scene_renderer_overview]]
 - Reference: [[ref_scene_renderer]] | [[ref_view_info]]
 
 ---

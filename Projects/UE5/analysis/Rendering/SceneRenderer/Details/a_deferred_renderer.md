@@ -1,7 +1,7 @@
 # A: FDeferredShadingSceneRenderer — 構造とパイプライン状態
 
 - 対象: `DeferredShadingRenderer.h/.cpp`
-- 上位: [[01_rendering_overview]]
+- 上位: [[23_scene_renderer_overview]]
 - Reference: [[ref_deferred_shading_renderer]]
 
 ---

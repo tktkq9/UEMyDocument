@@ -1,7 +1,7 @@
 # リファレンス：SceneRendering.h（FSceneRenderer）
 
 - グループ: b - SceneRenderer
-- 上位: [[01_rendering_overview]]
+- 上位: [[23_scene_renderer_overview]]
 - 関連: [[ref_deferred_shading_renderer]] | [[ref_view_info]] | [[ref_scene]]
 - ソース: `Engine/Source/Runtime/Renderer/Private/SceneRendering.h`
 - ソース: `Engine/Source/Runtime/Renderer/Private/SceneRendering.cpp`

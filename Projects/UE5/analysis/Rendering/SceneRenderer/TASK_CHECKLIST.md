@@ -11,7 +11,7 @@
 
 ### 概要ファイル（1件）
 
-- [x] `01_rendering_overview.md` — 既存。フロー追加対象
+- [x] `23_scene_renderer_overview.md` — SceneRenderer 専用 overview（クラス階層・Render() フロー・コンポーネント一覧）
 
 ### Details ファイル（4件）
 

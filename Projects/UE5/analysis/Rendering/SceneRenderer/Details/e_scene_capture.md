@@ -1,7 +1,7 @@
 # E: Scene Capture — SceneCaptureComponent → RenderThread レンダリング
 
 - 対象: `SceneCaptureRendering.h/.cpp`, `SceneCaptureComponent.h`, `SceneCaptureComponent2D.h`
-- 上位: [[01_rendering_overview]]
+- 上位: [[23_scene_renderer_overview]]
 - Reference: [[ref_scene_renderer]] | [[ref_view_info]]
 
 ---
