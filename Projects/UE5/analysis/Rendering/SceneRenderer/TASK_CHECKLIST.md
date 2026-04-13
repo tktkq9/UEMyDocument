@@ -65,3 +65,18 @@
 | `SceneVisibility.cpp` | — | BeginInitViews / CullPrimitives |
 | `BasePassRendering.cpp` | — | RenderBasePass |
 | `LightRendering.cpp` | — | RenderLights |
+
+---
+
+## Phase 4: 補足（未カバー領域）
+
+以下は Phase 1〜3 の範囲外だが、SceneRenderer に関連する重要な領域。
+別フォルダを作成するか、既存 Details を拡張して対応する。
+
+- [x] `Details/e_scene_capture.md` — `FSceneCaptureRendering.cpp`（SceneCapture Component → FScene::UpdateSceneCaptureContents）
+- [x] `Details/f_scene_proxy.md`   — `FPrimitiveSceneProxy` 構造・ライフサイクル・GameThread ↔ RenderThread 橋渡し
+
+| ファイル | 内容 |
+|---------|------|
+| `SceneCaptureRendering.h/.cpp` | SceneCapture Component の RenderThread 側レンダリング |
+| `PrimitiveSceneProxy.h/.cpp` | FPrimitiveSceneProxy 基底クラス |
