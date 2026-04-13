@@ -134,6 +134,77 @@ END_SHADER_PARAMETER_STRUCT()
 
 ---
 
+## コード実行フロー
+
+### エントリポイント
+
+```
+FDeferredShadingSceneRenderer::Render()
+  │
+  └─ RenderMegaLights(                               DeferredShadingRenderer.cpp:3318
+         GraphBuilder,
+         MegaLightsFrameTemporaries,
+         SceneTextures,
+         NaniteShadingMasks,
+         LightingChannelsTexture)
+       │                                              MegaLights.cpp:1959
+       └─ for each ViewIndex:
+           ├─ RenderMegaLightsViewContext(ViewContext, ...)       // GBuffer 入力
+           │   │                                     MegaLights.cpp:1920
+           │   ├─ [A] DownsampleSceneDepth / WorldNormal
+           │   │       半解像度 Depth / Normal テクスチャを生成
+           │   │
+           │   ├─ [B] GenerateLightSamples            MegaLightsSampling.cpp
+           │   │       FGenerateLightSamplesCS
+           │   │       各ピクセルにランダムでライトをサンプリング
+           │   │       → LightSamples テクスチャ（ライト ID + 方向）
+           │   │
+           │   ├─ [C] VisibilityTest（シャドウ）
+           │   │   ├─ [EnabledRT]  MegaLights::RayTraceLightSamples()
+           │   │   │               HW RT でシャドウレイを発射
+           │   │   └─ [EnabledVSM] MegaLights::MarkVSMPages()
+           │   │               VSM ページマーキング経由
+           │   │
+           │   ├─ [D] Resolve                         MegaLightsResolve.cpp
+           │   │       FMegaLightsResolveCS
+           │   │       BRDF 評価 → 全サンプル合算・正規化
+           │   │
+           │   ├─ [E] Denoise                         MegaLightsDenoising.cpp
+           │   │   ├─ Temporal: History ブレンド
+           │   │   └─ Spatial:  空間フィルタ
+           │   │
+           │   └─ [F] [Volume 有効] TranslucencyVolume
+           │           半透明用 3D ボリュームに照明を注入
+           │
+           └─ [HairStrands 有効]
+               RenderMegaLightsViewContext(ViewContextHair, ...)
+```
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|--------|------|
+| `MegaLights::IsEnabled(ViewFamily)` | `MegaLights.h` | 有効条件判定 |
+| `RenderMegaLights()` | `MegaLights.cpp:1959` | 全ビューのオーケストレーション |
+| `RenderMegaLightsViewContext()` | `MegaLights.cpp:1920` | 1ビュー分のパス実行 |
+| `FGenerateLightSamplesCS` | `MegaLightsSampling.cpp` | ランダムライトサンプリング CS |
+| `MegaLights::RayTraceLightSamples()` | `MegaLightsRayTracing.cpp` | HW RT シャドウ |
+| `MegaLights::MarkVSMPages()` | `MegaLights.cpp` | VSM ページマーキング |
+| `FMegaLightsResolveCS` | `MegaLightsResolve.cpp` | BRDF 評価・合算 |
+| `FMegaLightsFrameTemporaries` | `MegaLightsInternal.h` | フレームリソース一時保持 |
+
+### サブシステムドキュメント
+
+| ドキュメント | 内容 |
+|------------|------|
+| [[a_megalights_pipeline]] | パイプライン全体・EMegaLightsInput |
+| [[b_megalights_sampling]] | 確率的サンプリング詳細 |
+| [[c_megalights_shadow]] | RT / VSM シャドウ統合 |
+| [[d_megalights_resolve]] | Resolve・Denoise・Volume 注入 |
+| [[ref_megalights_core]] | コア型定義リファレンス |
+
+---
+
 ## 主要ソースファイル一覧
 
 | ファイル | 役割 |

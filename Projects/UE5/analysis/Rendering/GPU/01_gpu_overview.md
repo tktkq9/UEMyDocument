@@ -261,11 +261,12 @@ UE5 の描画は **CPU（Render Thread / RHI Thread）がコマンドを積み**
 
 | 項目 | 内容 |
 |-----|------|
-| **GPU 処理** | TAA/TSR → Bloom → Lens Flare → Tone Mapping → DOF → UI Composite |
+| **GPU 処理** | TSR/TAA → Bloom → Tone Mapping → DOF → Motion Blur → UI Composite |
 | **CPU 関数** | `AddPostProcessingPasses()` (`PostProcessing.cpp`) |
-| **シェーダー** | `TemporalAA.usf` / `TSR*.usf` / `Bloom.usf` / `TonemapCommon.usf` など |
+| **シェーダー** | `TSR*.usf` / `TemporalAA.usf` / `Bloom*.usf` / `TonemapCommon.usf` / `DiaphragmDOF*.usf` / `MotionBlur*.usf` |
 | **出力** | 最終 `SceneColor`（SwapChain 表示用） |
-| **CPU 詳細** | [[10_pp_overview]] → PostProcess 各 Reference |
+| **CPU 詳細** | [[05_postprocess_overview]] |
+| **GPU シェーダー詳細** | [[01_postprocess_gpu_overview]] → [[detail_tsr]] / [[detail_taa]] / [[detail_bloom]] / [[detail_tonemap]] / [[detail_dof]] / [[detail_motion_blur]] |
 
 ---
 
@@ -316,3 +317,25 @@ AsyncCompute キュー（r.Lumen.AsyncCompute=1 時）:
 | `LumenReflectionResolve.usf` | `ResolveReflectionsCS()` | `RenderLumenReflections()` | f |
 | `LumenReflectionDenoiser*.usf` | 各 CS | `RenderLumenReflections()` | f |
 | `DiffuseIndirectComposite.usf` | `MainPS()` | `RenderDiffuseIndirectAndAmbientOcclusion()` | g |
+
+---
+
+## シェーダー別 CPU 対応一覧（Post-processing）
+
+| シェーダーファイル | エントリポイント | CPU 関数 | グループ |
+|-----------------|---------------|---------|---------|
+| `TSRReprojectHistory.usf` | `MainCS()` | `AddTemporalSuperResolutionPasses()` | a |
+| `TSRUpdateHistory.usf` | `MainCS()` | `AddTemporalSuperResolutionPasses()` | a |
+| `TSROutputQuantization.usf` | `MainCS()` | `AddTemporalSuperResolutionPasses()` | a |
+| `TemporalAA.usf` | `MainCS()` | `AddTemporalAAPass()` | b |
+| `PostProcessBloomSetup.usf` | `BloomSetupPS()` | `AddBloomSetupPass()` | c |
+| `PostProcessBloomDown.usf` | `BloomDownPS()` | `AddGaussianBloomPasses()` | c |
+| `PostProcessBloomUp.usf` | `BloomUpPS()` | `AddGaussianBloomPasses()` | c |
+| `PostProcessHistogram.usf` | `HistogramCS()` | `AddHistogramPass()` | d |
+| `PostProcessEyeAdaptation.usf` | `EyeAdaptationCS()` | `AddHistogramEyeAdaptationPass()` | d |
+| `PostProcessTonemap.usf` | `MainPS()` | `AddTonemapPass()` | d |
+| `DiaphragmDOFSetup.usf` | `SetupCS()` | `DiaphragmDOF::AddPasses()` | e |
+| `DiaphragmDOFGather.usf` | `GatherCS()` | `DiaphragmDOF::AddPasses()` | e |
+| `DiaphragmDOFRecombine.usf` | `RecombinePS()` | `DiaphragmDOF::AddPasses()` | e |
+| `PostProcessMotionBlur.usf` | `MotionBlurPS()` | `AddMotionBlurPass()` | f |
+| `PostProcessVelocityFlatten.usf` | `VelocityFlattenCS()` | `AddVelocityFlattenPass()` | f |
