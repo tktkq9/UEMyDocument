@@ -1,23 +1,23 @@
 # Translucency GPU シェーダードキュメント チェックリスト
 
 ## 概要
-- [ ] `01_translucency_gpu_overview.md` … Translucency GPU 全処理実行順 + CPU対応表
+- [x] `01_translucency_gpu_overview.md` … Translucency GPU 全処理実行順 + CPU対応表
 
 ---
 
 ## Translucency GPU シェーダー（グループ別）
 
 ### a: TranslucentForward（2本）
-- [ ] `a_TranslucentForward/detail_translucent_forward.md`  … 半透明メッシュのフォワードシェーディング（深度ソート）
-- [ ] `a_TranslucentForward/ref_translucent_forward.md`     … BasePassPixelShader(Translucent) / TranslucentShadingVS エントリポイント
+- [x] `a_TranslucentForward/detail_translucent_forward.md`  … 半透明メッシュのフォワードシェーディング（深度ソート）
+- [x] `a_TranslucentForward/ref_translucent_forward.md`     … BasePassPixelShader(Translucent) / TranslucentShadingVS エントリポイント
 
 ### b: TranslucentLighting（2本）
-- [ ] `b_TranslucentLighting/detail_translucent_lighting.md`  … 半透明オブジェクト用ライティングボリューム注入・補間
-- [ ] `b_TranslucentLighting/ref_translucent_lighting.md`     … InjectTranslucentVolumeLighting / FilterTranslucentVolume エントリポイント
+- [x] `b_TranslucentLighting/detail_translucent_lighting.md`  … 半透明オブジェクト用ライティングボリューム注入・補間
+- [x] `b_TranslucentLighting/ref_translucent_lighting.md`     … InjectTranslucentVolumeLighting / FilterTranslucentVolume エントリポイント
 
 ### c: OIT（2本）
-- [ ] `c_OIT/detail_oit.md`  … Order-Independent Translucency（Weighted Blended OIT）
-- [ ] `c_OIT/ref_oit.md`     … OITAccumulate / OITComposite エントリポイント
+- [x] `c_OIT/detail_oit.md`  … Order-Independent Translucency（Weighted Blended OIT）
+- [x] `c_OIT/ref_oit.md`     … OITAccumulate / OITComposite エントリポイント
 
 ---
 
