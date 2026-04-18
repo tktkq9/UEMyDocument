@@ -85,8 +85,8 @@
 
 - [x] Ph0: ソースマップ（`_source_map.md`）
 - [x] Ph1: 概要（`01_worldbuilding_overview.md` 更新 + サブフォルダ概要 5 本）
-- [ ] Ph2: Details（17 本）
-- [ ] Ph3: Reference（7 本）
+- [x] Ph2: Details（17 本）
+- [x] Ph3: Reference（7 本）
 - [ ] Ph4: Flow 追記
 
 ### Audio — 27 ファイル
