@@ -16,25 +16,64 @@ Rendering 以外のシステム（GAS, Animation, AI 等）にも同じ構成で
 
 ---
 
-## 1. フォルダ構成（完成形）
+## 1. フォルダ構成
+
+### 1.1 階層の考え方
+
+フォルダ階層は **ソースの複雑さに応じて** 決定する。一律に同じ深さにする必要はない。
+
+| 階層パターン | いつ使うか | 例 |
+|------------|----------|-----|
+| **2階層**: `System/SubFolder/Details/` | 標準。ほとんどのシステムはこれで十分 | `GAS/AbilitySystem/Details/` |
+| **3階層**: `System/SubFolder/Reference/GroupName/` | Reference が **10本以上** になった場合 | `Rendering/Lumen/Reference/a_SurfaceCache/` |
+| **フラット**: `System/Details/` | サブフォルダが不要な小規模システム（ソースファイル 20 本以下） | `Input/EnhancedInput/Details/`（現状これで十分） |
+
+**判断基準（フェーズ 0 のソースマップ作成時に決定）:**
+
+1. **サブフォルダ化**: 対象ソースが **複数の独立した機能領域** を持ち、各領域に 3 本以上の Details が見込まれる → サブフォルダ化する
+2. **Reference グループ化**: 1 サブフォルダ内の Reference が **10本を超える** → `Reference/` 内をグループフォルダで分割する
+3. **深掘り判断**: 作業中に Details 1 本がカバーする範囲が広すぎると感じたら → Details を分割して増やす（フォルダ階層を増やすのではなく）
+
+**やってはいけないこと:**
+- 最初から3階層以上を作り込む（ファイル数が増えてから対応で十分）
+- 1ファイルしか入らないフォルダを作る（その場合は上位フォルダに統合する）
+
+### 1.2 標準フォルダ構成（完成形）
 
 ```
 {AnalysisRoot}/{SystemName}/
 ├── _source_map.md              ← ソースナビゲーション用（フェーズ 0）
 ├── 01_{system}_overview.md     ← システム全体概要
-├── Details/
-│   ├── a_{topic}.md            ← サブシステム別の概念記事
-│   ├── b_{topic}.md
-│   └── ...
-├── Reference/
-│   ├── ref_{name}.md           ← ソースファイル別API参照
-│   └── ...
+├── {SubFolder}/                ← 機能領域ごとのサブフォルダ
+│   ├── 01_overview.md          ← サブフォルダ概要
+│   ├── Details/
+│   │   ├── a_{topic}.md        ← サブシステム別の概念記事
+│   │   └── ...
+│   ├── Reference/
+│   │   ├── ref_{name}.md       ← ソースファイル別API参照
+│   │   └── ...（10本超なら下記のグループ化構成へ）
+│   └── TASK_CHECKLIST.md       ← サブフォルダ単位の進捗管理（必要に応じて）
 ├── Dives/                      ← アドホック調査メモ（ue5-dive で生成）
 │   └── dive_{topic}.md
-└── TASK_CHECKLIST.md           ← 進捗管理
+└── TASK_CHECKLIST.md           ← システム全体の進捗管理
 ```
 
-### Lumen での実例（Rendering サブフォルダ）
+### 1.3 Reference グループ化構成（大規模時）
+
+Reference が 10 本を超えた場合、Details のグループに対応させてフォルダ分割する:
+
+```
+{SubFolder}/Reference/
+├── Common/                     ← 共通クラス・ヘッダー
+│   └── ref_{system}_core.md
+├── a_{GroupName}/              ← Details/a_*.md に対応
+│   ├── ref_{file1}.md
+│   └── ref_{file2}.md
+└── b_{GroupName}/
+    └── ref_{file3}.md
+```
+
+### 1.4 Lumen での実例（3階層 Reference）
 
 ```
 analysis/Rendering/Lumen/
@@ -43,9 +82,10 @@ analysis/Rendering/Lumen/
 │   ├── a_lumen_surface_cache.md
 │   └── ...（6本）
 ├── Reference/
-│   ├── Common/
+│   ├── Common/                 ← Reference 34本 → グループ化
 │   ├── a_SurfaceCache/
-│   └── ...（34本）
+│   ├── b_SceneLighting/
+│   └── ...
 └── TASK_CHECKLIST.md
 ```
 
@@ -53,14 +93,25 @@ analysis/Rendering/Lumen/
 
 ## 2. 作成フェーズ
 
-### フェーズ 0：ソースマップ作成
+### フェーズ 0：ソースマップ作成 + 階層判断
 
-**目的**: Claude が効率的にソースを探索できるナビゲーション情報を整備する。
+**目的**: Claude が効率的にソースを探索できるナビゲーション情報を整備し、フォルダ階層を決定する。
 
 1. `_module_index.md` で対象システムのソースパスを確認
 2. `{SourceRoot}/{ModulePath}` を Glob でスキャンし、ファイル一覧を取得
 3. `Templates/ue5_source_map.md` をベースに `_source_map.md` を作成
 4. 主要ファイル→クラス対応表、エントリポイント表を埋める
+5. **階層判断**: ソースファイル数と機能領域の独立性に基づき、TASK_CHECKLIST の構成を確認・調整する
+
+**階層判断のフローチャート:**
+```
+ソースファイルを機能領域でグループ化
+  │
+  ├─ グループが 1〜2 個 → フラット構成（Details/ 直下）
+  ├─ グループが 3 個以上 → サブフォルダ構成（既に TASK_CHECKLIST に反映済みならそのまま）
+  │
+  └─ 1グループ内の Reference 見込みが 10本超 → Reference/ 内をグループ化（フェーズ 3 で実施）
+```
 
 ### フェーズ 1：概要 + チェックリスト
 
@@ -167,6 +218,20 @@ Dive → 関連:          [[01_gas_overview]] | [[a_ability_system]]
 - グループ完了後に「次のグループに進みますか？」と確認
 - `TASK_CHECKLIST.md` を常に最新に保つ
 - セッション開始時は `_source_map.md` → `TASK_CHECKLIST.md` の順に Read
+
+### 作業中の粒度調整
+
+ドキュメント作成中に以下の状況が発生したら、構成を調整する:
+
+| 状況 | 対応 |
+|------|------|
+| Details 1 本が長くなりすぎる（目安: 300行超） | Details を分割する。TASK_CHECKLIST に新ファイルを追加 |
+| Reference が 10 本を超えた | `Reference/` 内にグループフォルダを作成する |
+| サブフォルダ内の Details が 1 本しかない | 上位フォルダに統合を検討する |
+| ソースマップ作成時に TASK_CHECKLIST と実態が乖離 | TASK_CHECKLIST を修正してからドキュメント作成に進む |
+| 調査中に想定外のサブシステムを発見 | TASK_CHECKLIST にサブフォルダを追加し、ユーザーに報告する |
+
+**原則**: 最初から完璧な構成を作り込むのではなく、作業中に育てる。ただし TASK_CHECKLIST は常に現状を正確に反映すること。
 
 ---
 
