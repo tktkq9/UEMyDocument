@@ -1,24 +1,62 @@
 # WorldBuilding ドキュメント チェックリスト
 
 ## 概要
-- [ ] `01_worldbuilding_overview.md` … WorldBuilding システム全体概要
+- [ ] `01_worldbuilding_overview.md` … WorldBuilding 全体概要（更新予定）
+- [ ] `_source_map.md` … ソースマップ
 
 ---
 
-## Details（詳細解析）
+## サブフォルダ構成
 
-- [ ] `Details/a_world_partition.md` … World Partition・セル分割・ストリーミングポリシー・ActorDesc
-- [ ] `Details/b_hlod.md` … HLOD 生成・WorldPartitionHLOD・HLODLayer 設定
-- [ ] `Details/c_data_layer.md` … DataLayer・ランタイム表示切り替え・エディタ連携
-- [ ] `Details/d_level_streaming.md` … ULevelStreaming・Seamless/Non-Seamless Travel・PersistentLevel
-- [ ] `Details/e_pcg.md` … PCGGraph・Point Cloud・Surface Sampler・カスタムノード
+### WorldPartition — ワールドパーティション
+- [ ] `WorldPartition/01_overview.md` … WorldPartition 概要
+- [ ] `WorldPartition/Details/a_spatial_hash.md` … UWorldPartitionRuntimeSpatialHash・セル分割・グリッド設定
+- [ ] `WorldPartition/Details/b_streaming_policy.md` … AWorldPartitionStreamingPolicy・StreamingSource・ロード/アンロード
+- [ ] `WorldPartition/Details/c_actor_desc.md` … FWorldPartitionActorDesc・ActorDescView・エディタ連携
+- [ ] `WorldPartition/Details/d_runtime_cell.md` … UWorldPartitionRuntimeCell・CellBounds・ContentBundle
+- [ ] `WorldPartition/Reference/ref_world_partition_api.md` … UWorldPartition API
+- [ ] `WorldPartition/Reference/ref_spatial_hash_api.md` … UWorldPartitionRuntimeSpatialHash API
 
-## Reference（リファレンス）
+### HLOD — 階層 LOD
+- [ ] `HLOD/01_overview.md` … HLOD 概要
+- [ ] `HLOD/Details/a_hlod_generation.md` … HLOD ビルド・ALODActor 生成・MeshMerge/Imposter
+- [ ] `HLOD/Details/b_hlod_layer.md` … UHLODLayer 設定・LOD 切り替え距離・パフォーマンス
+- [ ] `HLOD/Details/c_hlod_runtime.md` … ランタイム HLOD 切り替え・ストリーミング連携
+- [ ] `HLOD/Reference/ref_hlod_api.md` … UWorldPartitionHLOD / ALODActor API
 
-- [ ] `Reference/ref_worldpartition_api.md` … UWorldPartition / UWorldPartitionRuntimeSpatialHash API
-- [ ] `Reference/ref_pcg_api.md` … UPCGComponent / FPCGContext / FPCGPoint API
-- [ ] `Reference/ref_streaming_api.md` … ULevelStreaming / ULevelStreamingDynamic API
+### DataLayer — データレイヤー
+- [ ] `DataLayer/01_overview.md` … DataLayer 概要
+- [ ] `DataLayer/Details/a_data_layer_asset.md` … UDataLayerAsset・DataLayerType（Runtime/Editor）
+- [ ] `DataLayer/Details/b_runtime_toggle.md` … SetDataLayerRuntimeState・Loaded/Unloaded/Activated
+- [ ] `DataLayer/Details/c_editor_integration.md` … DataLayer エディタ UI・WorldPartition 連携
+- [ ] `DataLayer/Reference/ref_data_layer_api.md` … UDataLayerAsset / UDataLayerSubsystem API
+
+### LevelStreaming — レベルストリーミング
+- [ ] `LevelStreaming/01_overview.md` … LevelStreaming 概要
+- [ ] `LevelStreaming/Details/a_level_streaming.md` … ULevelStreaming・RequestLevel・非同期ロード・LoadedLevel
+- [ ] `LevelStreaming/Details/b_seamless_travel.md` … Seamless/Non-Seamless Travel・TransitionMap・PersistentLevel
+- [ ] `LevelStreaming/Details/c_dynamic_streaming.md` … ULevelStreamingDynamic・ランタイム生成・Transform
+- [ ] `LevelStreaming/Reference/ref_streaming_api.md` … ULevelStreaming / ULevelStreamingDynamic API
+
+### PCG — プロシージャルコンテンツ生成
+- [ ] `PCG/01_overview.md` … PCG 概要
+- [ ] `PCG/Details/a_pcg_graph.md` … UPCGGraph・FPCGGraphCompiler・ノード評価順序
+- [ ] `PCG/Details/b_pcg_elements.md` … UPCGSettings 派生・PointSampler/SurfaceSampler/MeshSampler
+- [ ] `PCG/Details/c_pcg_data.md` … FPCGPoint・FPCGPointData・FPCGSpatialData・Metadata
+- [ ] `PCG/Details/d_custom_nodes.md` … カスタム PCG ノード実装・C++/BP 拡張
+- [ ] `PCG/Reference/ref_pcg_api.md` … UPCGComponent / UPCGGraph API
+- [ ] `PCG/Reference/ref_pcg_elements.md` … 標準 PCG ノード全一覧
 
 ---
 
-合計: 概要 1 + Details 5 + Reference 3 = **9 ファイル**
+## 進捗サマリ
+
+| サブフォルダ | 概要 | Details | Reference | 完了 |
+|------------|------|---------|-----------|------|
+| WorldPartition | 0/1 | 0/4 | 0/2 | 0/7 |
+| HLOD | 0/1 | 0/3 | 0/1 | 0/5 |
+| DataLayer | 0/1 | 0/3 | 0/1 | 0/5 |
+| LevelStreaming | 0/1 | 0/3 | 0/1 | 0/5 |
+| PCG | 0/1 | 0/4 | 0/2 | 0/7 |
+
+**合計**: 概要 1 + ソースマップ 1 + サブフォルダ概要 5 + Details 17 + Reference 7 = **31 ファイル**
