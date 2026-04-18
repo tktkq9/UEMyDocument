@@ -83,7 +83,7 @@
 
 ### WorldBuilding — 31 ファイル
 
-- [ ] Ph0: ソースマップ（`_source_map.md`）
+- [x] Ph0: ソースマップ（`_source_map.md`）
 - [ ] Ph1: 概要（`01_worldbuilding_overview.md` 更新 + サブフォルダ概要 5 本）
 - [ ] Ph2: Details（17 本）
 - [ ] Ph3: Reference（7 本）

@@ -2,7 +2,7 @@
 
 ## 概要
 - [ ] `01_worldbuilding_overview.md` … WorldBuilding 全体概要（更新予定）
-- [ ] `_source_map.md` … ソースマップ
+- [x] `_source_map.md` … ソースマップ
 
 ---
 
