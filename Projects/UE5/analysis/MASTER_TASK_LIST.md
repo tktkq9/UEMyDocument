@@ -3,7 +3,7 @@
 全システムの進捗を一元管理する。  
 各フェーズ完了時にこのファイルのチェックボックスを更新すること。
 
-- 更新日: 2026-04-19
+- 更新日: 2026-04-20
 
 ---
 
@@ -16,6 +16,8 @@
 - [x] ソースマップ Stage2: 主要パス（8 本: DepthPrepass / BasePass / DeferredLighting / Shadow / VSM / Nanite / Lumen / PostProcess、2026-04-19 完了）
 - [x] ソースマップ Stage3: 特化機能（10 本: HZB / Translucency / SkyAtmosphere / Fog / Decals / SSAO / DistanceField / RayTracing / Substrate / MegaLights、2026-04-19 完了）
 - [x] ソースマップ Stage4: GPU 側（17 本: BasePass / Decals / DeferredLighting / DepthPrepass / Fog / GPUScene / HZB / MegaLights / PostProcess / RayTracing / SSAO / SkyAtmosphere / Translucency / Lumen / Nanite / VirtualShadowMaps / DistanceField、2026-04-19 完了）
+- [x] GPU レンダーグラフ シリーズ（6 本: 03_overview + 04-08 Phase A〜E、2026-04-20 完了）  
+  Mermaid `flowchart` でパスとリソースの依存関係を可視化。Modern / Legacy / AsyncCompute を図示。
 
 ---
 
@@ -117,8 +119,9 @@
 |---------|------|------|
 | Rendering ドキュメント | 416 本 | 0 |
 | Rendering ソースマップ | 41 | 0 |
+| Rendering レンダーグラフ | 6 | 0 |
 | 非 Rendering 11 システム | 0 | 339 |
-| **合計** | **457** | **339** |
+| **合計** | **463** | **339** |
 
 ---
 

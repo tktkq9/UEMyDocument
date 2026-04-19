@@ -13,8 +13,19 @@ UE5 の描画は **CPU（Render Thread / RHI Thread）がコマンドを積み**
 「GPU 処理の順序」とは RDG が確定した **Pass 依存グラフのトポロジカル順** であり、  
 `FRDGBuilder::Execute()` が実際の `ID3D12GraphicsCommandList` コマンドに変換して GPU へ投入する。
 
-本文書では **Deferred Shading + Lumen 有効** の典型的なフレームで GPU が実行する処理を、  
+本文書では **Deferred Shading + Nanite + Lumen + VSM 全て有効**（以下 Modern パイプライン）の典型的なフレームで GPU が実行する処理を、  
 **実行順 → CPU 担当関数 → シェーダー / エントリポイント** の対応で一覧する。
+
+> **UE4 相当の Legacy パイプライン（Nanite/Lumen/VSM OFF）との差分は [[02_gpu_modern_vs_legacy]] を参照。**  
+> スキップされるステップ・置換されるシェーダー・組み合わせマトリクスをまとめている。
+
+> **リソース依存グラフとして見たい場合は [[03_render_graph_overview]] を参照。**  
+> 各パスの入出力リソースを Mermaid `flowchart` で可視化し、5 フェーズ（A〜E）に分割した詳細グラフへリンクする:  
+> - Phase A（Opaque Build）: [[04_render_graph_opaque]]  
+> - Phase B（Lumen Surface Cache）: [[05_render_graph_surface_cache]]  
+> - Phase C（Indirect + AO）: [[06_render_graph_indirect_ao]]  
+> - Phase D（Lighting + Composite）: [[07_render_graph_lighting]]  
+> - Phase E（Translucency + Post）: [[08_render_graph_final]]
 
 ---
 
@@ -97,11 +108,31 @@ UE5 の描画は **CPU（Render Thread / RHI Thread）がコマンドを積み**
 
 | 項目 | 内容 |
 |-----|------|
-| **GPU 処理** | HW + SW ラスタライザで Nanite メッシュを GBuffer に描画 |
-| **CPU 関数** | `RenderNanite()` → `Nanite::RasterizePass()` |
-| **シェーダー** | `NaniteRasterization.usf`（Compute）/ `NaniteEmitGBuffer.usf`（CS）|
-| **出力** | GBuffer A/B/C/D, SceneDepth（Nanite 部分） |
-| **CPU 詳細** | Nanite Reference（未作成） |
+| **GPU 処理** | 2 パスカリング → VisBuffer 構築 → Shade Binning → GBuffer/Depth Export を一括実行 |
+| **CPU 関数** | `RenderNanite()` → `Nanite::RasterizePass()` / `BuildShadingCommands()` / `DispatchBasePass()` |
+| **シェーダー** | `NaniteClusterCulling.usf` / `NaniteRasterizer.usf` / `NaniteShadeBinning.usf` / `NaniteExportGBuffer.usf` / `NaniteDepthExport.usf` |
+| **出力** | VisBuffer64（中間）→ GBuffer A/B/C/D + ShadingMask + SceneDepth + HTile |
+| **GPU シェーダー詳細** | [[01_nanite_gpu_overview]] |
+
+**Nanite 内部のミニフロー:**
+
+```
+[4-1]  Cluster Culling Pass 1（MAIN）     ← 前フレームの [8] HZB で粗く遮蔽
+[4-2]  SW/HW Rasterize Pass 1             → VisBuffer64（64bit/pixel: Depth+ClusterID+TriID）
+[4-3]  Nanite 内部 HZB 構築               ← Pass1 の VisBuffer から生成（使い捨て）
+[4-4]  Cluster Culling Pass 2（POST）     ← 内部 HZB で「Pass1 で遮蔽されたが実は見える」クラスタを拾い直す
+[4-5]  SW/HW Rasterize Pass 2             → VisBuffer64 に追記
+[4-6]  Shade Binning                       ← マテリアル別にピクセルを分類
+[4-7]  GBuffer Export                      ← VisBuffer64 を読んで GBuffer + ShadingMask 書き込み
+[4-8]  Depth Export                        ← VisBuffer64 → SceneDepth + HTile
+```
+
+**注意点:**
+
+- **VisBuffer64** は Nanite 専用の中間バッファ。最終 GBuffer ではない。`NaniteExportGBuffer.usf` が VisBuffer を読んで GBuffer に変換する。
+- **書き込み先の GBuffer は非 Nanite の Base Pass [6] と共有** する（Nanite ピクセルと非 Nanite ピクセルが同じ GBuffer に混在）。
+- **[4-3] Nanite 内部 HZB** は [8] のパイプライン全体 HZB とは別物。Pass2 のカリング専用で使い捨て。
+- `r.Nanite.AsyncRasterization=1` では [4] 全体が AsyncCompute キューで走り、Graphics キューの Base Pass [6] と並列実行される。
 
 ---
 
@@ -167,14 +198,20 @@ UE5 の描画は **CPU（Render Thread / RHI Thread）がコマンドを積み**
 
 ---
 
-### [8] HZB 構築
+### [8] HZB 構築（パイプライン全体 HZB）
 
 | 項目 | 内容 |
 |-----|------|
-| **GPU 処理** | SceneDepth から Hierarchical Z-Buffer（ミップチェーン）を構築 |
+| **GPU 処理** | Base Pass 完了後の最終 SceneDepth（Nanite + 非 Nanite 統合済み）から Hierarchical Z-Buffer を構築 |
 | **CPU 関数** | `BuildHZB()` (`SceneHZB.cpp`) |
-| **シェーダー** | `HZBOcclusion.usf`（Compute） |
-| **出力** | `HZB`（遮蔽カリング・Screen Probe トレースに使用） |
+| **シェーダー** | `HZB.usf:HZBBuildCS` / `HZBOcclusion.usf:HZBTestPS`（Compute / Pixel） |
+| **出力** | `HZBFurthest` / `HZBClosest`（ミップチェーン） |
+| **用途** | Occlusion Query / SSR / Lumen Screen Probe トレース / **次フレームの Nanite Pass1 Cluster Culling** |
+| **GPU シェーダー詳細** | [[01_hzb_gpu_overview]] |
+
+> **Nanite 内部 HZB との区別:**  
+> [4-3] で Nanite が内部生成する HZB は Pass1 の VisBuffer から作られ、Pass2 カリング専用で使い捨て。  
+> [8] の HZB は Base Pass 後の最終 SceneDepth から作られ、他システムや**次フレームの Nanite** に使われる。この循環関係で Nanite は常に「前フレームの HZB」で Pass1 カリングできる。
 
 ---
 
