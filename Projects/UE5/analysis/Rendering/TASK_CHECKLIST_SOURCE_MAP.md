@@ -30,17 +30,17 @@ Stage 2（主要パス 8 本、2026-04-19 完了）:
 - [x] `Lumen/_source_map.md`
 - [x] `PostProcess/_source_map.md`
 
-Stage 3（特化機能 10 本、未着手）:
-- [ ] `HZB/_source_map.md`
-- [ ] `Translucency/_source_map.md`
-- [ ] `SkyAtmosphere/_source_map.md`
-- [ ] `Fog/_source_map.md`
-- [ ] `Decals/_source_map.md`
-- [ ] `SSAO/_source_map.md`
-- [ ] `DistanceField/_source_map.md`
-- [ ] `RayTracing/_source_map.md`
-- [ ] `Substrate/_source_map.md`
-- [ ] `MegaLights/_source_map.md`
+Stage 3（特化機能 10 本、2026-04-19 完了）:
+- [x] `HZB/_source_map.md`
+- [x] `Translucency/_source_map.md`
+- [x] `SkyAtmosphere/_source_map.md`
+- [x] `Fog/_source_map.md`
+- [x] `Decals/_source_map.md`
+- [x] `SSAO/_source_map.md`
+- [x] `DistanceField/_source_map.md`
+- [x] `RayTracing/_source_map.md`
+- [x] `Substrate/_source_map.md`
+- [x] `MegaLights/_source_map.md`
 
 ### GPU 側（17 フォルダ）
 - [ ] `GPU/BasePass/_source_map.md`
