@@ -3,7 +3,7 @@
 全システムの進捗を一元管理する。  
 各フェーズ完了時にこのファイルのチェックボックスを更新すること。
 
-- 更新日: 2026-04-18
+- 更新日: 2026-04-19
 
 ---
 
@@ -87,7 +87,7 @@
 - [x] Ph1: 概要（`01_worldbuilding_overview.md` 更新 + サブフォルダ概要 5 本）
 - [x] Ph2: Details（17 本）
 - [x] Ph3: Reference（7 本）
-- [ ] Ph4: Flow 追記
+- [x] Ph4: Flow 追記（23 本: overview 1 + sub-overview 5 + Details 17）
 
 ### Audio — 27 ファイル
 

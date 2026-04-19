@@ -170,3 +170,60 @@ TObjectPtr<UHLODLayer> HLODLayer; // 使用する HLOD レイヤー
 - **World Partition Editor**（Window → World Partition）でセル・アクタ分布を可視化
 - **ミニマップ**は ActorDesc のバウンドを使ってアクタ位置をプレビュー
 - クック時は ActorDesc からセル→アクタのマッピングを生成し、実際のパッケージ参照を解決する
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+[マップ読み込み時]
+UWorldPartition::Initialize()
+  └─ UActorDescContainerSubsystem::RegisterContainer()
+       └─ UActorDescContainerInstance::Initialize()
+            └─ for each .uasset under __ExternalActors__/<MapName>/:
+                 └─ FWorldPartitionActorDescUtils::GetActorDescriptorFromPackage()
+                      ├─ パッケージヘッダのみ読み込み（アクタ本体はロードしない）
+                      ├─ AActor::CreateClassActorDesc() で ActorDesc 生成
+                      └─ ActorDesc->Init(Actor) で属性抽出
+                           ├─ Bounds（バウンディングボックス）
+                           ├─ DataLayers
+                           ├─ Class / Tags / Guid
+                           └─ HLODLayer 参照
+            └─ ActorDescList に登録
+
+[ストリーミング生成時]
+UWorldPartitionRuntimeHashSet::GenerateStreaming()
+  └─ for each FWorldPartitionActorDescInstance:
+       └─ ActorDesc->GetEditorBounds() / GetRuntimeBounds()
+            └─ セルへの割り当て計算（ロード不要）
+
+[ランタイム — アクタ実体化]
+ULevelStreamingDynamic::SetShouldBeLoaded(true)
+  └─ LoadPackageAsync(ActorDesc->GetActorPackage())
+       └─ AActor::PostLoad()
+            └─ FWorldPartitionActorDesc を実アクタにアタッチ
+```
+
+### フロー詳細
+
+1. **コンテナ初期化** — マップロード時に `UActorDescContainerInstance::Initialize()` が `__ExternalActors__/<MapName>/` 以下の全 `.uasset` を走査。
+2. **ヘッダのみ読込** — `GetActorDescriptorFromPackage()` がパッケージヘッダ（`FAssetData` 相当）だけを読み込み、アクタクラス情報を取得。本体（コンポーネント・プロパティ）はロードしない。
+3. **ActorDesc 生成** — `AActor::CreateClassActorDesc()` でクラス固有の ActorDesc（例: `FLandscapeActorDesc`、`FLevelInstanceActorDesc`）を生成。
+4. **属性シリアライズ** — `ActorDesc->Init(Actor)` がバウンド・DataLayer・Tag 等を抽出し、専用シリアライザで保存。次回からは `Serialize()` で復元のみ。
+5. **ストリーミング計算で利用** — `UWorldPartitionRuntimeHashSet::GenerateStreaming()` が ActorDesc のバウンドでセル割り当てを行う。実アクタを 1 つもロードせずにストリーミング計画を完成させられる。
+6. **ランタイム実体化** — セルロード時にようやく `LoadPackageAsync()` で実アクタを読み込み。ActorDesc は実アクタにリンクされ、エディタ機能（ピン留め・フィルタ）から参照可能。
+7. **WITH_EDITOR ガード** — ActorDesc 関連コードは `#if WITH_EDITOR` で囲まれ、クック後のランタイムビルドには含まれない。Cook 時に `UWorldPartitionCookPackageContext` がセル→パッケージのマッピングを焼き込む。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `FWorldPartitionActorDesc` | `WorldPartitionActorDesc.h` | ActorDesc 基底 |
+| `FWorldPartitionActorDescInstance` | `ActorDescContainerInstance.h` | コンテナ内インスタンス |
+| `UActorDescContainerInstance::Initialize` | `ActorDescContainerInstance.cpp` | コンテナ初期化 |
+| `UActorDescContainerSubsystem` | `ActorDescContainerSubsystem.cpp` | コンテナ管理 |
+| `FWorldPartitionActorDescUtils::GetActorDescriptorFromPackage` | `WorldPartitionActorDescUtils.cpp` | パッケージヘッダから生成 |
+| `AActor::CreateClassActorDesc` | `Actor.cpp` | クラス固有 Desc 生成 |
+| `UWorldPartitionCookPackageContext` | `Cook/WorldPartitionCookPackageContext.cpp` | クック時パッケージ生成 |

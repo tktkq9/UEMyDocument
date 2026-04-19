@@ -152,3 +152,66 @@ void OnExternalStreamingObjectRemoved(URuntimeHashExternalStreamingObjectBase*);
 | `UHLODLayer` | ビルド設定アセット |
 | `UHLODBuilder` | メッシュ生成ロジック |
 | `UWorldPartitionRuntimeCell` | ストリーミングセル（HLOD の対象） |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+[初期化 — サブシステム登録]
+UWorldPartitionHLODRuntimeSubsystem::Initialize(Collection)
+  ├─ UWorldPartition::OnWorldPartitionInitializedDelegate を購読
+  ├─ OnCellShownDelegate / OnCellHiddenDelegate を購読
+  └─ HLOD アクタのスポーン時に RegisterHLODObject() が呼ばれ CellToHLODMap に登録
+
+[ランタイム — 可視性制御]
+StreamingPolicy::PostUpdateStreamingStateInternal_GameThread()
+  └─ Cell->Activate() → AddToWorld()
+       └─ FLevelStreamingDelegates::OnCellShownDelegate
+            └─ UWorldPartitionHLODRuntimeSubsystem::OnCellShown(Cell)
+                 └─ CanMakeInvisible(Cell) 判定
+                      ├─ 全 HLOD の IsReadyForWarmup() チェック
+                      └─ 元アクタの LoadedLevel が存在するか
+                 └─ GetHLODObjectsForCell(Cell):
+                      └─ for each IWorldPartitionHLODObject:
+                           └─ HLODObject->SetVisibility(false)
+
+  └─ Cell->Deactivate() → RemoveFromWorld()
+       └─ OnCellHiddenDelegate
+            └─ UWorldPartitionHLODRuntimeSubsystem::OnCellHidden(Cell)
+                 └─ CanMakeVisible(Cell) 判定
+                 └─ for each IWorldPartitionHLODObject:
+                      └─ HLODObject->SetVisibility(true)
+
+[ウォームアップ — SceneViewExtension]
+UHLODResourcesResidencySceneViewExtension::BeginRenderViewFamily()
+  └─ for each HLOD を購読中の RequestContext:
+       └─ Nanite::GStreamingManager->RequestPrefetch(HLODMesh)
+       └─ VirtualShadowMap キャッシュ準備チェック
+       └─ N フレーム常駐したら IsReadyForWarmup=true
+```
+
+### フロー詳細
+
+1. **サブシステム初期化** — `UWorldPartitionHLODRuntimeSubsystem::Initialize` はワールド初期化時に `UWorldPartition` のイベントを購読。HLOD アクタが `PostRegisterAllComponents()` で `RegisterHLODObject()` を呼び、`CellToHLODMap` に登録される。
+2. **セル表示イベント** — `OnCellShown()` はストリーミングポリシーから通知される。`CellToHLODMap` から対応する HLOD 群を取得し、元セルの準備が整うまで HLOD を表示維持（ポップイン防止）。
+3. **CanMakeInvisible 判定** — 元セルの `LoadedLevel` が有効かつ全アクタコンポーネントが登録済みなら true。`bBlockOnSlowLoading=true` のセルはロード完了までブロック。
+4. **SetVisibility 一括適用** — `GetHLODObjectsForCell()` が返す HLOD リストに対し `SetVisibility(false)` を適用。単一セルが複数 LOD 階層の HLOD に対応する場合もあるので全て切替。
+5. **セル非表示イベント** — `OnCellHidden()` は逆方向の切替。HLOD にウォームアップが必要（`DoesRequireWarmup()=true`）なら `UHLODResourcesResidencySceneViewExtension` が `wp.Runtime.HLODWarmupNumFrames` 分の常駐を確認してから表示。
+6. **Nanite/VSM ウォームアップ** — `BeginRenderViewFamily` 内で `Nanite::GStreamingManager::RequestPrefetch` を呼び、仮想テクスチャ・VSM キャッシュもリクエスト。準備完了で HLOD 表示許可フラグが立つ。
+7. **外部ストリーミング連携** — ContentBundle / DLC による `URuntimeHashExternalStreamingObjectBase` 注入時は `OnExternalStreamingObjectInjected()` が追加 HLOD を登録。削除時は `UnregisterHLODObject()` で除外。
+8. **CVar による無効化** — `wp.Runtime.HLOD 0` で `IsHLODEnabled()=false`、全 HLOD が強制非表示。`wp.Runtime.HLODWarmupEnabled 0` はウォームアップ待機を省略して即切替。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `UWorldPartitionHLODRuntimeSubsystem::Initialize` | `HLOD/HLODRuntimeSubsystem.cpp` | サブシステム開始 |
+| `UWorldPartitionHLODRuntimeSubsystem::OnCellShown` | `HLOD/HLODRuntimeSubsystem.cpp` | セル→HLOD切替 |
+| `UWorldPartitionHLODRuntimeSubsystem::OnCellHidden` | `HLOD/HLODRuntimeSubsystem.cpp` | HLOD→セル切替 |
+| `UWorldPartitionHLODRuntimeSubsystem::CanMakeVisible/Invisible` | `HLOD/HLODRuntimeSubsystem.cpp` | 切替可否判定 |
+| `IWorldPartitionHLODObject::SetVisibility` | `HLOD/HLODActor.cpp` | 可視性適用 |
+| `UHLODResourcesResidencySceneViewExtension` | `HLOD/HLODResourcesResidencySceneViewExtension.cpp` | ウォームアップ監視 |
+| `FLevelStreamingDelegates::OnCellShown/Hidden` | `Engine/LevelStreamingDelegates.h` | セルイベント |

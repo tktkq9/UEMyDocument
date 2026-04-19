@@ -238,3 +238,86 @@ struct FPCGContext
     TArray<FPCGTaggedData> OutputData;
 };
 ```
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+[PointData 生成 — Sampler ノード内]
+UPCGSurfaceSamplerElement::ExecuteInternal(Context)
+  └─ UPCGPointData* OutData = FPCGContext::NewObject_AnyThread<UPCGPointData>()
+       ├─ UPCGMetadata* Metadata = OutData->CreateOrGetEmptyMetadata()
+       │    └─ Parent Metadata（入力から継承）を設定
+       │    └─ CreateAttribute<float>("Density") などを登録
+       ├─ for each サンプリング位置:
+       │    ├─ FPCGPoint Point
+       │    ├─ Point.Transform = FTransform(Location)
+       │    ├─ Point.Density = Surface->GetDensityAtPosition(Location)
+       │    ├─ Point.Seed = ComputeSeed(Context->GetSeed(), Index)
+       │    ├─ Point.MetadataEntry = Metadata->AddEntry()
+       │    │    └─ ParentEntryKey 経由で継承エントリにリンク
+       │    └─ OutData->GetMutablePoints().Add(Point)
+       └─ Context->OutputData.Add(FPCGTaggedData{OutData, PinName, Tags})
+
+[SpatialData → PointData 変換]
+UPCGSpatialData::ToPointData(Context, Bounds)
+  └─ 派生クラスで具体実装:
+       ├─ UPCGVolumeData → グリッドサンプリングしてポイント生成
+       ├─ UPCGSurfaceData → 表面サンプリング
+       └─ UPCGLandscapeData → 地形セル単位でサンプリング
+  └─ 結果の UPCGPointData を返す（以降は PointData として処理）
+
+[属性アクセス — Filter/Transform ノード内]
+FPCGMetadataAttribute<T>* Attr = Metadata->GetMutableTypedAttribute<T>(Name)
+  └─ Attr->GetValueFromItemKey(Point.MetadataEntry)
+       ├─ MetadataEntry が -1 → デフォルト値返却
+       └─ -1 以外 → 属性ストレージから T 値取得
+  └─ 新しい値を書く場合:
+       └─ NewEntry = Metadata->AddEntry(OldEntry)
+            └─ Attr->SetValue(NewEntry, Value)
+            └─ Point.MetadataEntry = NewEntry  ← コピーオンライト
+
+[ProjectPoint — 地形投影]
+UPCGLandscapeData::ProjectPoint(InPoint, Params, OutPoint)
+  ├─ WorldPos = InPoint.Transform.GetLocation()
+  ├─ Landscape->GetHeightAtLocation(WorldPos) → Z 値取得
+  ├─ Normal = Landscape->GetNormalAtLocation(WorldPos)
+  └─ OutPoint.Transform = FTransform(LookRot(Normal), WorldPos_WithZ)
+
+[メッシュ配置 — Spawner ノード]
+UPCGStaticMeshSpawnerElement::PostExecuteInternal(Context)
+  └─ UPCGComponent::PostProcessGraph():
+       └─ for each ポイントグループ:
+            └─ UInstancedStaticMeshComponent::AddInstance(Transform)
+                 └─ CustomData 配列に属性値を書き込み
+```
+
+### フロー詳細
+
+1. **データイミュータブル性** — PCG の全 `UPCGData` は読み取り専用で扱う。変更が必要なら `NewObject<>` で新インスタンスを作成しコピーする。これによりキャッシュ層が安全に結果を再利用可能（[[a_pcg_graph]]）。
+2. **FPCGPoint の自己完結性** — ポイントは Transform/Density/Bounds/Color/Seed/MetadataEntry を持つ完全な単位。Metadata 以外はすべて POD で並列処理に適する。
+3. **Metadata のエントリキー** — `FPCGPoint::MetadataEntry` は `UPCGMetadata` の行インデックス。`-1` は「エントリなし」でデフォルト値が使われる。エントリは継承（`ParentEntryKey`）を持ち、親属性を継承しつつ差分だけを記録可能。
+4. **属性のコピーオンライト** — 既存ポイントの属性を変更するときは `AddEntry(OldEntryKey)` で新エントリを作成し、変更点だけ `SetValue` する。元データを改変しないためソース `UPCGPointData` は再利用可能。
+5. **型付き属性** — `FPCGMetadataAttribute<T>` は `float`/`int32`/`FVector`/`FString` 等をサポート。非対応型を指定するとコンパイル時エラー。BP から使う場合は `FPCGMetadataAttributeBase` 経由でジェネリックアクセス。
+6. **Spatial→Point 変換** — `UPCGSpatialData::ToPointData()` は派生クラスごとに実装。`UPCGVolumeData` はランダムボリュームサンプリング、`UPCGSurfaceData` は表面、`UPCGLandscapeData` は地形の `LandscapeInfo` からセル単位でサンプル。
+7. **ProjectPoint** — ポイントを空間データに投影する API。地形サンプラーは `UPCGLandscapeData::ProjectPoint` で Z 値を合わせる。法線に沿って回転も変更可能（`FProjectionParams::bProjectRotations`）。
+8. **FPCGTaggedData** — `Context->InputData` / `OutputData` の要素。`Data`（`UPCGData*`）+ `Pin`（ピン名）+ `Tags`（`TSet<FString>`）を持ち、タグでフィルタリング可能。
+9. **スレッド安全性** — `UPCGData` 生成は `FPCGContext::NewObject_AnyThread` 経由で行い、ゲームスレッド以外からも安全に UObject を作成。`UPCGMetadata::AddEntry` は内部でアトミック操作を使用。
+10. **メモリ管理** — グラフ実行後、出力されなかった中間 `UPCGData` は GC で解放される。キャッシュ済みデータは `UPCGSubsystem::GraphCache` から強参照され、明示的に `FlushCache` しない限り保持される。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `FPCGPoint` | `PCGPoint.h` | ポイントデータ単位 |
+| `UPCGPointData::GetMutablePoints` | `Data/PCGPointData.cpp` | 可変ポイント配列 |
+| `UPCGSpatialData::ToPointData` | `Data/PCGSpatialData.cpp` | サンプリング変換 |
+| `UPCGSpatialData::ProjectPoint` | `Data/PCGSpatialData.cpp` | 空間投影 |
+| `UPCGMetadata::CreateAttribute` | `Metadata/PCGMetadata.cpp` | 属性定義 |
+| `UPCGMetadata::AddEntry` | `Metadata/PCGMetadata.cpp` | エントリ追加 |
+| `FPCGMetadataAttribute<T>::SetValue/GetValue` | `Metadata/PCGMetadataAttribute.h` | 型付きアクセス |
+| `FPCGContext::NewObject_AnyThread` | `PCGContext.cpp` | スレッド安全オブジェクト生成 |
+| `FPCGTaggedData` | `PCGData.h` | 入出力パイプ要素 |

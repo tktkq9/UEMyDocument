@@ -67,3 +67,61 @@ graph TD
 | [[Details/b_pcg_elements]] | 標準ノード分類・Sampler/Filter/Transform/Spawner |
 | [[Details/c_pcg_data]] | FPCGPoint・PointData・SpatialData・Metadata |
 | [[Details/d_custom_nodes]] | カスタムノード実装（C++/BP） |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+[BP / C++ 起点]
+UPCGComponent::Generate()                                  [PCGComponent.cpp:571]
+  └─ UPCGComponent::GenerateLocal(bForce=false)            [PCGComponent.cpp:586]
+       └─ GenerateLocalGetTaskId(bForce)                   [PCGComponent.cpp:596]
+            └─ UPCGComponent::GenerateInternal()           [PCGComponent.cpp:611]
+                 ├─ IsGenerating() / ShouldGenerate() チェック
+                 ├─ UPCGSubsystem::ScheduleComponent()     ← タスクID取得
+                 │    └─ FPCGGraphCompiler::Compile()      ← グラフをタスクDAG化
+                 │         └─ FPCGGraphExecutor::Schedule()
+                 ├─ OnPCGGraphStartGenerating デリゲート発火
+                 └─ CurrentGenerationTask 保存
+
+[毎フレーム駆動]
+UPCGSubsystem::Tick()                                      [PCGSubsystem.cpp:311]
+  └─ FPCGGraphExecutor::Execute()
+       └─ for each ready task:
+            └─ IPCGElement::Execute(FPCGContext)
+                 ├─ Context->InputData から FPCGTaggedData 取得
+                 ├─ ノード固有処理（Sampler / Filter / Spawner 等）
+                 └─ Context->OutputData に結果を格納
+       └─ 全タスク完了時:
+            └─ UPCGComponent::PostProcessGraph()
+                 ├─ Spawner ノードの結果を ISMComponent に反映
+                 ├─ OnPCGGraphGenerated デリゲート発火
+                 └─ bGenerated = true
+```
+
+### フロー詳細
+
+1. **生成リクエスト** — `Generate()` は `Generate_Implementation` 経由で BP に公開（複製対応）。`GenerateLocal()` はローカルのみ（`PCGComponent.cpp:571–588`、[[Reference/ref_pcg_api]]）。
+2. **重複防止** — `IsGenerating()` チェックで同時生成を防止。`ShouldGenerate()` で `GenerationTrigger`（`GenerateOnLoad` / `OnDemand` / `AtRuntime`）の妥当性を判定（`PCGComponent.cpp:613`）。
+3. **タスクスケジュール** — `UPCGSubsystem::ScheduleComponent()` がグラフをコンパイルし、`FPCGGraphExecutor` の依存グラフ（DAG）にタスクを登録。タスクIDを返す（`PCGComponent.cpp:623`）。
+4. **グラフコンパイル** — `FPCGGraphCompiler` が `UPCGGraph` のノード接続を解析して実行順序を決定。SubGraph はインライン展開、ループは展開ノードを生成（[[Details/a_pcg_graph]]）。
+5. **ノード実行** — `UPCGSubsystem::Tick` が毎フレーム Ready 状態のタスクを処理。各 `IPCGElement::Execute(Context)` がワーカースレッドで並列実行可能（[[Details/b_pcg_elements]]、[[Details/d_custom_nodes]]）。
+6. **データフロー** — `FPCGContext::InputData` (`FPCGDataCollection`) からピン名で入力を取得し、処理結果を `OutputData` に格納。タグ・ピン情報も伝搬（[[Details/c_pcg_data]]）。
+7. **キャッシュ** — `IPCGElement::IsCacheable()` が `true` ならハッシュ一致時に再計算スキップ。同一 Settings / 入力データに対して結果再利用。
+8. **生成完了** — `Spawner` ノードが ISMC（InstancedStaticMeshComponent）にメッシュインスタンスを書き込み、`OnPCGGraphGenerated` デリゲートで通知。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `UPCGComponent::Generate` | `PCGComponent.cpp:571` | BP/C++ エントリ（複製あり） |
+| `UPCGComponent::GenerateLocal` | `PCGComponent.cpp:586` | ローカル生成 |
+| `UPCGComponent::GenerateInternal` | `PCGComponent.cpp:611` | スケジュール本体 |
+| `UPCGSubsystem::ScheduleComponent` | `PCGSubsystem.cpp` | タスク登録 |
+| `UPCGSubsystem::Tick` | `PCGSubsystem.cpp:311` | タスクディスパッチ |
+| `FPCGGraphCompiler::Compile` | `PCGGraphCompiler.cpp` | グラフ→DAG 変換 |
+| `FPCGGraphExecutor::Execute` | `PCGGraphExecutor.cpp` | DAG 実行 |
+| `IPCGElement::Execute` | 各 Element 実装 | ノード固有処理 |

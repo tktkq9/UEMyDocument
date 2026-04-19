@@ -157,3 +157,47 @@ FName RuntimeGrid;  // パーティション名を指定
 | `wp.Runtime.UpdateStreaming` | `1` | ストリーミング更新の有効/無効 |
 | `wp.Runtime.EnableServerStreaming` | `0` | サーバー側ストリーミング |
 | `wp.Editor.EnableStreaming` | `0` | エディタプレイ時のストリーミング |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+[ビルド時 — グリッド生成]
+UWorldPartitionRuntimeHashSet::GenerateStreaming()
+  └─ for each FRuntimePartitionDesc:
+       └─ URuntimePartitionLHGrid::GenerateStreaming()
+            ├─ ワールドバウンドを CellSize で分割
+            ├─ for each ActorDescInstance:
+            │    └─ アクタバウンドが交差するセルに割り当て
+            └─ FRuntimePartitionStreamingData::Cells を構築
+                 └─ R-tree を構築（FBox2D / FBox 階層）
+
+[ランタイム — セル検索]
+UWorldPartitionStreamingPolicy::UpdateStreamingStateInternal()  [WorldPartitionStreamingPolicy.cpp:392]
+  └─ UWorldPartitionRuntimeHashSet::ForEachStreamingCellsQuery()
+       └─ for each FWorldPartitionStreamingSource:
+            └─ for each FRuntimePartitionStreamingData:
+                 └─ R-tree::Query(Source.Location, LoadingRange)
+                      └─ ヒットしたセルを FrameActivateCells / FrameLoadCells に追加
+```
+
+### フロー詳細
+
+1. **ビルド時グリッド生成** — エディタ保存時、`UWorldPartitionRuntimeHashSet::GenerateStreaming()` が `URuntimePartitionLHGrid::CellSize`（デフォルト 25600 cm = 256m）でワールドを格子分割。
+2. **アクタ→セル割当** — 各 `FWorldPartitionActorDescInstance` のバウンドを使って、交差するすべてのセルに割り当て。複数セルにまたがるアクタは複数セルに登録される（[[c_actor_desc]]）。
+3. **R-tree 構築** — `FRuntimePartitionStreamingData` 内に空間インデックス（R-tree 階層）を構築。クエリは `O(log N)` で解決可能。
+4. **ランタイムクエリ** — 毎フレーム `UpdateStreamingStateInternal()` から `ForEachStreamingCellsQuery()` が呼ばれ、各ストリーミングソースに対して R-tree を走査。`Source.Location ± LoadingRange` で交差セルを抽出。
+5. **TargetState 候補** — `FStreamingSourceShape::bIsSector=true` なら扇形で絞り込み、`TargetState=Activated` なら `FrameActivateCells`、`Loaded` なら `FrameLoadCells` に分類（[[b_streaming_policy]]）。
+6. **HLOD 統合** — `URuntimePartition::HLODSetups` で各パーティションごとに HLOD レイヤーを定義。HLOD アクタも同じハッシュで管理される（[[HLOD/01_overview]]）。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `UWorldPartitionRuntimeHashSet::GenerateStreaming` | `RuntimeHashSet/WorldPartitionRuntimeHashSetStreamingGeneration.cpp` | ビルド時セル生成 |
+| `URuntimePartitionLHGrid::GenerateStreaming` | `RuntimeHashSet/RuntimePartitionLHGrid.cpp` | グリッド分割 |
+| `UWorldPartitionRuntimeHashSet::ForEachStreamingCellsQuery` | `RuntimeHashSet/WorldPartitionRuntimeHashSet.cpp` | ランタイム R-tree 検索 |
+| `FRuntimePartitionStreamingData` | `RuntimePartition.h` | セルコンテナ + 空間インデックス |

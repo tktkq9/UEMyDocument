@@ -187,3 +187,63 @@ enum class EDataLayerRuntimeState : uint8
 ```
 
 `Loaded` と `Activated` の違い：`Loaded` はアクタがメモリにあるが `BeginPlay` は呼ばれない（`AddToWorld` されていない）。`Activated` は `AddToWorld` まで完了して完全にアクティブな状態。
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+[エディタ — アセット作成]
+Content Browser → Right-click → World Partition → Data Layer
+  └─ UDataLayerAsset の .uasset を生成
+       └─ DataLayerType / DebugColor / LoadFilter を設定
+
+[エディタ — アクタへの登録]
+AActor::AddDataLayer(UDataLayerAsset*)
+  └─ FActorDataLayer 構造体を Actor::DataLayerAssets に追加
+       └─ WorldPartition が ActorDesc を再生成
+            └─ FWorldPartitionActorDesc::DataLayerAssets にシリアライズ  ← [[WorldPartition/Details/c_actor_desc]]
+
+[ワールドロード時 — インスタンス解決]
+UWorldPartition::Initialize()
+  └─ AWorldDataLayers::Initialize()
+       └─ for each UDataLayerInstance in DataLayerInstances:
+            └─ UDataLayerInstance->GetAsset() で UDataLayerAsset を解決
+                 └─ UDataLayerAsset::IsRuntime() で Runtime/Editor 判定
+                      ├─ Runtime → UDataLayerManager に登録
+                      └─ Editor  → エディタ UI でのみ表示
+
+[IsRuntime 判定]
+UDataLayerAsset::IsRuntime()
+  └─ return (DataLayerType == EDataLayerType::Runtime) && !IsPrivate()
+
+[LoadFilter チェック（ランタイム状態変更時）]
+AWorldDataLayers::CanChangeDataLayerRuntimeState()
+  └─ UDataLayerAsset->IsClientOnly() / IsServerOnly()
+       ├─ ClientOnly → 非クライアントは状態変更不可
+       └─ ServerOnly → 非サーバーは状態変更不可
+```
+
+### フロー詳細
+
+1. **アセット永続化** — `UDataLayerAsset` は `UDataAsset` を継承したシリアライザブルアセット。`.uasset` として保存され、`UDataLayerInstance` から `TSoftObjectPtr` で参照される（即時ロード不要）。
+2. **アクタへの登録** — アクタは `TArray<FActorDataLayer>` で所属レイヤーを保持。エディタでの Data Layer ウィンドウからのドラッグ操作で登録され、`FWorldPartitionActorDesc::DataLayerAssets` にシリアライズされる。
+3. **ActorDesc 連携** — アクタ本体をロードせずとも ActorDesc から所属 DataLayer を判定できるため、WP のストリーミング計算に組み込める（[[WorldPartition/Details/c_actor_desc]]）。
+4. **ワールド初期化** — ワールドロード時に `AWorldDataLayers` が `UDataLayerInstance` 群を走査し、参照先 `UDataLayerAsset` を解決。`IsRuntime()` が true のものだけ `UDataLayerManager` に登録される。
+5. **LoadFilter 判定** — 状態変更要求時に `IsClientOnly()` / `IsServerOnly()` を評価。許可されないネットワーク側からの変更は `CanChangeDataLayerRuntimeState()` で拒否される（[[b_runtime_toggle]]）。
+6. **ExternalDataLayer** — `UExternalDataLayerAsset` は `ExternalActorFolder` を持ち、ContentBundle や DLC から注入されたアクタをまとめて管理する専用レイヤー。通常レイヤーと同じ API だが、パッケージ境界で分離される（[[WorldPartition/Details/d_runtime_cell]]）。
+7. **bSupportsActorFilters** — HLOD ビルド時に `UHLODLayer` がフィルタ対象を判断する。`false` のアクタはフィルタリング対象外となり、常時 HLOD に含まれる。
+8. **IsPrivate フラグ** — 内部的に使用される非公開レイヤー（Subobject 的）。`IsRuntime()` は `IsPrivate()` を除外するため、ゲームプレイには露出しない。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `UDataLayerAsset::IsRuntime` | `DataLayer/DataLayerAsset.cpp` | Runtime 判定 |
+| `UDataLayerAsset::IsClientOnly/IsServerOnly` | `DataLayer/DataLayerAsset.cpp` | LoadFilter 評価 |
+| `UExternalDataLayerAsset` | `DataLayer/ExternalDataLayerAsset.cpp` | DLC/ContentBundle 用 |
+| `FActorDataLayer` | `DataLayer/ActorDataLayer.h` | アクタ側参照 |
+| `AWorldDataLayers::Initialize` | `DataLayer/WorldDataLayers.cpp` | インスタンス登録 |
+| `FWorldPartitionActorDesc::DataLayerAssets` | `WorldPartitionActorDesc.h` | ActorDesc シリアライズ |

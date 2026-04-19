@@ -142,3 +142,56 @@ static UHLODLayer* GetEngineDefaultHLODLayersSetup();
 ```
 
 **Project Settings → World Partition** で「Default HLOD Layer」を設定すると、`HLODLayer` が未設定のアクタに自動適用される。
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+[エディタ — レイヤー割り当て解決]
+UWorldPartitionRuntimeHashSet::SetupHLODActors()  （ビルド時）
+  └─ for each Actor:
+       └─ Actor->HLODLayer ?? UHLODLayer::GetEngineDefaultHLODLayersSetup()
+            └─ UHLODLayer::LayerType で処理分岐
+                 └─ UHLODLayer::HLODBuilderSettings をビルダーへ渡す
+
+[ランタイム — LOD 切替]
+UWorldPartitionHLODRuntimeSubsystem::OnCellShown(Cell)
+  └─ for each AWorldPartitionHLOD referencing Cell:
+       └─ HLOD->SetVisibility(false)  ← セルが見えるので HLOD 隠す
+
+UWorldPartitionHLODRuntimeSubsystem::OnCellHidden(Cell)
+  └─ if (CanMakeInvisible(Cell)):
+       └─ for each AWorldPartitionHLOD referencing Cell:
+            └─ HLOD->SetVisibility(true)   ← セルが消えたので HLOD 表示
+            └─ if (HLOD->bRequireWarmup):
+                 └─ NaniteStreamingManager->RequestWarmup()
+
+[CVar 制御]
+wp.Runtime.HLOD 変更
+  └─ UHLODLayer::IsHLODEnabled() が false に
+       └─ 全 AWorldPartitionHLOD を強制非表示
+```
+
+### フロー詳細
+
+1. **レイヤー解決** — ビルド時に各アクタの `HLODLayer` プロパティを確認。未設定なら `GetEngineDefaultHLODLayersSetup()` がプロジェクト設定のデフォルトを返す。これにより HLOD が未指定でも自動フォールバック。
+2. **LayerType 分岐** — `SetupHLODActors()` から呼ばれるビルダー選択は `UHLODLayer::LayerType` を switch し、対応する `UHLODBuilder` 派生クラスで `Build()` を実行（[[a_hlod_generation]]）。
+3. **階層再帰** — `ParentLayer` が設定されていると、親レイヤーの設定で次 LODLevel の HLOD を生成。子 HLOD 群を入力として親 HLOD を構築することで段階的詳細化。
+4. **ロード距離** — UE5.7 以降は `FRuntimePartitionHLODSetup::LoadingRange` が主導。旧 `UHLODLayer::LoadingRange` は deprecated だが後方互換のためフォールバック経路が残る。
+5. **ランタイム切替** — `UWorldPartitionHLODRuntimeSubsystem` が `OnCellShown`/`OnCellHidden` デリゲートを購読（[[c_hlod_runtime]]）。セルとそれに対応する `AWorldPartitionHLOD` を逆引きし、`SetVisibility()` で切り替え。
+6. **Nanite ウォームアップ** — `bRequireWarmup=true` の HLOD は表示前に Nanite ストリーミングページを事前要求。ポップインを防ぐ。
+7. **デバッグ無効化** — `wp.Runtime.HLOD 0` で `IsHLODEnabled()` が `false` になり、全 HLOD が強制非表示。元アクタの表示確認に使用。
+8. **HLODBuilderSettings ハッシュ** — `ComputeHLODHash()` が設定変更を検知。`FMeshProxySettings` の削減率変更等があれば再ビルドをトリガー。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `UHLODLayer::GetEngineDefaultHLODLayersSetup` | `HLOD/HLODLayer.cpp` | プロジェクトデフォルト解決 |
+| `UHLODLayer::IsHLODEnabled` | `HLOD/HLODLayer.cpp` | CVar 制御 |
+| `UWorldPartitionHLODRuntimeSubsystem::OnCellShown/Hidden` | `HLOD/HLODRuntimeSubsystem.cpp` | セル連動切替 |
+| `UHLODBuilderSettings::ComputeHLODHash` | `HLOD/HLODBuilder.cpp` | 再ビルド判定 |
+| `FRuntimePartitionHLODSetup` | `RuntimeHashSet/RuntimePartition.h` | UE5.7+ 設定格納 |

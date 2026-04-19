@@ -60,3 +60,33 @@
 | PCG | 1/1 | 4/4 | 2/2 | 7/7 |
 
 **合計**: 概要 1 + ソースマップ 1 + サブフォルダ概要 5 + Details 17 + Reference 7 = **31 ファイル（全完了）**
+
+---
+
+## Ph4 — コード実行フロー追記（2026-04-19 完了）
+
+- [x] `01_worldbuilding_overview.md`
+- [x] `WorldPartition/01_overview.md`
+- [x] `WorldPartition/Details/a_spatial_hash.md`
+- [x] `WorldPartition/Details/b_streaming_policy.md`
+- [x] `WorldPartition/Details/c_actor_desc.md`
+- [x] `WorldPartition/Details/d_runtime_cell.md`
+- [x] `HLOD/01_overview.md`
+- [x] `HLOD/Details/a_hlod_generation.md`
+- [x] `HLOD/Details/b_hlod_layer.md`
+- [x] `HLOD/Details/c_hlod_runtime.md`
+- [x] `DataLayer/01_overview.md`
+- [x] `DataLayer/Details/a_data_layer_asset.md`
+- [x] `DataLayer/Details/b_runtime_toggle.md`
+- [x] `DataLayer/Details/c_editor_integration.md`
+- [x] `LevelStreaming/01_overview.md`
+- [x] `LevelStreaming/Details/a_level_streaming.md`
+- [x] `LevelStreaming/Details/b_seamless_travel.md`
+- [x] `LevelStreaming/Details/c_dynamic_streaming.md`
+- [x] `PCG/01_overview.md`
+- [x] `PCG/Details/a_pcg_graph.md`
+- [x] `PCG/Details/b_pcg_elements.md`
+- [x] `PCG/Details/c_pcg_data.md`
+- [x] `PCG/Details/d_custom_nodes.md`
+
+**Ph4 対象**: 23 ファイル（overview 1 + sub-overview 5 + Details 17）

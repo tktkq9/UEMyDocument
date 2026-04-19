@@ -179,3 +179,75 @@ FString UWorld::GetSeamlessTravelDestinationURL() const;
 | `PostSeamlessTravel()` | 新マップのロード完了後 |
 | `HandleSeamlessTravelPlayer(AController*)` | 各プレイヤーを新マップに移行する時 |
 | `GetPlayerControllerClassToSpawnForSeamlessTravel(...)` | 新マップで生成するPC クラスを決定 |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+[Seamless Travel — サーバーエントリ]
+UWorld::ServerTravel(URL, bAbsolute, bShouldSkipGameNotify)
+  └─ AGameModeBase::ProcessServerTravel(URL, bAbsolute)
+       ├─ bUseSeamlessTravel チェック
+       │    ├─ true  → UWorld::SeamlessTravel()
+       │    └─ false → UEngine::LoadMap() (Non-Seamless)
+       └─ UWorld::SeamlessTravel(URL, bAbsolute)
+            └─ NextURL = URL; bRequestedSeamlessTravel = true
+
+[毎フレーム駆動]
+UEngine::Tick()
+  └─ UEngine::TickWorldTravel(WorldContext, DeltaSeconds)
+       └─ if (World->NextURL != "") or SeamlessTravelHandler.IsTraveling():
+            └─ FSeamlessTravelHandler::Tick()
+                 ├─ Phase1: StartTravel() — TransitionMap ロード開始
+                 │    └─ LoadPackageAsync(TransitionMap)
+                 │         └─ AGameModeBase::GetSeamlessTravelActorList(bToTransition=true)
+                 │              └─ PlayerController/GameState 等を KeepActors に追加
+                 ├─ Phase2: TransitionMap 完了
+                 │    ├─ 古い World を Tear Down
+                 │    ├─ KeepActors を TransitionMap に転送
+                 │    └─ AGameModeBase::PostSeamlessTravel() (TransitionMap 側)
+                 ├─ Phase3: 目的地マップ非同期ロード
+                 │    └─ LoadPackageAsync(DestURL)
+                 ├─ Phase4: 目的地完了
+                 │    ├─ TransitionMap を Tear Down
+                 │    ├─ KeepActors を新マップに転送
+                 │    │    └─ GetSeamlessTravelActorList(bToTransition=false)
+                 │    ├─ HandleSeamlessTravelPlayer(Controller) — 各プレイヤー再初期化
+                 │    └─ AGameModeBase::PostSeamlessTravel() (目的地側)
+                 └─ NotifyAllClients → ClientTravel でクライアントも追従
+
+[Non-Seamless Travel]
+UEngine::LoadMap(WorldContext, URL, Pending, Error)
+  ├─ UEngine::CleanupPackagesToFullyLoad()
+  ├─ 全 World を Tear Down（既存コネクション切断）
+  ├─ UPackageTools::LoadPackage(URL)  ← 同期ロード
+  └─ InitializeNewlyCreatedWorld() → NewWorld->BeginPlay()
+```
+
+### フロー詳細
+
+1. **ServerTravel 起点** — サーバー側から `UWorld::ServerTravel()` を呼ぶ。内部で `bUseSeamlessTravel` を確認して Seamless/Non-Seamless を選択。Seamless なら `NextURL` を設定して次フレームの処理に委譲。
+2. **TickWorldTravel 駆動** — `UEngine::TickWorldTravel` が毎フレーム `FSeamlessTravelHandler::Tick()` を呼び出し、4 フェーズの状態機械を進行。
+3. **Phase1 - TransitionMap ロード** — `GetSeamlessTravelActorList(bToTransition=true)` で引き継ぎアクタを収集。`PlayerController`/`GameState` はデフォルトで含まれる。`LoadPackageAsync` で TransitionMap を非同期ロード。
+4. **Phase2 - 中継切替** — TransitionMap ロード完了で古い World を Tear Down し、KeepActors を `Rename()` で TransitionMap に所属替え。`PostSeamlessTravel()` が呼ばれローディング UI を表示できる。
+5. **Phase3 - 目的地ロード** — バックグラウンドで目的地マップをロード。TransitionMap が表示され続けるためプレイヤー体験はシームレス。
+6. **Phase4 - 最終切替** — 目的地ロード完了で再度 KeepActors を転送（`bToTransition=false`）。`HandleSeamlessTravelPlayer()` が各 `PlayerController` を新マップの GameMode に登録、`InitSeamlessTravelPlayer()` で状態初期化。
+7. **クライアント追従** — サーバーが `NotifyAllClients` で `ClientTravel` を送出し、各クライアントが同じ URL に遷移。接続自体は維持されるため再ログイン不要。
+8. **Non-Seamless** — `UEngine::LoadMap` は単純。古い World をすべて Tear Down しサーバー/クライアント接続を切断、新マップを同期ロード。マルチでは全員再接続要するので推奨されない。
+9. **WP との関係** — Seamless Travel で WP マップへ遷移する場合、`UWorldPartition::Initialize()` が新マップ側の `BeginPlay` 以降で呼ばれる。ストリーミングソース（PlayerController）は引き継がれるため、新マップでも位置が維持される。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `UWorld::ServerTravel` | `World.cpp` | 起点 |
+| `UWorld::SeamlessTravel` | `World.cpp` | Seamless フラグ設定 |
+| `UEngine::TickWorldTravel` | `UnrealEngine.cpp` | 毎フレーム駆動 |
+| `FSeamlessTravelHandler::Tick` | `UnrealEngine.cpp` | フェーズ進行 |
+| `AGameModeBase::GetSeamlessTravelActorList` | `GameModeBase.cpp` | 引き継ぎアクタ定義 |
+| `AGameModeBase::PostSeamlessTravel` | `GameModeBase.cpp` | 完了コールバック |
+| `AGameModeBase::HandleSeamlessTravelPlayer` | `GameModeBase.cpp` | プレイヤー再初期化 |
+| `UEngine::LoadMap` | `UnrealEngine.cpp` | Non-Seamless 実装 |

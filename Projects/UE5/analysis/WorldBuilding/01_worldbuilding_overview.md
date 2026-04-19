@@ -92,3 +92,55 @@ UWorld::Tick()
 | `DataLayer/` | [[DataLayer/01_overview]] | DataLayer 定義・ランタイム状態管理・エディタ連携 |
 | `LevelStreaming/` | [[LevelStreaming/01_overview]] | ULevelStreaming・動的ストリーミング・Seamless Travel |
 | `PCG/` | [[PCG/01_overview]] | PCG グラフ・標準ノード・データ型・カスタム拡張 |
+
+---
+
+## コード実行フロー
+
+### エントリポイント（毎フレーム・ゲームスレッド）
+
+```
+UWorld::Tick()  (LevelTick.cpp)
+  ├─ UWorldPartitionSubsystem::UpdateStreamingState()         [WorldPartitionSubsystem.cpp:1185]
+  │    └─ for each UWorldPartition:
+  │         └─ UWorldPartitionStreamingPolicy::UpdateStreamingState()  [WorldPartitionStreamingPolicy.cpp:273]
+  │              ├─ UpdateStreamingSources()        ← ストリーミングソース収集
+  │              ├─ ComputeUpdateStreamingHash()    ← 差分検出（不変なら早期 return）
+  │              └─ UpdateStreamingStateInternal()  [WorldPartitionStreamingPolicy.cpp:392]
+  │                   ├─ UWorldPartitionRuntimeHashSet::GetStreamingCells()  ← R-tree でセル検索
+  │                   ├─ 差分計算 → FWorldPartitionUpdateStreamingTargetState
+  │                   └─ UWorldPartitionRuntimeCell::SetStreamingStatus()
+  │                        └─ ULevelStreamingDynamic::SetShouldBeLoaded()/SetShouldBeVisible()
+  │
+  ├─ UWorld::UpdateLevelStreaming()                             [World.cpp:4932]
+  │    └─ ULevelStreaming::UpdateStreamingState()               [LevelStreaming.cpp:992]
+  │         └─ ULevelStreaming::RequestLevel()                  [LevelStreaming.cpp:1551]
+  │              └─ LoadPackageAsync()  ← 非同期レベルロード
+  │
+  └─ UWorldPartition::OnCellShown() / OnCellHidden()           [WorldPartition.cpp:1974 / 1988]
+       ├─ UWorldPartitionHLODRuntimeSubsystem::OnCellShown()   [HLODRuntimeSubsystem.cpp:578]
+       │    └─ HLOD アクタの可視性切り替え
+       └─ StreamingPolicy->OnCellShown()
+```
+
+### フロー詳細
+
+1. **ストリーミングソース収集** — `UpdateStreamingSources()` が `PlayerController` など `IWorldPartitionStreamingSourceProvider` 実装から位置・速度・TargetState を取得（`WorldPartitionStreamingPolicy.cpp:273+`）。
+2. **セル判定** — 各 `UWorldPartitionRuntimeCell` についてソースとの距離をチェックし、`LoadingRange` 内なら `ToActivateCells`/`ToLoadCells` に追加（[[WorldPartition/Details/a_spatial_hash]]）。
+3. **差分適用** — 前フレームの `CurrentState` との差分で `Load` / `Activate` / `Deactivate` / `Unload` の 4 種遷移を決定（[[WorldPartition/Details/b_streaming_policy]]）。
+4. **セルのストリーミング要求** — セルは内部で `ULevelStreamingDynamic` を持ち、`SetShouldBeLoaded(true)` → 非同期ロードを起動（[[LevelStreaming/Details/a_level_streaming]]）。
+5. **ロード完了コールバック** — `ULevelStreaming::AsyncLoadCallback` → `UWorldPartition::OnCellShown()` → HLOD 切り替え / DataLayer 状態反映（[[HLOD/Details/c_hlod_runtime]]）。
+6. **DataLayer 状態変更** — `UDataLayerManager::SetDataLayerRuntimeState()` → `AWorldDataLayers::SetDataLayerRuntimeState()` が epoch を更新し、次フレームの `ComputeUpdateStreamingHash()` で差分が検出され、セル再評価がトリガされる（[[DataLayer/Details/b_runtime_toggle]]）。
+7. **PCG 生成（独立系）** — `UPCGComponent::Generate()` → `GenerateInternal()` が `UPCGSubsystem` に非同期タスクを登録。`UPCGSubsystem::Tick()` が各タスクを進行（`PCGComponent.cpp:571, 611` / `PCGSubsystem.cpp:311`）。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `UWorldPartitionSubsystem::UpdateStreamingStateInternal` | `WorldPartitionSubsystem.cpp:1185` | 全 WorldPartition の更新ドライバ |
+| `UWorldPartitionStreamingPolicy::UpdateStreamingState` | `WorldPartitionStreamingPolicy.cpp:273` | ソース収集・差分検出・非同期ディスパッチ |
+| `UWorldPartition::OnCellShown` / `OnCellHidden` | `WorldPartition.cpp:1974` / `1988` | HLOD・Policy へのセル状態通知 |
+| `ULevelStreaming::RequestLevel` | `LevelStreaming.cpp:1551` | パッケージ非同期ロードの起点 |
+| `UWorld::UpdateLevelStreaming` | `World.cpp:4932` | レベルストリーミング全体駆動 |
+| `UPCGComponent::Generate` / `GenerateInternal` | `PCGComponent.cpp:571` / `611` | PCG グラフ実行スケジュール |
+| `UPCGSubsystem::Tick` | `PCGSubsystem.cpp:311` | PCG 非同期タスク駆動 |

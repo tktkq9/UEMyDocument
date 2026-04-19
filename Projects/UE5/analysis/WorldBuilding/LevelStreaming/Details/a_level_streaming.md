@@ -212,3 +212,68 @@ class ALevelStreamingVolume : public AVolume
 | `s.LevelStreamingActorsUpdateTimeLimit` | AddToWorld でアクタ追加に使える時間制限（ms）|
 | `s.UnregisterComponentsTimeLimit` | RemoveFromWorld でのコンポーネント登録解除制限 |
 | `s.PriorityLevelStreamingActorsUpdateExtraTime` | 高優先度レベルへの追加時間 |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+[毎フレーム駆動]
+UWorld::Tick()
+  └─ UWorld::UpdateLevelStreaming()                        [World.cpp:4932]
+       ├─ FStreamingLevelsToConsider を走査
+       └─ for each ULevelStreaming:
+            └─ ULevelStreaming::UpdateStreamingState()     [LevelStreaming.cpp:992]
+                 ├─ DetermineTargetState()
+                 │    └─ bShouldBeLoaded / bShouldBeVisible から ELevelStreamingTargetState 決定
+                 ├─ switch (TargetState vs CurrentState):
+                 │    ├─ → Loading:
+                 │    │    └─ RequestLevel(World, PackageName, DataReleaseType)  [LevelStreaming.cpp:1551]
+                 │    │         ├─ LoadPackageAsync(PackagePath, CompletionCallback)
+                 │    │         │    └─ AsyncRequestIDs に ID 保存
+                 │    │         └─ AsyncLoadCallback(Pkg, Result):
+                 │    │              ├─ UWorld* LoadedWorld = FindWorld(Pkg)
+                 │    │              ├─ ULevel* NewLevel = LoadedWorld->PersistentLevel
+                 │    │              └─ SetLoadedLevel(NewLevel)
+                 │    │                   └─ OnLevelLoaded.Broadcast()
+                 │    ├─ → MakingVisible:
+                 │    │    └─ ULevel::AddToWorld(World, Transform)
+                 │    │         ├─ インクリメンタルに actors を UWorld に追加
+                 │    │         ├─ Component 登録 / PhysicsState 作成
+                 │    │         └─ OnLevelShown.Broadcast()
+                 │    ├─ → MakingInvisible:
+                 │    │    └─ ULevel::RemoveFromWorld()
+                 │    │         ├─ Component 登録解除
+                 │    │         └─ OnLevelHidden.Broadcast()
+                 │    └─ → Unloaded:
+                 │         └─ UPackage::MarkAsUnreachable → GC で解放
+                 └─ PostUpdateStreamingState() で次フレーム用フラグ整理
+```
+
+### フロー詳細
+
+1. **UpdateLevelStreaming 駆動** — `UWorld::Tick` から毎フレーム呼ばれ、登録済み `ULevelStreaming` を `FStreamingLevelsToConsider` 経由で走査。`bShouldBeLoaded`/`bShouldBeVisible` 変更があったものだけキューされる最適化あり。
+2. **TargetState 決定** — 現在の状態と要求フラグから `ELevelStreamingTargetState` を計算。`bShouldBeLoaded=false && LoadedLevel!=nullptr` なら `Unloaded` を目指す。
+3. **非同期ロード要求** — `RequestLevel()` が `LoadPackageAsync` に委譲。`bShouldBlockOnLoad=true` なら `FlushAsyncLoading()` で同期化（フレームドロップ覚悟）。返却される `FPackageRequestID` は `AsyncRequestIDs` に記録。
+4. **ロード完了コールバック** — `AsyncLoadCallback(Pkg, Result)` が完了後に呼ばれ、パッケージ内の `UWorld` を探索し `PersistentLevel` を取得。`SetLoadedLevel()` で保持し `OnLevelLoaded` を Broadcast。
+5. **AddToWorld インクリメンタル** — `bShouldBeVisible=true` なら `ULevel::AddToWorld()` が呼ばれ、`s.LevelStreamingActorsUpdateTimeLimit` で指定された時間内でアクタ登録を分割処理。複数フレームに跨ぐ可能性あり（`MakingVisible` 状態の間）。
+6. **RemoveFromWorld** — 逆方向は `RemoveFromWorld()` で `s.UnregisterComponentsTimeLimit` 内でコンポーネント登録解除。終了で `LoadedNotVisible` に戻る。
+7. **アンロード** — `TargetState=Unloaded` なら `LoadedLevel` の `UPackage` を `MarkAsGarbage` し、次の GC で解放。`bShouldBlockOnUnload=true` なら同期 GC をトリガー。
+8. **優先度制御** — `StreamingPriority` は `LoadPackageAsync` のロード順に反映。`SetPriorityOverride()` で一時的に引き上げ（例: プレイヤー近傍のセル）。
+9. **WP との関係** — WorldPartition セルは `UWorldPartitionLevelStreamingDynamic` を生成し、ストリーミングポリシーから `SetShouldBeLoaded`/`SetShouldBeVisible` を呼ぶだけ。以降の処理は全て本ファイルのフロー。
+10. **ボリュームトリガー** — `ALevelStreamingVolume` 内にプレイヤーが入ると `UWorld::ProcessLevelStreamingVolumes()` が対応する `ULevelStreaming` のフラグを立てる。WP と併用も可能。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `UWorld::UpdateLevelStreaming` | `World.cpp:4932` | 毎フレーム駆動 |
+| `ULevelStreaming::UpdateStreamingState` | `LevelStreaming.cpp:992` | 状態差分→アクション |
+| `ULevelStreaming::RequestLevel` | `LevelStreaming.cpp:1551` | 非同期ロード要求 |
+| `ULevelStreaming::AsyncLoadCallback` | `LevelStreaming.cpp` | ロード完了処理 |
+| `ULevel::AddToWorld` | `Level.cpp` | ワールド統合（インクリメンタル） |
+| `ULevel::RemoveFromWorld` | `Level.cpp` | ワールド除去 |
+| `UWorld::ProcessLevelStreamingVolumes` | `World.cpp` | ボリュームトリガー |
+| `FLevelStreamingLoadedStatus` | `LevelStreaming.h` | ロード/アンロードデリゲート |

@@ -175,3 +175,67 @@ EventBeginPlay →
 - `LevelName` はショートネーム（`MyLevel`）より **フルパス**（`/Game/Maps/MyLevel`）を推奨。ショートネームはディスク検索を強制してパフォーマンス低下する
 - マルチプレイヤーではサーバーとクライアントで **同じパッケージ名**（`OptionalLevelNameOverride`）を使う必要がある
 - パッケージングするには **Project Settings → Packaging → Maps to Include** にマップを追加する
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+[BP/C++ 起点]
+ULevelStreamingDynamic::LoadLevelInstance(World, Name, Loc, Rot, Success)        [LevelStreamingDynamic.cpp]
+  └─ LoadLevelInstance_Internal(Params: FLoadLevelInstanceParams)
+       ├─ LongPackageName 正規化（/Game/Maps/... に変換）
+       ├─ OptionalLevelNameOverride でマルチ同期用名前を決定
+       ├─ 既存 ULevelStreaming の再利用可否判定
+       │    └─ bAllowReuseExistingLevelStreaming && 同名既存あり → 既存返却
+       ├─ NewObject<ULevelStreamingDynamic>(World, Class)
+       │    ├─ WorldAsset = TSoftObjectPtr<UWorld>(LongPackageName)
+       │    ├─ LevelTransform = Params.LevelTransform
+       │    ├─ bInitiallyVisible = Params.bInitiallyVisible
+       │    └─ SetShouldBeLoaded(true)
+       ├─ World->AddStreamingLevel(NewObj)
+       │    └─ UWorld::StreamingLevels.Add(NewObj)
+       │    └─ FStreamingLevelsToConsider に登録
+       ├─ Params.LevelStreamingCreatedCallback(NewObj)
+       └─ return NewObj  (bOutSuccess=true)
+
+[次フレーム以降は通常の LevelStreaming フロー]
+UWorld::UpdateLevelStreaming()  [World.cpp:4932]
+  └─ ULevelStreaming::UpdateStreamingState()  [LevelStreaming.cpp:992]
+       └─ RequestLevel() → LoadPackageAsync()
+            └─ AsyncLoadCallback() → SetLoadedLevel()
+       └─ ULevel::AddToWorld(LoadedLevel, LevelTransform)  ← Transform 適用
+            └─ OnLevelShown.Broadcast()
+
+[WP セル用派生クラス]
+UWorldPartitionLevelStreamingDynamic::Create(Cell)
+  └─ ULevelStreamingDynamic から派生し、セル専用のパッケージ解決ロジック追加
+       └─ UWorldPartition::Initialize 時に各セルに対し 1 インスタンス生成
+```
+
+### フロー詳細
+
+1. **静的ファクトリ** — `LoadLevelInstance()` は静的メソッドで、内部で `LoadLevelInstance_Internal(FLoadLevelInstanceParams)` に委譲。BP からは `bOutSuccess` 出力付きのシンプル版、C++ は詳細パラメータ版を使い分け。
+2. **名前正規化** — `LongPackageName` はフルパス推奨。ショートネーム（`MyLevel`）は `FPackageName::SearchForPackageOnDisk()` が走りパフォーマンス低下。ネットワーク同期には `OptionalLevelNameOverride` でサーバー/クライアント共通名を指定。
+3. **既存再利用** — `bAllowReuseExistingLevelStreaming=true` かつ同名の `ULevelStreaming` が既にあれば再利用。ロード済みなら即 Visible 化できる。
+4. **インスタンス生成** — `NewObject<ULevelStreamingDynamic>` で World 配下に作成。`LevelTransform` で位置を指定、`bInitiallyVisible` で初期表示を制御。`SetShouldBeLoaded(true)` を呼んだ時点で次フレームのロード開始が確定。
+5. **StreamingLevels 登録** — `UWorld::AddStreamingLevel()` が内部配列に追加し `FStreamingLevelsToConsider` にも登録。以降は通常の `UpdateLevelStreaming` ループで処理（[[a_level_streaming]]）。
+6. **Transform 適用タイミング** — `LevelTransform` は `AddToWorld()` 実行時にワールド内アクタへ一括適用。`UTransformTrackerBase` が `ULevel::MoveLevel()` 経由で位置を反映。ロード後の動的変更は公式非対応。
+7. **コールバック** — `LevelStreamingCreatedCallback` は生成直後・ロード開始前に呼ばれ、`OnLevelShown`/`OnLevelLoaded` デリゲートのバインドに使うのが典型パターン。
+8. **アンロード** — `SetIsRequestingUnloadAndRemoval(true)` にすると `UpdateStreamingState` が `UnloadedAndRemoved` ターゲットへ遷移、GC で `ULevelStreamingDynamic` 自体も破棄。
+9. **WP 派生クラス** — `UWorldPartitionLevelStreamingDynamic` は `ULevelStreamingDynamic` を継承し、セルパッケージ解決を WP 側に委譲。ストリーミングポリシーから `SetShouldBeLoaded/Visible` を呼ぶだけで本フローが動く（[[WorldPartition/Details/d_runtime_cell]]）。
+10. **マルチプレイヤー** — サーバー/クライアントで `OptionalLevelNameOverride` を同値にしないと、レベル内アクタのレプリケーションが対応付けできず不一致を起こす。`TEXT("Unique_Name_01")` 等の一意名を両側で指定。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `ULevelStreamingDynamic::LoadLevelInstance` | `LevelStreamingDynamic.cpp` | BP エントリ |
+| `ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr` | `LevelStreamingDynamic.cpp` | ソフト参照版 |
+| `ULevelStreamingDynamic::LoadLevelInstance_Internal` | `LevelStreamingDynamic.cpp` | 実装本体 |
+| `FLoadLevelInstanceParams` | `LevelStreamingDynamic.h` | 詳細パラメータ |
+| `UWorld::AddStreamingLevel` | `World.cpp` | StreamingLevels 登録 |
+| `ULevel::MoveLevel` | `Level.cpp` | LevelTransform 適用 |
+| `UWorldPartitionLevelStreamingDynamic` | `WorldPartition/WorldPartitionLevelStreamingDynamic.cpp` | WP セル専用 |

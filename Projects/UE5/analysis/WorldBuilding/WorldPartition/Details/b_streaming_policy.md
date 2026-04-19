@@ -183,3 +183,52 @@ Activated → Deactivating → Deactivated → Unloading → Unloaded
 | `wp.Runtime.MaxCellsPerFrame` | 1 フレームあたり最大ロード開始セル数 |
 | `wp.Runtime.DebugForcedCells` | デバッグ用強制ロードセル指定 |
 | `wp.Runtime.OverrideLoadingRange` | ロード距離を上書き（デバッグ） |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+UWorldPartitionStreamingPolicy::UpdateStreamingState()       [WorldPartitionStreamingPolicy.cpp:273]
+  ├─ ++UpdateStreamingStateCounter
+  ├─ WaitForAsyncUpdateStreamingState()                     ← 前フレーム async タスク待機
+  ├─ UpdateStreamingSources(bCanOptimizeUpdate)             ← Provider から FWorldPartitionStreamingSource 収集
+  ├─ ComputeUpdateStreamingHash(bCanOptimizeUpdate)
+  │    └─ ソース・DataLayer・Epoch 等からハッシュ算出
+  ├─ if (NewHash == OldHash && bCanUpdateAsync && Counter>=2) → return
+  └─ if (bCanUpdateAsync):
+       └─ AsyncUpdateTaskState = Pending                    ← Subsystem が後で UE::Tasks::Launch
+     else:
+       ├─ UpdateStreamingStateInternal()                    [:392]
+       │    ├─ FWorldPartitionStreamingContext 構築
+       │    ├─ RuntimeHash->ForEachStreamingCellsQuery()
+       │    │    └─ FrameActivateCells / FrameLoadCells に振り分け
+       │    └─ 差分計算 → OutTargetState（ToLoad/ToActivate/ToDeactivate/ToUnload）
+       └─ PostUpdateStreamingStateInternal_GameThread()
+            └─ for each cell in TargetState:
+                 └─ Cell->SetStreamingStatus(Loaded/Activated/Deactivated/Unloaded)
+                      └─ ULevelStreamingDynamic::SetShouldBeLoaded() / SetShouldBeVisible()
+```
+
+### フロー詳細
+
+1. **ソース収集** — `UpdateStreamingSources()` が PlayerController（自動）と `UWorldPartitionStreamingSourceComponent`（手動）から `FWorldPartitionStreamingSource` を収集。
+2. **ハッシュ早期 return** — ソース位置・速度・DataLayer 状態に変化がなく、かつ非同期更新可能で 2 フレーム連続同一なら処理スキップ（`WorldPartitionStreamingPolicy.cpp:363–371`）。
+3. **非同期 vs 同期判定** — DedicatedServer でなく `BlockTillLevelStreamingCompleted` 中でなければ `bCanUpdateAsync=true`。`AsyncUpdateTaskState=Pending` にして `OnStreamingStateUpdated` ブロードキャスト後にワーカースレッドへディスパッチ（`:376–389`）。
+4. **セル抽出** — 各ソースの `Shapes`（球 or 扇形）と `LoadingRange` で R-tree クエリ。`TargetState=Activated/Loaded` ごとにセルを `FrameActivateCells` / `FrameLoadCells` に分類（[[a_spatial_hash]]）。
+5. **TargetState 計算** — `CurrentState.ActivatedCells` / `LoadedCells` との差分から 4 種遷移リスト（ToActivate/ToLoad/ToDeactivate/ToUnload）を構築。
+6. **CSV ソート** — セルは `Source` との距離・優先度・`SortingOrder` で並び替え。`MaxCellsPerFrame` でロード起動数を制限。
+7. **状態適用** — `Cell->SetStreamingStatus()` が内部の `ULevelStreamingDynamic` に転送し、最終的に `UWorld::UpdateLevelStreaming()` がロード処理（[[LevelStreaming/Details/a_level_streaming]]）。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `UWorldPartitionStreamingPolicy::UpdateStreamingState` | `WorldPartitionStreamingPolicy.cpp:273` | エントリポイント |
+| `UWorldPartitionStreamingPolicy::UpdateStreamingStateInternal` | `:392` | コア計算（GT/WT 兼用） |
+| `UWorldPartitionStreamingPolicy::UpdateStreamingSources` | `:` | ソース収集 |
+| `UWorldPartitionStreamingPolicy::ComputeUpdateStreamingHash` | `:` | 差分ハッシュ |
+| `UWorldPartitionStreamingPolicy::PostUpdateStreamingStateInternal_GameThread` | `:` | セルへの状態適用 |
+| `FWorldPartitionUpdateStreamingTargetState` | `WorldPartitionStreamingPolicy.h` | 1 フレームの遷移リスト |

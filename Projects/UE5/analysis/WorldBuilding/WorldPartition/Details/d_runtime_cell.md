@@ -179,3 +179,58 @@ class UContentBundleDescriptor : public UObject
 | `wp.Runtime.ToggleDrawRuntimeHash2D` | 2D セルグリッドの表示切り替え |
 | `wp.Runtime.ToggleDrawRuntimeHash3D` | 3D セルグリッドの表示切り替え |
 | `wp.Runtime.DebugForcedCells` | 強制ロードするセル名 |
+
+---
+
+## コード実行フロー
+
+### エントリポイント
+
+```
+[ストリーミングポリシーからの状態適用]
+UWorldPartitionStreamingPolicy::PostUpdateStreamingStateInternal_GameThread()
+  └─ for each Cell in TargetState.ToActivate / ToLoad / ToDeactivate / ToUnload:
+       └─ UWorldPartitionRuntimeCell::SetStreamingStatus(NewState)
+            ├─ if NewState == Loaded:
+            │    └─ UWorldPartitionRuntimeLevelStreamingCell::Load()
+            │         └─ LevelStreamingObject->SetShouldBeLoaded(true)
+            │              └─ ULevelStreaming::RequestLevel()  ← [[LevelStreaming/Details/a_level_streaming]]
+            │                   └─ LoadPackageAsync() → AsyncLoadCallback
+            ├─ if NewState == Activated:
+            │    └─ UWorldPartitionRuntimeLevelStreamingCell::Activate()
+            │         └─ LevelStreamingObject->SetShouldBeVisible(true)
+            │              └─ ULevel::AddToWorld()
+            │                   └─ OnCellShown デリゲート発火  ← HLOD 切替へ波及
+            ├─ if NewState == Deactivated:
+            │    └─ Deactivate() → SetShouldBeVisible(false) → RemoveFromWorld()
+            └─ if NewState == Unloaded:
+                 └─ Unload() → SetShouldBeLoaded(false) → パッケージ解放
+
+[ContentBundle 注入]
+UContentBundleClient::RequestContentInjection()
+  └─ UContentBundleManager::InjectContentBundle()
+       └─ UActorDescContainerSubsystem::RegisterContainer(BundleContainer)
+            └─ セル再生成 → ContentBundleID 付きで StreamingData に登録
+```
+
+### フロー詳細
+
+1. **状態適用の起点** — `PostUpdateStreamingStateInternal_GameThread()` が `FWorldPartitionUpdateStreamingTargetState` の 4 リスト（ToActivate/ToLoad/ToDeactivate/ToUnload）を順に走査し、各セルに `SetStreamingStatus(NewState)` を通知（[[b_streaming_policy]]）。
+2. **セル→LevelStreaming 委譲** — `UWorldPartitionRuntimeLevelStreamingCell` は内部に `ULevelStreamingDynamic` を保持し、`Load()`/`Activate()`/`Deactivate()`/`Unload()` を `SetShouldBeLoaded()` / `SetShouldBeVisible()` に転送。実ロードは `UWorld::UpdateLevelStreaming` が駆動。
+3. **非同期パッケージロード** — `RequestLevel()` が `LoadPackageAsync()` を呼び、完了時に `SetLoadedLevel()` でセルに結果をアタッチ（[[LevelStreaming/Details/a_level_streaming]]）。
+4. **可視化通知** — `AddToWorld()` 完了後に `OnCellShown` デリゲート発火。HLOD サブシステムがこれを購読しており、下位 HLOD を非表示へ切替（[[HLOD/Details/c_hlod_runtime.md]]）。
+5. **DataLayer 整合** — `GetCellEffectiveWantedState(Context)` で `EDataLayerRuntimeState` と `bIsSpatiallyLoaded` を総合判定。DataLayer が `Unloaded` ならストリーミング条件を満たしてもロードしない（[[DataLayer/Details/b_runtime_toggle]]）。
+6. **AlwaysLoaded セル** — `bIsAlwaysLoaded=true` のセルは初期化時に `Load()→Activate()` され、ストリーミングポリシーの差分計算対象外。PersistentLevel に近い扱い。
+7. **ContentBundle** — `UContentBundleClient::RequestContentInjection()` が別ルートパスのパッケージをアクタコンテナとして登録し、既存セルに注入（もしくは専用セル生成）。`ContentBundleID` で帰属管理され、アンインジェクト時は当該セルのみアンロード。
+8. **デバッグ表示** — `wp.Runtime.ToggleDrawRuntimeHash2D=1` でセルの `FWorldPartitionRuntimeCellDebugInfo` を HUD に描画。`GridName`/`CoordX,Y,Z` とロード状態がオーバーレイ表示される。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `UWorldPartitionRuntimeCell::SetStreamingStatus` | `WorldPartitionRuntimeCell.cpp` | 状態遷移エントリ |
+| `UWorldPartitionRuntimeLevelStreamingCell::Load/Activate` | `WorldPartitionRuntimeLevelStreamingCell.cpp` | LevelStreaming 委譲 |
+| `UWorldPartitionRuntimeCell::GetCellEffectiveWantedState` | `WorldPartitionRuntimeCell.cpp` | DataLayer 整合判定 |
+| `UContentBundleClient::RequestContentInjection` | `ContentBundle/ContentBundleClient.cpp` | バンドル注入 |
+| `UContentBundleManager::InjectContentBundle` | `ContentBundle/ContentBundleManager.cpp` | コンテナ登録 |
+| `ULevelStreamingDynamic` | `LevelStreamingDynamic.cpp` | 実パッケージロード |
