@@ -7,34 +7,40 @@ Rendering は Details/Reference/Flow が全て完了済みだが、
 ---
 
 ## システムレベル
-- [ ] `_source_map.md` … Rendering 全体のモジュール→ファイル→クラス対応表
+- [x] `_source_map.md` … Rendering 全体のモジュール→ファイル→クラス対応表（2026-04-19 完了）
 
 ## サブフォルダ別（各フォルダ内に `_source_map.md` を作成）
 
 ### CPU 側（23 フォルダ）
-- [ ] `BasePass/_source_map.md`
-- [ ] `Decals/_source_map.md`
-- [ ] `DeferredLighting/_source_map.md`
+
+Stage 1（コアインフラ 5 本、2026-04-19 完了）:
+- [x] `SceneRenderer/_source_map.md`
+- [x] `RDG/_source_map.md`
+- [x] `RHI/_source_map.md`
+- [x] `MeshPassProcessor/_source_map.md`
+- [x] `GPUScene/_source_map.md`
+
+Stage 2（主要パス 8 本、未着手）:
 - [ ] `DepthPrepass/_source_map.md`
-- [ ] `DistanceField/_source_map.md`
-- [ ] `Fog/_source_map.md`
-- [ ] `GPUScene/_source_map.md`
-- [ ] `HZB/_source_map.md`
-- [ ] `Lumen/_source_map.md`
-- [ ] `MegaLights/_source_map.md`
-- [ ] `MeshPassProcessor/_source_map.md`
-- [ ] `Nanite/_source_map.md`
-- [ ] `PostProcess/_source_map.md`
-- [ ] `RayTracing/_source_map.md`
-- [ ] `RDG/_source_map.md`
-- [ ] `RHI/_source_map.md`
-- [ ] `SceneRenderer/_source_map.md`
+- [ ] `BasePass/_source_map.md`
+- [ ] `DeferredLighting/_source_map.md`
 - [ ] `Shadow/_source_map.md`
-- [ ] `SkyAtmosphere/_source_map.md`
-- [ ] `SSAO/_source_map.md`
-- [ ] `Substrate/_source_map.md`
-- [ ] `Translucency/_source_map.md`
 - [ ] `VirtualShadowMaps/_source_map.md`
+- [ ] `Nanite/_source_map.md`
+- [ ] `Lumen/_source_map.md`
+- [ ] `PostProcess/_source_map.md`
+
+Stage 3（特化機能 10 本、未着手）:
+- [ ] `HZB/_source_map.md`
+- [ ] `Translucency/_source_map.md`
+- [ ] `SkyAtmosphere/_source_map.md`
+- [ ] `Fog/_source_map.md`
+- [ ] `Decals/_source_map.md`
+- [ ] `SSAO/_source_map.md`
+- [ ] `DistanceField/_source_map.md`
+- [ ] `RayTracing/_source_map.md`
+- [ ] `Substrate/_source_map.md`
+- [ ] `MegaLights/_source_map.md`
 
 ### GPU 側（17 フォルダ）
 - [ ] `GPU/BasePass/_source_map.md`
