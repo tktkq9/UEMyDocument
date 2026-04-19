@@ -42,24 +42,24 @@ Stage 3（特化機能 10 本、2026-04-19 完了）:
 - [x] `Substrate/_source_map.md`
 - [x] `MegaLights/_source_map.md`
 
-### GPU 側（17 フォルダ）
-- [ ] `GPU/BasePass/_source_map.md`
-- [ ] `GPU/Decals/_source_map.md`
-- [ ] `GPU/DeferredLighting/_source_map.md`
-- [ ] `GPU/DepthPrepass/_source_map.md`
-- [ ] `GPU/Fog/_source_map.md`
-- [ ] `GPU/GPUScene/_source_map.md`
-- [ ] `GPU/HZB/_source_map.md`
-- [ ] `GPU/MegaLights/_source_map.md`
-- [ ] `GPU/PostProcess/_source_map.md`
-- [ ] `GPU/RayTracing/_source_map.md`
-- [ ] `GPU/SSAO/_source_map.md`
-- [ ] `GPU/SkyAtmosphere/_source_map.md`
-- [ ] `GPU/Translucency/_source_map.md`
-- [ ] `GPU/Lumen/_source_map.md`
-- [ ] `GPU/Nanite/_source_map.md`
-- [ ] `GPU/VirtualShadowMaps/_source_map.md`
-- [ ] `GPU/DistanceField/_source_map.md`
+### GPU 側（17 フォルダ、2026-04-19 完了）
+- [x] `GPU/BasePass/_source_map.md`
+- [x] `GPU/Decals/_source_map.md`
+- [x] `GPU/DeferredLighting/_source_map.md`
+- [x] `GPU/DepthPrepass/_source_map.md`
+- [x] `GPU/Fog/_source_map.md`
+- [x] `GPU/GPUScene/_source_map.md`
+- [x] `GPU/HZB/_source_map.md`
+- [x] `GPU/MegaLights/_source_map.md`
+- [x] `GPU/PostProcess/_source_map.md`
+- [x] `GPU/RayTracing/_source_map.md`
+- [x] `GPU/SSAO/_source_map.md`
+- [x] `GPU/SkyAtmosphere/_source_map.md`
+- [x] `GPU/Translucency/_source_map.md`
+- [x] `GPU/Lumen/_source_map.md`
+- [x] `GPU/Nanite/_source_map.md`
+- [x] `GPU/VirtualShadowMaps/_source_map.md`
+- [x] `GPU/DistanceField/_source_map.md`
 
 ---
 
