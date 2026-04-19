@@ -20,15 +20,15 @@ Stage 1（コアインフラ 5 本、2026-04-19 完了）:
 - [x] `MeshPassProcessor/_source_map.md`
 - [x] `GPUScene/_source_map.md`
 
-Stage 2（主要パス 8 本、未着手）:
-- [ ] `DepthPrepass/_source_map.md`
-- [ ] `BasePass/_source_map.md`
-- [ ] `DeferredLighting/_source_map.md`
-- [ ] `Shadow/_source_map.md`
-- [ ] `VirtualShadowMaps/_source_map.md`
-- [ ] `Nanite/_source_map.md`
-- [ ] `Lumen/_source_map.md`
-- [ ] `PostProcess/_source_map.md`
+Stage 2（主要パス 8 本、2026-04-19 完了）:
+- [x] `DepthPrepass/_source_map.md`
+- [x] `BasePass/_source_map.md`
+- [x] `DeferredLighting/_source_map.md`
+- [x] `Shadow/_source_map.md`
+- [x] `VirtualShadowMaps/_source_map.md`
+- [x] `Nanite/_source_map.md`
+- [x] `Lumen/_source_map.md`
+- [x] `PostProcess/_source_map.md`
 
 Stage 3（特化機能 10 本、未着手）:
 - [ ] `HZB/_source_map.md`

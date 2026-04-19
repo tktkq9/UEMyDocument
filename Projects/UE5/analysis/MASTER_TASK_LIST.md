@@ -13,7 +13,7 @@
 - [x] GPU ドキュメント（17 フォルダ）
 - [x] ソースマップ システムレベル（`_source_map.md` 1 本、2026-04-19 完了）
 - [x] ソースマップ Stage1: コアインフラ（5 本: SceneRenderer / RDG / RHI / MeshPassProcessor / GPUScene、2026-04-19 完了）
-- [ ] ソースマップ Stage2: 主要パス（8 本: DepthPrepass / BasePass / DeferredLighting / Shadow / VSM / Nanite / Lumen / PostProcess）
+- [x] ソースマップ Stage2: 主要パス（8 本: DepthPrepass / BasePass / DeferredLighting / Shadow / VSM / Nanite / Lumen / PostProcess、2026-04-19 完了）
 - [ ] ソースマップ Stage3: 特化機能（10 本: HZB / Translucency / SkyAtmosphere / Fog / Decals / SSAO / DistanceField / RayTracing / Substrate / MegaLights）
 - [ ] ソースマップ Stage4: GPU 側（17 本）
 
@@ -116,9 +116,9 @@
 | カテゴリ | 完了 | 残り |
 |---------|------|------|
 | Rendering ドキュメント | 416 本 | 0 |
-| Rendering ソースマップ | 6 | 35 |
+| Rendering ソースマップ | 14 | 27 |
 | 非 Rendering 11 システム | 0 | 339 |
-| **合計** | **422** | **374** |
+| **合計** | **430** | **366** |
 
 ---
 
