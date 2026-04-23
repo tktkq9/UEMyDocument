@@ -17,12 +17,12 @@ VisBuffer64（深度 + マテリアル深度）を生成する。
 
 ```mermaid
 flowchart TD
-    A[Instance Culling\n粗いフラスタム・距離カリング] --> B[Persistent Cull\nBVH を GPU でトラバース]
-    B --> C{三角形サイズ判定\nr.Nanite.MinPixelsPerEdgeHW}
-    C -- 大きい --> D[HW Rasterizer\n通常のラスタパイプライン]
-    C -- 小さい --> E[SW Rasterizer\nCompute Shader\nアトミック書き込み]
-    D & E --> F[VisBuffer64\nDepth + MaterialDepth per pixel]
-    F --> G[NaniteComposition\nSceneDepth / Stencil 確定]
+    A[Instance Culling<br>粗いフラスタム・距離カリング] --> B[Persistent Cull<br>BVH を GPU でトラバース]
+    B --> C{三角形サイズ判定<br>r.Nanite.MinPixelsPerEdgeHW}
+    C -- 大きい --> D[HW Rasterizer<br>通常のラスタパイプライン]
+    C -- 小さい --> E[SW Rasterizer<br>Compute Shader<br>アトミック書き込み]
+    D & E --> F[VisBuffer64<br>Depth + MaterialDepth per pixel]
+    F --> G[NaniteComposition<br>SceneDepth / Stencil 確定]
 ```
 
 ---

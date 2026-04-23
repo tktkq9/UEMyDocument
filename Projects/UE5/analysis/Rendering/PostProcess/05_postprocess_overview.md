@@ -20,7 +20,7 @@ TAA/TSR（テンポラルアップスケール）・Bloom・Exposure・Depth of 
 
 ```mermaid
 graph LR
-    SC[SceneColor\nHDR] --> PPInput
+    SC[SceneColor<br>HDR] --> PPInput
 
     subgraph PPInput["FPostProcessingInputs"]
         GBuf[GBuffer / SceneDepth]
@@ -31,8 +31,8 @@ graph LR
     PPInput --> AA
 
     subgraph AA["TAA / TSR"]
-        TAA[TemporalAA\n従来方式]
-        TSR[TemporalSuperResolution\nUpscale付き]
+        TAA[TemporalAA<br>従来方式]
+        TSR[TemporalSuperResolution<br>Upscale付き]
     end
 
     AA --> Bloom
@@ -40,7 +40,7 @@ graph LR
 
     subgraph Bloom["Bloom"]
         BL[PostProcessBloomSetup]
-        FFT[PostProcessFFTBloom\n高品質モード]
+        FFT[PostProcessFFTBloom<br>高品質モード]
         BL --> |ガウシアン| SC2[合成]
         FFT --> SC2
     end
@@ -52,13 +52,13 @@ graph LR
     end
 
     subgraph DOF["Depth of Field"]
-        DiaDOF[DiaphragmDOF\n高品質]
-        BokehDOF[PostProcessBokehDOF\nボケシェイプ]
+        DiaDOF[DiaphragmDOF<br>高品質]
+        BokehDOF[PostProcessBokehDOF<br>ボケシェイプ]
     end
 
     subgraph Tone["トーンマップ"]
-        LUT[PostProcessCombineLUTs\nLUT 生成]
-        TM[PostProcessTonemap\nACES / ユーザー設定]
+        LUT[PostProcessCombineLUTs<br>LUT 生成]
+        TM[PostProcessTonemap<br>ACES / ユーザー設定]
         LUT --> TM
     end
 

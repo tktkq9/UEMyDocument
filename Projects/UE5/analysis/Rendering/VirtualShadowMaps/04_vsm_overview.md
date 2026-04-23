@@ -28,27 +28,27 @@
 ```mermaid
 graph TD
     subgraph VSMArray["FVirtualShadowMapArray（フレームごと）"]
-        PT[PageTable\nTexture2D uint]
-        PF[PageFlags\n必要/キャッシュ済みフラグ]
-        PP[PhysicalPagePool\nTexture2DArray uint\n実データ]
+        PT[PageTable<br>Texture2D uint]
+        PF[PageFlags<br>必要/キャッシュ済みフラグ]
+        PP[PhysicalPagePool<br>Texture2DArray uint<br>実データ]
         PT --> PP
     end
 
     subgraph Cache["FVirtualShadowMapArrayCacheManager（永続）"]
-        SC[StaticCachedPages\n静的オブジェクトのキャッシュ]
-        LRU[LRUリスト\nページ解放優先度]
+        SC[StaticCachedPages<br>静的オブジェクトのキャッシュ]
+        LRU[LRUリスト<br>ページ解放優先度]
     end
 
     subgraph Lights["ライト種別"]
-        DL[ディレクショナルライト\nClipmapClipmap複数レベル]
-        LL[ローカルライト\nFull or SinglePage]
+        DL[ディレクショナルライト<br>ClipmapClipmap複数レベル]
+        LL[ローカルライト<br>Full or SinglePage]
     end
 
     subgraph Render["レンダリング"]
-        MK[BeginMarkPages\n参照ページの収集]
-        PA[BuildPageAllocations\n物理ページ割り当て]
-        RN[RenderVirtualShadowMaps\nNanite + NonNanite]
-        PR[Projection\nシャドウサンプリング]
+        MK[BeginMarkPages<br>参照ページの収集]
+        PA[BuildPageAllocations<br>物理ページ割り当て]
+        RN[RenderVirtualShadowMaps<br>Nanite + NonNanite]
+        PR[Projection<br>シャドウサンプリング]
         MK --> PA --> RN --> PR
     end
 

@@ -20,14 +20,14 @@ Lumen や DXR シャドウ等の RT パスが参照できるようにする。
 
 ```mermaid
 flowchart TD
-    A[FPrimitiveSceneInfo 追加] --> B[FRayTracingManager::Add\nプリミティブ登録]
-    B --> C[ストリーミング更新\nUpdateStreaming]
+    A[FPrimitiveSceneInfo 追加] --> B[FRayTracingManager::Add<br>プリミティブ登録]
+    B --> C[ストリーミング更新<br>UpdateStreaming]
     C --> D[FPendingBuild キュー]
-    D --> E[ProcessBuildRequests\nBLAS 構築 GPU ジョブ発行]
-    E --> F[FRayTracingGeometry\n完成した BLAS]
+    D --> E[ProcessBuildRequests<br>BLAS 構築 GPU ジョブ発行]
+    E --> F[FRayTracingGeometry<br>完成した BLAS]
     F --> G[Lumen HW RT / DXR シャドウ]
 
-    H[NaniteStreamOut\nStreamOutData] --> I[GPU → CPU メッシュデータ]
+    H[NaniteStreamOut<br>StreamOutData] --> I[GPU → CPU メッシュデータ]
     I --> E
 ```
 

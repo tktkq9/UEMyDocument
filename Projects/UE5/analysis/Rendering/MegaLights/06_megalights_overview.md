@@ -30,24 +30,24 @@ graph TD
     end
 
     subgraph Classify["① タイル分類"]
-        TC[TileClassify\nライトをタイルに割り当て]
+        TC[TileClassify<br>ライトをタイルに割り当て]
     end
 
     subgraph Sample["② サンプリング"]
-        ST[StochasticSampling\n各ピクセルで1〜数ライトをランダム選択]
-        RT[MegaLightsRayTracing\nHW RT シャドウ]
-        VSM2[VSM シャドウ\nページマーキング経由]
+        ST[StochasticSampling<br>各ピクセルで1〜数ライトをランダム選択]
+        RT[MegaLightsRayTracing<br>HW RT シャドウ]
+        VSM2[VSM シャドウ<br>ページマーキング経由]
         ST --> RT & VSM2
     end
 
     subgraph Resolve["③ リゾルブ・デノイズ"]
-        RS[MegaLightsResolve\nサンプル合算 + テンポラル蓄積]
-        DN[MegaLightsDenoising\nデノイズパス]
+        RS[MegaLightsResolve<br>サンプル合算 + テンポラル蓄積]
+        DN[MegaLightsDenoising<br>デノイズパス]
         RS --> DN
     end
 
     subgraph Volume["④ ボリューム（半透明用）"]
-        TV[TranslucencyVolume\n3D テクスチャに照明を格納]
+        TV[TranslucencyVolume<br>3D テクスチャに照明を格納]
     end
 
     Input --> Classify --> Sample --> Resolve

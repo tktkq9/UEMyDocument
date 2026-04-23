@@ -30,20 +30,20 @@ Lighting Pass で PCF / PCSS によるソフトシャドウとして SceneColor 
 ```mermaid
 graph TD
     subgraph Setup["SetupMeshDrawCommands（InitViews）"]
-        SI[ShadowSetup.cpp\nFProjectedShadowInfo を生成・分類\n種別 / アトラス位置 / カスケード設定]
+        SI[ShadowSetup.cpp<br>FProjectedShadowInfo を生成・分類<br>種別 / アトラス位置 / カスケード設定]
     end
 
     subgraph DepthPass["Shadow Depth 描画"]
-        SD[RenderShadowDepthMaps\nFShadowDepthMeshProcessor → DrawCall\nShadow Depth テクスチャに書き込み]
-        NSD[Nanite Shadow\nNanite::RenderShadowDepths]
+        SD[RenderShadowDepthMaps<br>FShadowDepthMeshProcessor → DrawCall<br>Shadow Depth テクスチャに書き込み]
+        NSD[Nanite Shadow<br>Nanite::RenderShadowDepths]
     end
 
     subgraph Projection["Shadow Projection"]
-        SP[RenderProjectedShadow\nFShadowProjectionPS（PCF/PCSS）\n→ Shadow Mask テクスチャ生成]
+        SP[RenderProjectedShadow<br>FShadowProjectionPS（PCF/PCSS）<br>→ Shadow Mask テクスチャ生成]
     end
 
     subgraph Apply["ライストへの適用"]
-        RL[RenderLight()\nShadowMaskTexture をバインド\nライスト寄与に乗算]
+        RL[RenderLight()<br>ShadowMaskTexture をバインド<br>ライスト寄与に乗算]
     end
 
     Setup --> DepthPass --> Projection --> Apply

@@ -26,24 +26,24 @@
 ```mermaid
 graph TD
     subgraph BasePass["BasePass"]
-        MAT[マテリアルシェーダー\nクロージャを書き込み]
-        MTA[MaterialTextureArray\nTexture2DArray uint\n各ピクセルのクロージャデータ]
-        TL[TopLayerTexture\n最上位レイヤー情報]
+        MAT[マテリアルシェーダー<br>クロージャを書き込み]
+        MTA[MaterialTextureArray<br>Texture2DArray uint<br>各ピクセルのクロージャデータ]
+        TL[TopLayerTexture<br>最上位レイヤー情報]
         MAT --> MTA & TL
     end
 
     subgraph Classify["マテリアル分類"]
-        SC[AddSubstrateMaterialClassificationPass\nStencil + タイルリスト生成]
-        FastTile[Fast Tile\n単純マテリアル]
-        SingleTile[Single Tile\n中程度]
-        ComplexTile[Complex Tile\n複雑マテリアル]
+        SC[AddSubstrateMaterialClassificationPass<br>Stencil + タイルリスト生成]
+        FastTile[Fast Tile<br>単純マテリアル]
+        SingleTile[Single Tile<br>中程度]
+        ComplexTile[Complex Tile<br>複雑マテリアル]
         SC --> FastTile & SingleTile & ComplexTile
     end
 
     subgraph Lighting["ライティング"]
-        LP[ライティングパス\nタイル単位でディスパッチ]
-        SSS[サブサーフェス\nSeparatedSubSurface]
-        RR[RoughRefraction\n透過屈折]
+        LP[ライティングパス<br>タイル単位でディスパッチ]
+        SSS[サブサーフェス<br>SeparatedSubSurface]
+        RR[RoughRefraction<br>透過屈折]
         FastTile & SingleTile & ComplexTile --> LP
         LP --> SSS & RR
     end

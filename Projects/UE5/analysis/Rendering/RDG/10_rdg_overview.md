@@ -22,17 +22,17 @@
 
 ```mermaid
 graph TD
-    App["レンダーコード\n(AddPass の呼び出し)"] --> Builder
+    App["レンダーコード<br>(AddPass の呼び出し)"] --> Builder
 
     subgraph Builder["FRDGBuilder"]
-        CreateRes["CreateTexture / CreateBuffer\nリソース宣言"]
-        AddPass["AddPass\nパス宣言 (ラムダ + パラメータ構造体)"]
-        Compile["Execute 前\nグラフコンパイル"]
-        Execute["Execute\nRHI コマンドを発行"]
+        CreateRes["CreateTexture / CreateBuffer<br>リソース宣言"]
+        AddPass["AddPass<br>パス宣言 (ラムダ + パラメータ構造体)"]
+        Compile["Execute 前<br>グラフコンパイル"]
+        Execute["Execute<br>RHI コマンドを発行"]
         CreateRes --> AddPass --> Compile --> Execute
     end
 
-    Builder --> RHI["RHI Layer\n(DX12 / Vulkan / Metal)"]
+    Builder --> RHI["RHI Layer<br>(DX12 / Vulkan / Metal)"]
 
     subgraph Compile
         Cull["未使用パスのカリング"]

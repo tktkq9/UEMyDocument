@@ -25,12 +25,12 @@ Near/Far Bokeh を分離して **Scatter-as-Gather** 方式でボケを表現す
 ```mermaid
 flowchart TD
     A[HDR SceneColor + SceneDepth]
-    B[DiaphragmDOF::AddPasses\nSetup: CoC Map 生成]
-    C[CoC Dilate\nTile ごとに Near/Far 最大 CoC を拡散]
-    D[Gather Foreground\nNear Bokeh カーネル積分]
-    E[Gather Background\nFar Bokeh カーネル積分]
-    F[Fill / Scatter\nボケ穴の補完]
-    G[Recombine\nSharp + Near + Far 合成]
+    B[DiaphragmDOF::AddPasses<br>Setup: CoC Map 生成]
+    C[CoC Dilate<br>Tile ごとに Near/Far 最大 CoC を拡散]
+    D[Gather Foreground<br>Near Bokeh カーネル積分]
+    E[Gather Background<br>Far Bokeh カーネル積分]
+    F[Fill / Scatter<br>ボケ穴の補完]
+    G[Recombine<br>Sharp + Near + Far 合成]
     H[出力: Bokeh 適用済み SceneColor]
 
     A --> B --> C

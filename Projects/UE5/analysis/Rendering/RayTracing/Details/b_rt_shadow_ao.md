@@ -21,24 +21,24 @@ HW レイトレーシングを使った **RT シャドウ・RT AO・RT スカイ
 
 ```mermaid
 flowchart TD
-    TLAS[TLAS 構築完了\nFinishGatherInstances]
+    TLAS[TLAS 構築完了<br>FinishGatherInstances]
 
     TLAS --> SH & AO & SL
 
     subgraph SH["RT シャドウ"]
-        SH1[RenderRayTracingShadows\n光源ごとにシャドウレイ発射]
-        SH2[デノイザー\nIScreenSpaceDenoiser]
+        SH1[RenderRayTracingShadows<br>光源ごとにシャドウレイ発射]
+        SH2[デノイザー<br>IScreenSpaceDenoiser]
         SH1 --> SH2
     end
 
     subgraph AO["RT AO"]
-        AO1[RenderRayTracingAmbientOcclusion\nAO レイ発射]
-        AO2[デノイザー\nGScreenSpaceDenoiser]
+        AO1[RenderRayTracingAmbientOcclusion<br>AO レイ発射]
+        AO2[デノイザー<br>GScreenSpaceDenoiser]
         AO1 --> AO2
     end
 
     subgraph SL["RT スカイライト"]
-        SL1[RenderRayTracingSkyLight\n天球方向へレイ発射]
+        SL1[RenderRayTracingSkyLight<br>天球方向へレイ発射]
         SL2[テンポラル蓄積]
         SL1 --> SL2
     end

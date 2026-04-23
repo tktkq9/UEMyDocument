@@ -21,24 +21,24 @@
 
 ```mermaid
 flowchart TD
-    C[タイル分類完了\nClassificationTileListBuffer 生成済み]
+    C[タイル分類完了<br>ClassificationTileListBuffer 生成済み]
 
     C --> L & RR & SS
 
     subgraph L["ライティング（Indirect Dispatch）"]
         L1[FSubstrateTilePassVS でタイル頂点展開]
-        L2[Fast Tile シェーダー\nシンプルパス]
-        L3[Single Tile シェーダー\n中程度パス]
-        L4[Complex Tile シェーダー\n複数クロージャパス]
+        L2[Fast Tile シェーダー<br>シンプルパス]
+        L3[Single Tile シェーダー<br>中程度パス]
+        L4[Complex Tile シェーダー<br>複数クロージャパス]
         L1 --> L2 & L3 & L4
     end
 
     subgraph RR["RoughRefraction"]
-        RR1[AddSubstrateOpaqueRoughRefractionPasses\nSceneColor コピー → 屈折マテリアルへ適用]
+        RR1[AddSubstrateOpaqueRoughRefractionPasses<br>SceneColor コピー → 屈折マテリアルへ適用]
     end
 
     subgraph SS["SubSurface"]
-        SS1[SeparatedSubSurfaceSceneColor\n分離バッファへ出力]
+        SS1[SeparatedSubSurfaceSceneColor<br>分離バッファへ出力]
         SS2[SubSurface 後処理パスで合成]
         SS1 --> SS2
     end

@@ -32,19 +32,19 @@ AO・シャドウ・反射・スカイライト等の独立した品質優先モ
 ```mermaid
 graph TD
     subgraph TLAS["TLAS（Top Level Acceleration Structure）"]
-        RS[FRayTracingScene\nフレームごとのインスタンスリスト]
-        GI[GatherInstances\nBLAS参照→インスタンス登録]
+        RS[FRayTracingScene<br>フレームごとのインスタンスリスト]
+        GI[GatherInstances<br>BLAS参照→インスタンス登録]
         RS --> GI
     end
 
     subgraph BLAS["BLAS（Bottom Level AS）"]
-        SM[Static Mesh BLAS\n静的メッシュ]
-        DY[Dynamic BLAS\nスケルタル等]
-        NB[Nanite BLAS\nNaniteRayTracing経由]
+        SM[Static Mesh BLAS<br>静的メッシュ]
+        DY[Dynamic BLAS<br>スケルタル等]
+        NB[Nanite BLAS<br>NaniteRayTracing経由]
     end
 
     subgraph SBT["FRayTracingShaderBindingTable"]
-        HG[Hit Group シェーダー\nマテリアル別]
+        HG[Hit Group シェーダー<br>マテリアル別]
         MS[Miss シェーダー]
     end
 

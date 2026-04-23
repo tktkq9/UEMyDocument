@@ -23,23 +23,23 @@ GPU に送るためのパイプラインを担うクラス群。
 
 ```mermaid
 graph TD
-    Scene["FScene\n(全プリミティブ)"] --> StaticMesh["FStaticMeshBatch\n(静的メッシュ)"]
-    Scene --> DynMesh["FMeshBatch\n(動的メッシュ)"]
+    Scene["FScene<br>(全プリミティブ)"] --> StaticMesh["FStaticMeshBatch<br>(静的メッシュ)"]
+    Scene --> DynMesh["FMeshBatch<br>(動的メッシュ)"]
 
     subgraph MeshPassProcessor["MeshPassProcessor パイプライン"]
-        MPP["FMeshPassProcessor\n(派生クラスが AddMeshBatch を実装)"]
-        BSM["BuildMeshDrawCommands()\nPSO・バインディング解決"]
-        MDC["FMeshDrawCommand\n最終的な描画命令"]
+        MPP["FMeshPassProcessor<br>(派生クラスが AddMeshBatch を実装)"]
+        BSM["BuildMeshDrawCommands()<br>PSO・バインディング解決"]
+        MDC["FMeshDrawCommand<br>最終的な描画命令"]
         MPP --> BSM --> MDC
     end
 
     StaticMesh --> MPP
     DynMesh --> MPP
 
-    MDC --> Cache["静的コマンドキャッシュ\nFCachedMeshDrawCommand"]
-    MDC --> Dynamic["動的コマンドリスト\nFMeshCommandOneFrameArray"]
+    MDC --> Cache["静的コマンドキャッシュ<br>FCachedMeshDrawCommand"]
+    MDC --> Dynamic["動的コマンドリスト<br>FMeshCommandOneFrameArray"]
 
-    Cache --> Submit["SubmitMeshDrawCommands\n実際の DrawCall 発行"]
+    Cache --> Submit["SubmitMeshDrawCommands<br>実際の DrawCall 発行"]
     Dynamic --> Submit
     Submit --> RHI["RHI / GPU"]
 ```

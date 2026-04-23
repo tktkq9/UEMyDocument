@@ -17,13 +17,13 @@ Nanite の遅延マテリアルシェーディングシステム。
 
 ```mermaid
 flowchart TD
-    A[VisBuffer64\nDepth + MaterialDepth] --> B[Material Binning\nFNaniteShadingBin 構築]
-    B --> C[Classify Pixels\nピクセルをビンに振り分け]
-    C --> D[Build Shading Commands\nIndirectArgs 生成]
+    A[VisBuffer64<br>Depth + MaterialDepth] --> B[Material Binning<br>FNaniteShadingBin 構築]
+    B --> C[Classify Pixels<br>ピクセルをビンに振り分け]
+    C --> D[Build Shading Commands<br>IndirectArgs 生成]
     D --> E{パスの種類}
-    E -- BasePass --> F[DispatchBasePass\nGBuffer 書き込み]
-    E -- LumenCard --> G[DispatchLumenMeshCapturePass\nSurface Cache 書き込み]
-    F & G --> H[マテリアルバッファ\nMaterialsSceneExtension]
+    E -- BasePass --> F[DispatchBasePass<br>GBuffer 書き込み]
+    E -- LumenCard --> G[DispatchLumenMeshCapturePass<br>Surface Cache 書き込み]
+    F & G --> H[マテリアルバッファ<br>MaterialsSceneExtension]
 ```
 
 ---

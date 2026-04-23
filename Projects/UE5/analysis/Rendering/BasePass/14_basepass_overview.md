@@ -28,16 +28,16 @@ Deferred Rendering の核心部分であり、このパスで生成された GBu
 ```mermaid
 graph TD
     subgraph Input["入力"]
-        Prims[可視プリミティブ一覧\nFViewInfo::VisibleMeshDrawCommands]
-        DBuffer[DBuffer デカール\nFDBufferTextures]
+        Prims[可視プリミティブ一覧<br>FViewInfo::VisibleMeshDrawCommands]
+        DBuffer[DBuffer デカール<br>FDBufferTextures]
     end
 
     subgraph MeshProcessor["TBasePassMeshProcessor"]
-        AddMesh[AddMeshBatch()\nマテリアル × ライトマップ種別で\nシェーダー排列を生成]
+        AddMesh[AddMeshBatch()<br>マテリアル × ライトマップ種別で<br>シェーダー排列を生成]
     end
 
     subgraph RDG["RDG Pass"]
-        Parallel[並列描画\nr.ParallelBasePass=1]
+        Parallel[並列描画<br>r.ParallelBasePass=1]
         Serial[逐次描画]
     end
 

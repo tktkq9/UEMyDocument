@@ -26,15 +26,15 @@ flowchart TD
     TLAS --> REF & TRA
 
     subgraph REF["RT リフレクション"]
-        R1[ShouldRenderRayTracingReflections\n有効判定]
-        R2[RenderRayTracingPrimaryRays\nReflection レイ発射]
-        R3[IScreenSpaceDenoiser\nデノイズ]
+        R1[ShouldRenderRayTracingReflections<br>有効判定]
+        R2[RenderRayTracingPrimaryRays<br>Reflection レイ発射]
+        R3[IScreenSpaceDenoiser<br>デノイズ]
         R1 -->|有効| R2 --> R3
     end
 
     subgraph TRA["RT 半透明"]
-        T1[ShouldRenderRayTracingTranslucency\n有効判定]
-        T2[RenderRayTracingTranslucency\n半透明レイ発射]
+        T1[ShouldRenderRayTracingTranslucency<br>有効判定]
+        T2[RenderRayTracingTranslucency<br>半透明レイ発射]
         T1 -->|有効| T2
     end
 ```

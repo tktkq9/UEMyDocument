@@ -29,21 +29,21 @@ BasePass で GBuffer に格納されたマテリアル情報（BaseColor / Norma
 ```mermaid
 graph TD
     subgraph Sort["ライトソート（GatherLights）"]
-        SL[FSortedLightSetSceneInfo\nSimpleLights / BatchedLights / UnbatchedLights\n/ MegaLights に分類]
+        SL[FSortedLightSetSceneInfo<br>SimpleLights / BatchedLights / UnbatchedLights<br>/ MegaLights に分類]
     end
 
     subgraph Clustered["Clustered/Tiled Deferred"]
-        CL[AddClusteredDeferredShadingPass\nFClusteredDeferredLightingCS]
-        TL[RenderSimpleLightsStandardDeferred\n単純ライト用]
+        CL[AddClusteredDeferredShadingPass<br>FClusteredDeferredLightingCS]
+        TL[RenderSimpleLightsStandardDeferred<br>単純ライト用]
     end
 
     subgraph Standard["Standard Deferred（UnbatchedLights）"]
-        UB[RenderLight() × UnbatchedLights\n境界ジオメトリ描画 → PS でシェーディング]
+        UB[RenderLight() × UnbatchedLights<br>境界ジオメトリ描画 → PS でシェーディング]
     end
 
     subgraph Shadow["シャドウ統合"]
-        VSM[VSM Projection\nShadowSceneRenderer.RenderVirtualShadowMapProjectionMaskBits]
-        OtherShadow[従来 Shadow Projection\nFProjectedShadowInfo]
+        VSM[VSM Projection<br>ShadowSceneRenderer.RenderVirtualShadowMapProjectionMaskBits]
+        OtherShadow[従来 Shadow Projection<br>FProjectedShadowInfo]
     end
 
     subgraph Output["SceneColor（加算書き込み）"]

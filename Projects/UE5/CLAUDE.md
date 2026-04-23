@@ -21,6 +21,7 @@
 - C++とBlueprintの両方に言及する
 - UE5の公式ドキュメント用語に統一する（Actor, Component, Subsystem等）
 - クラス図はMermaid記法で出力
+- Mermaidノードラベルの改行は `\n` ではなく `<br>` を使う（Obsidianで `\n` は改行されない）
 - マクロ（UCLASS, UPROPERTY, UFUNCTION）の意味と効果を注記する
 
 ## ソース構成メモ
