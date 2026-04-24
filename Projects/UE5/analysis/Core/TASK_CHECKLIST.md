@@ -28,9 +28,9 @@
 
 ### Serialization — シリアライゼーション
 - [x] `Serialization/01_overview.md` … Serialization 概要（2026-04-24 完了）
-- [ ] `Serialization/Details/a_farchive.md` … FArchive・operator<<・IsLoading/IsSaving・カスタムバージョン
-- [ ] `Serialization/Details/b_asset_serialization.md` … アセットレジストリ・FLinkerLoad/Save・パッケージ
-- [ ] `Serialization/Details/c_save_game.md` … USaveGame・UGameplayStatics::SaveGameToSlot・バイナリ/JSON
+- [x] `Serialization/Details/a_farchive.md` … FArchive・operator<<・IsLoading/IsSaving・カスタムバージョン（2026-04-25）
+- [x] `Serialization/Details/b_asset_serialization.md` … アセットレジストリ・FLinkerLoad/Save・パッケージ（2026-04-25）
+- [x] `Serialization/Details/c_save_game.md` … USaveGame・UGameplayStatics::SaveGameToSlot・バイナリ/JSON（2026-04-25）
 - [ ] `Serialization/Reference/ref_serialization_api.md` … FArchive / FStructuredArchive API
 
 ### AsyncTasks — 非同期処理
