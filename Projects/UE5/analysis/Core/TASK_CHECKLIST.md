@@ -35,24 +35,24 @@
 
 ### AsyncTasks — 非同期処理
 - [x] `AsyncTasks/01_overview.md` … AsyncTasks 概要（2026-04-24 完了）
-- [ ] `AsyncTasks/Details/a_task_graph.md` … FTaskGraphInterface・FBaseGraphTask・前提条件・NamedThread
-- [ ] `AsyncTasks/Details/b_async_patterns.md` … AsyncTask・Async()・FRunnable・FQueuedThreadPool
-- [ ] `AsyncTasks/Details/c_game_thread.md` … GameThread/RenderThread/RHIThread 連携・ENQUEUE_RENDER_COMMAND
-- [ ] `AsyncTasks/Details/d_parallel_for.md` … ParallelFor・EParallelForFlags・バッチサイズ
+- [x] `AsyncTasks/Details/a_task_graph.md` … FTaskGraphInterface・FBaseGraphTask・前提条件・NamedThread
+- [x] `AsyncTasks/Details/b_async_patterns.md` … AsyncTask・Async()・FRunnable・FQueuedThreadPool
+- [x] `AsyncTasks/Details/c_game_thread.md` … GameThread/RenderThread/RHIThread 連携・ENQUEUE_RENDER_COMMAND
+- [x] `AsyncTasks/Details/d_parallel_for.md` … ParallelFor・EParallelForFlags・バッチサイズ
 - [ ] `AsyncTasks/Reference/ref_async_api.md` … Async / FAsyncTask / FRunnable API
 
 ### Delegates — デリゲート・イベント
 - [x] `Delegates/01_overview.md` … Delegates 概要（2026-04-24 完了）
-- [ ] `Delegates/Details/a_delegate_types.md` … TDelegate・TMulticastDelegate・DECLARE_DELEGATE マクロ群
-- [ ] `Delegates/Details/b_dynamic_delegates.md` … FDynamicDelegate・DECLARE_DYNAMIC_MULTICAST_DELEGATE・BP 対応
-- [ ] `Delegates/Details/c_timer.md` … FTimerManager・SetTimer・SetTimerForNextTick・ClearTimer
+- [x] `Delegates/Details/a_delegate_types.md` … TDelegate・TMulticastDelegate・DECLARE_DELEGATE マクロ群
+- [x] `Delegates/Details/b_dynamic_delegates.md` … FDynamicDelegate・DECLARE_DYNAMIC_MULTICAST_DELEGATE・BP 対応
+- [x] `Delegates/Details/c_timer.md` … FTimerManager・SetTimer・SetTimerForNextTick・ClearTimer
 - [ ] `Delegates/Reference/ref_delegate_api.md` … TDelegate / TMulticastDelegate / FTimerManager API
 
 ### Containers — コンテナ・文字列
 - [x] `Containers/01_overview.md` … Containers 概要（2026-04-24 完了）
-- [ ] `Containers/Details/a_array_map_set.md` … TArray・TMap・TSet・TSparseArray・メモリレイアウト
-- [ ] `Containers/Details/b_string_types.md` … FString・FName・FText・変換・ローカライズ
-- [ ] `Containers/Details/c_smart_pointers.md` … TSharedPtr・TWeakPtr・TUniquePtr・TSharedRef
+- [x] `Containers/Details/a_array_map_set.md` … TArray・TMap・TSet・TSparseArray・メモリレイアウト
+- [x] `Containers/Details/b_string_types.md` … FString・FName・FText・変換・ローカライズ
+- [x] `Containers/Details/c_smart_pointers.md` … TSharedPtr・TWeakPtr・TUniquePtr・TSharedRef
 - [ ] `Containers/Reference/ref_containers_api.md` … TArray / TMap / TSet 主要メソッド一覧
 
 ---
