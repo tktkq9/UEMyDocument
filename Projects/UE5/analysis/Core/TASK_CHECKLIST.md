@@ -10,19 +10,19 @@
 
 ### UObject — オブジェクトシステム
 - [x] `UObject/01_overview.md` … UObject 概要（2026-04-24 完了）
-- [ ] `UObject/Details/a_lifecycle.md` … NewObject・CDO・PostInitProperties・ConditionalBeginDestroy
-- [ ] `UObject/Details/b_garbage_collection.md` … FGCObject・AddReferencedObjects・Mark-Sweep・クラスタリング
-- [ ] `UObject/Details/c_outer_chain.md` … Outer チェーン・GetTransientPackage・Rename・パス解決
-- [ ] `UObject/Details/d_class_default_object.md` … CDO 生成・GetDefaultObject・Archetype チェーン
+- [x] `UObject/Details/a_lifecycle.md` … NewObject・CDO・PostInitProperties・ConditionalBeginDestroy（2026-04-24）
+- [x] `UObject/Details/b_garbage_collection.md` … FGCObject・AddReferencedObjects・Mark-Sweep・クラスタリング（2026-04-24）
+- [x] `UObject/Details/c_outer_chain.md` … Outer チェーン・GetTransientPackage・Rename・パス解決（2026-04-24）
+- [x] `UObject/Details/d_class_default_object.md` … CDO 生成・GetDefaultObject・Archetype チェーン（2026-04-24）
 - [ ] `UObject/Reference/ref_uobject_api.md` … UObject / UObjectBaseUtility API
 - [ ] `UObject/Reference/ref_gc_api.md` … GC 関連関数・UPROPERTY GC 指定子
 
 ### Reflection — リフレクションシステム
 - [x] `Reflection/01_overview.md` … Reflection 概要（2026-04-24 完了）
-- [ ] `Reflection/Details/a_uclass.md` … UClass・ClassFlags・Interfaces・StaticClass()
-- [ ] `Reflection/Details/b_fproperty.md` … FProperty 階層・FNumericProperty/FObjectProperty/FStructProperty
-- [ ] `Reflection/Details/c_ufunction.md` … UFunction・FunctionFlags・NativeFunction・ProcessEvent
-- [ ] `Reflection/Details/d_metadata.md` … UMETA・メタデータスペシファイア・EditCondition・ToolTip
+- [x] `Reflection/Details/a_uclass.md` … UClass・ClassFlags・Interfaces・StaticClass()（2026-04-24）
+- [x] `Reflection/Details/b_fproperty.md` … FProperty 階層・FNumericProperty/FObjectProperty/FStructProperty（2026-04-24）
+- [x] `Reflection/Details/c_ufunction.md` … UFunction・FunctionFlags・NativeFunction・ProcessEvent（2026-04-24）
+- [x] `Reflection/Details/d_metadata.md` … UMETA・メタデータスペシファイア・EditCondition・ToolTip（2026-04-24）
 - [ ] `Reflection/Reference/ref_reflection_api.md` … UClass / FProperty / UFunction API
 - [ ] `Reflection/Reference/ref_macros.md` … UCLASS/UPROPERTY/UFUNCTION/USTRUCT マクロ全一覧
 
