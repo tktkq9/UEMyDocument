@@ -33,10 +33,10 @@
 
 ### CharacterMovement — キャラクター移動
 - [x] `CharacterMovement/01_overview.md` … CharacterMovement 概要（2026-04-25 完了）
-- [ ] `CharacterMovement/Details/a_movement_modes.md` … Walking/Falling/Swimming/Flying・カスタム移動モード
-- [ ] `CharacterMovement/Details/b_cmc_networking.md` … クライアント予測・ServerMove・ClientAdjustment・SavedMove
-- [ ] `CharacterMovement/Details/c_root_motion.md` … RootMotion ソース・AnimMontage/RootMotionTask
-- [ ] `CharacterMovement/Details/d_physics_interaction.md` … 物理インタラクション・StepUp・Floor チェック・Slide
+- [x] `CharacterMovement/Details/a_movement_modes.md` … Walking/Falling/Swimming/Flying・カスタム移動モード（2026-04-25）
+- [x] `CharacterMovement/Details/b_cmc_networking.md` … クライアント予測・ServerMove・ClientAdjustment・SavedMove（2026-04-25）
+- [x] `CharacterMovement/Details/c_root_motion.md` … RootMotion ソース・AnimMontage/RootMotionTask（2026-04-25）
+- [x] `CharacterMovement/Details/d_physics_interaction.md` … 物理インタラクション・StepUp・Floor チェック・Slide（2026-04-25）
 - [ ] `CharacterMovement/Reference/ref_cmc_api.md` … UCharacterMovementComponent API
 - [ ] `CharacterMovement/Reference/ref_movement_flags.md` … 移動フラグ・EMovementMode 一覧
 
