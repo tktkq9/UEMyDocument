@@ -14,22 +14,22 @@
 - [x] `ActorComponent/Details/b_component_model.md` … UActorComponent・USceneComponent・RegisterComponent・Attach（2026-04-25）
 - [x] `ActorComponent/Details/c_ticking.md` … FTickFunction・TickGroup・TickDependency・前提条件（2026-04-25）
 - [x] `ActorComponent/Details/d_actor_spawning.md` … SpawnActorDeferred・FinishSpawning・テンプレート・ObjectInitializer（2026-04-25）
-- [ ] `ActorComponent/Reference/ref_actor_api.md` … AActor 主要 API
-- [ ] `ActorComponent/Reference/ref_component_api.md` … UActorComponent / USceneComponent API
+- [x] `ActorComponent/Reference/ref_actor_api.md` … AActor 主要 API（2026-04-25）
+- [x] `ActorComponent/Reference/ref_component_api.md` … UActorComponent / USceneComponent API（2026-04-25）
 
 ### GameModeState — ゲームモード・ゲームステート
 - [x] `GameModeState/01_overview.md` … GameModeState 概要（2026-04-25 完了）
 - [x] `GameModeState/Details/a_game_mode.md` … AGameModeBase・InitGame・Login・HandleStartingNewPlayer（2026-04-25）
 - [x] `GameModeState/Details/b_game_state.md` … AGameStateBase・レプリケーション・MatchState 遷移（2026-04-25）
 - [x] `GameModeState/Details/c_game_session.md` … AGameSession・接続承認・OnlineSubsystem 連携（2026-04-25）
-- [ ] `GameModeState/Reference/ref_gamemode_api.md` … AGameModeBase / AGameStateBase API
+- [x] `GameModeState/Reference/ref_gamemode_api.md` … AGameModeBase / AGameStateBase API（2026-04-25）
 
 ### Controller — コントローラー・ポゼッション
 - [x] `Controller/01_overview.md` … Controller 概要（2026-04-25 完了）
 - [x] `Controller/Details/a_player_controller.md` … APlayerController・入力処理・HUD・カメラ管理（2026-04-25）
 - [x] `Controller/Details/b_ai_controller.md` … AAIController・BrainComponent・RunBehaviorTree（2026-04-25）
 - [x] `Controller/Details/c_possession.md` … Possess/UnPossess・ViewTarget・SpectatorPawn（2026-04-25）
-- [ ] `Controller/Reference/ref_controller_api.md` … APlayerController / AAIController / APawn API
+- [x] `Controller/Reference/ref_controller_api.md` … APlayerController / AAIController / APawn API（2026-04-25）
 
 ### CharacterMovement — キャラクター移動
 - [x] `CharacterMovement/01_overview.md` … CharacterMovement 概要（2026-04-25 完了）
@@ -37,15 +37,15 @@
 - [x] `CharacterMovement/Details/b_cmc_networking.md` … クライアント予測・ServerMove・ClientAdjustment・SavedMove（2026-04-25）
 - [x] `CharacterMovement/Details/c_root_motion.md` … RootMotion ソース・AnimMontage/RootMotionTask（2026-04-25）
 - [x] `CharacterMovement/Details/d_physics_interaction.md` … 物理インタラクション・StepUp・Floor チェック・Slide（2026-04-25）
-- [ ] `CharacterMovement/Reference/ref_cmc_api.md` … UCharacterMovementComponent API
-- [ ] `CharacterMovement/Reference/ref_movement_flags.md` … 移動フラグ・EMovementMode 一覧
+- [x] `CharacterMovement/Reference/ref_cmc_api.md` … UCharacterMovementComponent API（2026-04-25）
+- [x] `CharacterMovement/Reference/ref_movement_flags.md` … 移動フラグ・EMovementMode 一覧（2026-04-25）
 
 ### Subsystems — サブシステムフレームワーク
 - [x] `Subsystems/01_overview.md` … Subsystems 概要（2026-04-25 完了）
 - [x] `Subsystems/Details/a_subsystem_types.md` … UGameInstanceSubsystem・UWorldSubsystem・ULocalPlayerSubsystem（2026-04-25）
 - [x] `Subsystems/Details/b_subsystem_lifecycle.md` … Initialize/Deinitialize・ShouldCreateSubsystem・依存関係（2026-04-25）
 - [x] `Subsystems/Details/c_tickable_subsystem.md` … FTickableGameObject・TickableWorldSubsystem（2026-04-25）
-- [ ] `Subsystems/Reference/ref_subsystem_api.md` … USubsystem / UGameInstanceSubsystem API
+- [x] `Subsystems/Reference/ref_subsystem_api.md` … USubsystem / UGameInstanceSubsystem API（2026-04-25）
 
 ---
 
