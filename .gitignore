@@ -18,3 +18,9 @@ desktop.ini
 # 一時ファイル
 *.tmp
 *.bak
+
+# UE5 Algorithms ローカル資料キャッシュ（著作権・サイズの観点で除外）
+# - _papers/ : 論文PDF・スクリーンショット等の生資料
+# - *_full.md : 論文本文の長文転載（個人学習用、再配布不可資料を含む）
+Projects/UE5/analysis/**/Algorithms/_papers/
+Projects/UE5/analysis/**/Algorithms/**/*_full.md

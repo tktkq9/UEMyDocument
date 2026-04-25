@@ -29,17 +29,76 @@ analysis/{SystemName}/
 ├── 01_{system}_overview.md
 ├── {SubFolder}/...
 ├── Algorithms/                    ← 新規
-│   ├── _algorithm_index.md        ← 採用アルゴリズム一覧 + 出典リンク
-│   ├── {topic}.md                 ← 個別アルゴリズム解説
+│   ├── _algorithm_index.md        ← 採用アルゴリズム一覧（理論⇄UE実装の対応表）
+│   ├── _source_index.md           ← 取得済み外部資料インデックス + 未解決事項
+│   ├── _papers/                   ← ローカルPDFキャッシュ（.gitignore で除外）
+│   │   ├── _README.md             ← キャッシュ運用説明（コミット対象）
+│   │   ├── karis_2013.pdf         ← 公開PDFのローカルコピー
+│   │   └── walter_2007_summary.txt← 取得困難な論文の要旨抜粋
+│   ├── {topic}.md                 ← 個別アルゴリズム解説（コミット対象）
+│   ├── {topic}_full.md            ← 長文転載・詳細メモ（.gitignore で除外）
 │   └── ...
 └── TASK_CHECKLIST.md
 ```
 
-`_algorithm_index.md` は **そのシステム内で採用されている全アルゴリズムの一覧表**。各行から個別ドキュメントへリンクする。
+### ナビゲーションファイルの役割分担
+
+| ファイル | 役割 | コミット |
+|--------|------|--------|
+| `_algorithm_index.md` | 「アルゴリズム → 出典 → UE 実装ファイル」三方向対応表 | ◯ |
+| `_source_index.md` | 取得済み資料一覧 + UE 実装インデックス + 未解決事項（相談トリガー） | ◯ |
+| `_papers/_README.md` | キャッシュフォルダの説明・取得元メモ | ◯ |
+| `_papers/*.pdf` | 公開論文 PDF のローカルコピー | × |
+| `_papers/*_summary.txt` | 取得困難資料の要旨手書きメモ | × |
+| `{topic}.md` | 個別アルゴリズム解説（自分の解説 + 短い引用） | ◯ |
+| `{topic}_full.md` | 論文本文の長文転載 + 詳細個人メモ | × |
+
+### 著作権ポリシー
+
+- **コミット対象 (`{topic}.md`)**: 自分の解説文を主体とし、引用は数式 + 説明文の最小限に留める。出典明記必須。
+- **長文転載 (`{topic}_full.md`)**: 個人学習用にローカルのみ。`.gitignore` で除外済み。論文本文の長い引用、画像コピー、Epic 公式講演スライドのテキスト化等を自由に置く。
+- **PDF キャッシュ (`_papers/`)**: 再配布不可資料を含むため `.gitignore` で除外済み。Claude が次回 Read で参照可能。
 
 ---
 
 ## 2. ドキュメント テンプレート
+
+### 2.0 `_source_index.md`（資料インデックス・相談用）
+
+セッション中に Claude が「論文 ID から URL/ローカルパス/重要ページ」を即引きできる中央ハブ。
+
+```markdown
+# {SystemName} Algorithms ソース索引
+
+## 取得済み外部資料
+
+| ID | タイトル | 著者 | 年 | 種別 | URL | ローカル | 重要箇所 |
+|----|--------|-----|----|----|-----|--------|--------|
+| S01 | Real Shading in Unreal Engine 4 | Karis | 2013 | SIGGRAPH course | https://... | `_papers/karis_2013.pdf` | p.4-6 BRDF, p.10 Fresnel |
+| S02 | Microfacet Models for Refraction | Walter | 2007 | 論文 | https://... | （PDF不可・要旨のみ） | Eq.33 GGX NDF |
+| S03 | Understanding the Masking-Shadowing Function | Heitz | 2014 | JCGT | https://... | `_papers/heitz_2014.pdf` | Section 5 Smith G2 |
+
+## UE 実装インデックス（このシステム内の数式関連ファイル）
+
+| ファイル | 主要関数 | 採用アルゴリズム ID | 個別ドキュメント |
+|--------|--------|-----------------|---------------|
+| `BRDF.ush` | `D_GGX` | S01, S02 | [[brdf_ggx]] |
+| `BRDF.ush` | `Vis_SmithJointApprox` | S03 | [[brdf_smith]] |
+| `ShadingModels.ush` | `DiffuseBurley` | S04 | [[brdf_disney_diffuse]] |
+
+## 未解決事項（相談トリガー）
+
+| 項目 | 個別ドキュメント | 質問内容 | ステータス |
+|------|---------------|--------|--------|
+| `a2 = a*a` の意味 | [[brdf_ggx]] | なぜ Roughness を二乗するのか | 未解決 |
+| Smith-Joint の Joint とは | [[brdf_smith]] | 元論文の Joint の定義 | 解決済（{topic}_full.md p.X 参照） |
+
+## メンテナンス指針
+
+- 新しい論文を取得したら `_papers/` に保存し本表に追記
+- 「相談用フック」で挙がった疑問は「未解決事項」表に転記
+- 解決した項目はステータスを更新（削除しない、後で振り返れるように）
+```
 
 ### 2.1 `_algorithm_index.md`（インデックス）
 
@@ -125,9 +184,61 @@ UE は `D` に GGX、`G` に Smith-Joint、`F` に Schlick 近似を使用。
 
 ## 6. 参考資料
 
-- {論文タイトル} ({著者}, {年}) — {URL}
-- SIGGRAPH course "Physically Based Shading in Theory and Practice" {年} — {URL}
+- {論文タイトル} ({著者}, {年}) — {URL}（出典 ID: S01）
+- SIGGRAPH course "Physically Based Shading in Theory and Practice" {年} — {URL}（S02）
 - Epic 公式技術ブログ — {URL}
+
+## 7. 相談用フック
+
+セッション中に Claude が即提示できる「相談の起点」。長文転載や追加調査が必要なものは `{topic}_full.md` 参照。
+
+- **理解度チェック**: なぜこの近似で十分なのか？ → `{topic}_full.md` 「§2 近似の妥当性検証」
+- **次の派生**: Substrate ではどう変わるか？ → [[../../{OtherSystem}/Algorithms/...]]
+- **未読箇所**: 出典 S02 の Section 5（Importance Sampling）— 後で読む
+- **コード深掘り候補**: `BRDF.ush:120` の `D_GGX` 内部の `rcp` 最適化の妥当性
+```
+
+### 2.3 `{topic}_full.md`（長文転載・個人メモ、`.gitignore` 対象）
+
+```markdown
+# {アルゴリズム名} - 詳細メモ・長文転載
+
+⚠️ このファイルは個人学習用ローカルキャッシュ。GitHub にプッシュされない。
+
+- 対応する公開ドキュメント: [[{topic}]]
+- 元資料: 出典 ID S01（`_papers/karis_2013.pdf`）
+
+---
+
+## §1 元論文の該当章節（転載）
+
+> （論文の該当ページから引用した本文・図表の説明・数式の導出過程）
+
+## §2 近似の妥当性検証（個人メモ）
+
+（数式を手で展開した結果、検証スクリプト実行結果、誤差プロット等）
+
+## §3 Claude との相談ログ
+
+（過去の質疑応答で重要だったやりとりを保存）
+```
+
+### 2.4 `_papers/_README.md`（キャッシュ運用説明、コミット対象）
+
+```markdown
+# Papers キャッシュ
+
+このフォルダは外部資料（論文 PDF、SIGGRAPH course notes 等）のローカルキャッシュ。  
+**`.gitignore` で除外されているため、リポジトリには含まれない。**
+
+## 取得方法
+
+各資料の取得元 URL は `../_source_index.md` を参照。  
+公開 PDF はダウンロードしてここに置く。ファイル名規則: `{著者姓}_{年}_{短いタイトル}.pdf`
+
+## 取得困難な資料
+
+IEEE / ACM 有料論文等は PDF を置かず、要旨を `{著者姓}_{年}_summary.txt` として手書きで残す。
 ```
 
 ---
@@ -153,9 +264,10 @@ UE の Rendering 系シェーダは特にコメントで論文参照が豊富。
 2. `WebFetch` で要旨・主要数式・アルゴリズム説明を取得
 3. 信頼できる出典のみ採用（Epic 公式 / SIGGRAPH / ACM / 著名研究者個人サイト）
 
-### Step 3: `_algorithm_index.md` 作成
+### Step 3: `_algorithm_index.md` + `_source_index.md` 作成
 
-抽出したアルゴリズム一覧を表形式でまとめる（個別ドキュメント未作成でも先に索引だけ完成させる）。
+抽出したアルゴリズム一覧と取得済み資料一覧を表形式でまとめる（個別ドキュメント未作成でも先に索引 2 本を完成させる）。  
+公開 PDF はこの段階で `_papers/` にダウンロードしておく。
 
 ### Step 4: 個別ドキュメント作成（優先度順）
 
@@ -264,6 +376,22 @@ UE の Rendering 系シェーダは特にコメントで論文参照が豊富。
 
 各システムの Algorithms フェーズ完了は以下を満たすこと:
 - [ ] `_algorithm_index.md` がそのシステムの主要アルゴリズムを網羅している
+- [ ] `_source_index.md` に取得済み資料と未解決事項が記載されている
+- [ ] `_papers/_README.md` が存在する（PDF 自体は `.gitignore` 対象）
 - [ ] 各アルゴリズムにつき 1 ドキュメント（or 1 索引行 + 後回し明記）
 - [ ] 既存 Details から Algorithms への相互リンクが張られている
 - [ ] `MASTER_TASK_LIST.md` の該当 Algorithms 行が `[x]`
+
+---
+
+## 8. 相談セッションの効率化
+
+ユーザーから「{topic} の {部分} について相談したい」と言われたら、以下の順で読む:
+
+1. `Algorithms/_source_index.md` — 出典 ID と未解決事項を即把握
+2. `Algorithms/{topic}.md` — 公開ドキュメント本体
+3. `Algorithms/{topic}_full.md`（あれば） — 長文転載・詳細メモ
+4. `Algorithms/_papers/{paper}.pdf`（あれば） — 元資料の該当ページのみ Read
+
+相談中に新たな疑問が出たら `_source_index.md` の「未解決事項」表に追記する。  
+セッション後に解決したらステータス更新。
