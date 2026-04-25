@@ -192,6 +192,43 @@ GetWorldTimerManager().SetTimer(TimerHandle, this, &AMyActor::OnInterval, 0.1f, 
 
 ---
 
+## コード実行フロー
+
+### TickTaskManager による Tick 実行
+
+```
+UWorld::Tick(DeltaTime)                              [World.cpp]
+  └─ FTickTaskManager::StartFrame()
+       └─ TickGroup ごとに順番に実行:
+            TG_PrePhysics
+              └─ FTickFunction::ExecuteTick()
+                   └─ AActor::TickActor() → Actor::Tick(DeltaTime)
+                   └─ UActorComponent::ConditionalTickComponent()
+                        └─ TickComponent(DeltaTime, TickType, ThisTickFunc)
+            TG_DuringPhysics → TG_PostPhysics → TG_PostUpdateWork → TG_LastDemotable
+```
+
+### TickPrerequisite（依存関係）解決
+
+```
+FTickFunction::CheckTickUpToDate()                   [TickTaskManager.cpp]
+  └─ for each Prerequisite in Prerequisites:
+       └─ Prerequisite が未実行なら先に ExecuteTick()
+            ← TickGroup をまたいだ依存は降格（Demote）される
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `UWorld` | `Tick()` | フレームの Tick 開始 |
+| `FTickTaskManager` | `StartFrame()` | TickGroup 別実行管理 |
+| `FTickFunction` | `ExecuteTick()` | 個々の Tick 呼び出し |
+| `AActor` | `TickActor()` | Actor::Tick のディスパッチ |
+| `UActorComponent` | `ConditionalTickComponent()` | IsActive チェック後に TickComponent 呼び出し |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_actor_lifecycle]] — BeginPlay → EndPlay の全体フロー

@@ -165,6 +165,41 @@ if (AMyActor* Actor = World->SpawnActor<AMyActor>(...))
 
 ---
 
+## コード実行フロー
+
+### SpawnActorDeferred → FinishSpawning
+
+```
+UWorld::SpawnActorDeferred(Class, Transform, ...)    [LevelActor.cpp]
+  └─ SpawnActor(..., bDeferConstruction=true)
+       ├─ StaticConstructObject_Internal()           ← CDO からインスタンス生成
+       ├─ PostSpawnInitialize(..., bDeferBeginPlay=true)
+       │    ├─ RegisterAllComponents()
+       │    ├─ PreInitializeComponents()
+       │    └─ PostInitializeComponents()
+       └─ return Actor                               ← まだ OnConstruction 未実行
+
+[呼び出し側でカスタム初期化]
+MyActor->SetupCustomProperties(...);
+
+MyActor->FinishSpawning(Transform)                   [Actor.cpp]
+  ├─ ExecuteConstruction()                           ← OnConstruction(Transform) 呼び出し
+  └─ (World が BeginPlay 済み) → DispatchBeginPlay()
+       └─ BeginPlay()
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `UWorld` | `SpawnActorDeferred()` | OnConstruction 前に止める SpawnActor |
+| `UWorld` | `SpawnActor()` | 通常の即時スポーン |
+| `AActor` | `FinishSpawning()` | OnConstruction〜BeginPlay を完結させる |
+| `AActor` | `ExecuteConstruction()` | Blueprint Construction Script の実行 |
+| `AActor` | `PostSpawnInitialize()` | Component 登録・初期化の統括 |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_actor_lifecycle]] — PostSpawnInitialize〜BeginPlay の全体フロー

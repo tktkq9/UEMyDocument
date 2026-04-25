@@ -175,6 +175,54 @@ void AMyAIController::OnUnPossess()
 
 ---
 
+## コード実行フロー
+
+### Possess（サーバー → クライアント）
+
+```
+[Server]
+AController::Possess(InPawn)                         [Controller.cpp:316]
+  └─ APlayerController::OnPossess(PawnToPossess)    [PlayerController.cpp:877]
+       ├─ PawnToPossess->PossessedBy(this)           [Pawn.cpp:650]
+       │    ├─ SetOwner(Controller)
+       │    ├─ SetController(Controller)
+       │    └─ SetAutonomousProxy(true)              ← ネット権限昇格
+       ├─ SetPawn(PawnToPossess)
+       ├─ ClientRestart(Pawn)                        ← クライアントへ RPC
+
+[Client]
+APlayerController::ClientRestart_Implementation()
+  └─ Pawn->PawnClientRestart()                      [Pawn.cpp:475]
+       ├─ SetupPlayerInputComponent()               ← InputComponent 生成・バインド
+       └─ EnableInput(this)
+  └─ AcknowledgePossession(Pawn)                   → ServerAcknowledgePossession RPC
+       └─ AcknowledgedPawn = Pawn                   ← 以降クライアント入力が有効
+```
+
+### UnPossess フロー
+
+```
+AController::UnPossess()                             [Controller.cpp:382]
+  └─ OnUnPossess()
+       └─ Pawn->UnPossessed()                       [Pawn.cpp:692]
+            ├─ SetOwner(nullptr)
+            ├─ SetController(nullptr)
+            └─ DestroyPlayerInputComponent()
+       └─ SetPawn(nullptr)
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `AController` | `Possess()` / `OnPossess()` | サーバー側ポゼッション処理 |
+| `APawn` | `PossessedBy()` | Owner・Controller・ネット権限設定 |
+| `APlayerController` | `ClientRestart()` | クライアントへのポゼッション通知 RPC |
+| `APawn` | `PawnClientRestart()` | InputComponent 生成・Enable |
+| `APlayerController` | `AcknowledgePossession()` | クライアント確認の RPC |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_player_controller]] — PlayerController が持つ入力・カメラ管理

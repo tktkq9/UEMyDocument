@@ -83,9 +83,9 @@
 
 - [x] Ph0: ソースマップ（`_source_map.md`、2026-04-25 完了）
 - [x] Ph1: 概要（`01_gameframework_overview.md` 更新 + サブフォルダ概要 5 本、2026-04-25 完了）
-- [ ] Ph2: Details（17 本）
-- [ ] Ph3: Reference（7 本）
-- [ ] Ph4: Flow 追記
+- [x] Ph2: Details（17 本、2026-04-25 完了）
+- [x] Ph3: Reference（7 本、2026-04-25 完了）
+- [x] Ph4: Flow 追記（23 本: overview 6 + Details 17、2026-04-25 完了）
 
 ### WorldBuilding — 31 ファイル
 

@@ -222,6 +222,51 @@ if (HasAuthority())
 
 ---
 
+## コード実行フロー
+
+### 入力処理フロー（ローカル PC のみ）
+
+```
+UGameViewportClient::InputKey(Key, Event)            [GameViewportClient.cpp]
+  └─ APlayerController::InputKey()                  [PlayerController.cpp]
+       └─ UPlayerInput::ProcessInputStack()
+            └─ InputComponent スタック（後入り優先）を走査
+                 └─ 一致したデリゲートを Execute
+
+APlayerController::PlayerTick(DeltaTime)            [PlayerController.cpp:2309]
+  ├─ TickPlayerInput(DeltaTime, bGamePaused)
+  │    └─ UPlayerInput::Tick() — 軸値の積算
+  ├─ PreProcessInput(DeltaTime, bGamePaused)
+  ├─ ProcessPlayerInput(DeltaTime, bGamePaused)     ← BindAxis デリゲート発火
+  └─ PostProcessInput(DeltaTime, bGamePaused)
+```
+
+### OnPossess → BeginPlayingState
+
+```
+APlayerController::OnPossess(Pawn)                  [PlayerController.cpp:877]
+  ├─ PawnToPossess->PossessedBy(this)
+  ├─ SetControlRotation(Pawn->GetActorRotation())
+  ├─ SetPawn(PawnToPossess)
+  ├─ CMC->ResetPredictionData_Server()
+  ├─ ClientRestart(Pawn)                            ← クライアントへ RPC
+  └─ ChangeState(NAME_Playing)
+       └─ BeginPlayingState()                       [PlayerController.cpp:5847]
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `UGameViewportClient` | `InputKey()` | OS からの入力受信 |
+| `UPlayerInput` | `ProcessInputStack()` | InputComponent スタックの走査 |
+| `APlayerController` | `PlayerTick()` | 入力処理の毎フレーム更新 |
+| `APlayerController` | `OnPossess()` | Pawn 取得後の初期化 |
+| `APlayerController` | `BeginPlayingState()` | NAME_Playing 状態への移行 |
+| `APlayerController` | `SetViewTargetWithBlend()` | カメラ追従対象の変更 |
+
+---
+
 ## 関連ドキュメント
 
 - [[b_ai_controller]] — AI 専用 Controller

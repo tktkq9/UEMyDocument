@@ -148,6 +148,37 @@ LeavingMap      → マップ切替
 
 ---
 
+## コード実行フロー
+
+### ログイン → MatchState 遷移
+
+```
+[接続]
+AGameSession::ApproveLogin() → AGameModeBase::PreLogin()
+  └─ AGameModeBase::Login()         ← PlayerController 生成
+       └─ AGameModeBase::PostLogin()
+            └─ HandleStartingNewPlayer()
+                 └─ RestartPlayer() → SpawnDefaultPawnFor() → Possess()
+
+[MatchState 遷移]
+AGameMode::WaitingToStart
+  └─ ReadyToStartMatch() → SetMatchState("InProgress")
+       ├─ HandleMatchHasStarted()
+       └─ AGameState::OnRep_MatchState()  ← 全クライアントに複製
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `AGameModeBase` | `Login()` / `PostLogin()` | 接続処理とスポーン |
+| `AGameMode` | `ReadyToStartMatch()` | 試合開始条件の判定 |
+| `AGameMode` | `SetMatchState()` | 状態変更と Handler 呼び出し |
+| `AGameState` | `OnRep_MatchState()` | クライアントへの状態同期 |
+| `AGameStateBase` | `HandleBeginPlay()` | 全 Actor の BeginPlay 発火 |
+
+---
+
 ## 関連ドキュメント
 
 - [[../01_gameframework_overview]] — GameFramework 全体

@@ -227,6 +227,49 @@ virtual bool IsTickableWhenPaused() const override { return true; }
 
 ---
 
+## コード実行フロー
+
+### UTickableWorldSubsystem の Tick 有効化
+
+```
+UTickableWorldSubsystem::Initialize(Collection)      [WorldSubsystem.cpp]
+  ├─ Super::Initialize()                             ← UWorldSubsystem の初期化
+  └─ bInitialized = true
+
+UWorld::Tick(DeltaTime)
+  └─ FTickableGameObject::TickObjects()              [Tickable.cpp]
+       └─ for each FTickableGameObject:
+            ├─ IsAllowedToTick()                     ← bInitialized == true
+            ├─ IsTickable()                          ← Conditional の場合チェック
+            └─ Tick(DeltaTime)                       ← 派生クラスの実装
+
+UTickableWorldSubsystem::Deinitialize()
+  └─ bInitialized = false                            ← 以降 Tick されない
+  └─ Super::Deinitialize()
+```
+
+### FTickableGameObject 登録フロー
+
+```
+FTickableGameObject::FTickableGameObject()           ← コンストラクタで自動登録
+  └─ FTickableGameObject::AddTickableObject(this)
+
+FTickableGameObject::~FTickableGameObject()          ← デストラクタで自動解除
+  └─ FTickableGameObject::RemoveTickableObject(this)
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `UTickableWorldSubsystem` | `Initialize()` | bInitialized = true にして Tick 有効化 |
+| `UTickableWorldSubsystem` | `IsAllowedToTick()` | bInitialized チェック（final） |
+| `FTickableGameObject` | `TickObjects()` | 全 Tickable を列挙して Tick 呼び出し |
+| `FTickableGameObject` | `GetStatId()` | プロファイラへの登録（PURE_VIRTUAL） |
+| `UTickableWorldSubsystem` | `Deinitialize()` | bInitialized = false にして Tick 停止 |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_subsystem_types]] — Subsystem の種類と生存期間

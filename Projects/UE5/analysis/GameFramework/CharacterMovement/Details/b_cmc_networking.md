@@ -216,6 +216,46 @@ class UMyCharacterMovementComponent : public UCharacterMovementComponent
 
 ---
 
+## コード実行フロー
+
+### クライアント予測 → サーバー補正
+
+```
+[Client – 毎フレーム]
+CMC::TickComponent()
+  └─ PerformMovement()                               ← ローカル即時実行
+  └─ ReplicateMoveToServer(DeltaTime, Accel)         [CMC.cpp:8789]
+       ├─ FSavedMove に状態保存
+       ├─ CanCombineWith() → Move Combining
+       └─ ServerMovePacked_ClientSend() RPC          → サーバーへ送信
+
+[Server – RPC 受信]
+CMC::ServerMove_PerformMovement(MoveData)            [CMC.cpp:9840]
+  ├─ PerformMovement()                               ← サーバー再計算
+  └─ ServerMoveHandleClientError()                   [CMC.cpp:10051]
+       ├─ |ServerLoc - ClientLoc|² < 閾値 → ACK
+       └─ 閾値超 → ClientAdjustPosition() RPC
+
+[Client – 補正受信]
+CMC::ClientAdjustPosition_Implementation()          [CMC.cpp:11052]
+  ├─ サーバー位置に移動
+  └─ ClientUpdatePositionAfterServerUpdate()         [CMC.cpp:8488]
+       └─ SavedMoves を全て Replay
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `UCharacterMovementComponent` | `ReplicateMoveToServer()` | SavedMove 保存・RPC 送信 |
+| `FSavedMove_Character` | `GetCompressedFlags()` | 入力状態のビットパック |
+| `UCharacterMovementComponent` | `ServerMove_PerformMovement()` | サーバー側再計算 |
+| `UCharacterMovementComponent` | `ServerMoveHandleClientError()` | 位置誤差の判定 |
+| `UCharacterMovementComponent` | `ClientAdjustPosition()` | クライアント補正 RPC |
+| `UCharacterMovementComponent` | `ClientUpdatePositionAfterServerUpdate()` | SavedMove の再生 |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_movement_modes]] — 各物理モードの計算

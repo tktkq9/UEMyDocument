@@ -174,6 +174,40 @@ bool UMySpecificSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 
 ---
 
+## コード実行フロー
+
+### Outer 生成 → Subsystem Initialize → Tick
+
+```
+UGameInstance::Init()
+  └─ SubsystemCollection.Initialize(this)           [SubsystemCollection.cpp]
+       └─ for each SubsystemClass:
+            ├─ CDO->ShouldCreateSubsystem() → false なら skip
+            └─ NewObject<USubsystem>()
+                 └─ Subsystem->Initialize(Collection)
+
+UWorld 生成
+  └─ SubsystemCollection.Initialize(World)
+       └─ WorldSubsystem->Initialize()
+  └─ WorldSubsystem->PostInitialize()               ← 全 WS 初期化後
+
+[毎フレーム]
+UWorld::Tick() → FTickableGameObject::TickObjects()
+  └─ UTickableWorldSubsystem::Tick(DeltaTime)       ← bInitialized == true の時
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `FSubsystemCollectionBase` | `Initialize()` | 全 Subsystem の生成・初期化 |
+| `USubsystem` | `ShouldCreateSubsystem()` | 生成条件の判定（CDO 呼び出し） |
+| `USubsystem` | `Initialize()` | ゲームロジック初期化 |
+| `FSubsystemCollectionBase` | `InitializeDependency()` | 依存 Subsystem の先行初期化 |
+| `UTickableWorldSubsystem` | `Tick()` | 毎フレーム更新 |
+
+---
+
 ## 関連ドキュメント
 
 - [[../01_gameframework_overview]] — GameFramework 全体

@@ -194,6 +194,43 @@ const TArray<UMySystemInterface*>& Systems =
 
 ---
 
+## コード実行フロー
+
+### GameInstance 生成 → Subsystem Initialize
+
+```
+UGameInstance::Init()                                [GameInstance.cpp]
+  └─ SubsystemCollection.Initialize(this)           [SubsystemCollection.cpp]
+       ├─ GetDerivedClasses(UGameInstanceSubsystem)  ← 全サブクラスを発見
+       └─ for each SubsystemClass:
+            ├─ CDO->ShouldCreateSubsystem(Outer) → false なら skip
+            └─ NewObject<USubsystem>(Outer, Class)
+                 └─ Subsystem->Initialize(Collection)
+```
+
+### 取得パス
+
+```
+// C++
+UGameInstance* GI = World->GetGameInstance();
+UMySubsystem* Sys  = GI->GetSubsystem<UMySubsystem>();
+
+// Blueprint
+GetGameInstanceSubsystem(ContextObject, Class)       ← SubsystemBlueprintLibrary
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `UGameInstance` | `Init()` | GameInstance Subsystem コレクションの初期化 |
+| `FSubsystemCollectionBase` | `Initialize()` | 全 Subsystem の生成・Initialize 呼び出し |
+| `USubsystem` | `ShouldCreateSubsystem()` | 生成条件の判定（CDO に対して呼ばれる） |
+| `USubsystem` | `Initialize()` | インスタンスの初期化 |
+| `UGameInstance` | `GetSubsystem<T>()` | 型安全な取得 |
+
+---
+
 ## 関連ドキュメント
 
 - [[b_subsystem_lifecycle]] — Initialize / Deinitialize / ShouldCreateSubsystem

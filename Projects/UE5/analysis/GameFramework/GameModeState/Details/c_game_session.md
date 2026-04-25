@@ -167,6 +167,48 @@ public:
 
 ---
 
+## コード実行フロー
+
+### ApproveLogin フロー（詳細）
+
+```
+UNetDriver::NotifyAcceptingConnection()              [NetDriver.cpp]
+  └─ AGameModeBase::PreLogin()                      [GameModeBase.cpp]
+       └─ AGameSession::ApproveLogin(Options, UniqueId, NewPC, ErrorMessage)
+            ├─ if (NumPlayers >= MaxPlayers)
+            │    ErrorMessage = "Server full"        ← 接続拒否
+            ├─ OnlineSubsystem BAN チェック
+            └─ ErrorMessage.IsEmpty() == true → 承認
+
+[承認後]
+AGameModeBase::Login()
+  └─ AGameSession::RegisterPlayer(NewPC, UniqueId, bWasFromInvite)
+       └─ (OnlineSubsystem に登録)
+```
+
+### HandleMatchHasStarted（セッション非公開化）
+
+```
+AGameMode::HandleMatchHasStarted()
+  └─ AGameSession::HandleMatchHasStarted()          [GameSession.cpp]
+       └─ IOnlineSession::UpdateSession(
+               GameSessionName,
+               Settings{bAllowJoinInProgress=false},
+               true)                                ← 新規参加を締め切り
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `AGameSession` | `ApproveLogin()` | 最大人数・BAN チェック |
+| `AGameSession` | `RegisterPlayer()` | OnlineSubsystem への登録 |
+| `AGameSession` | `UnregisterPlayer()` | 退場時の登録解除 |
+| `AGameSession` | `KickPlayer()` | 強制切断 |
+| `AGameSession` | `HandleMatchHasStarted()` | 試合開始時のセッション更新 |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_game_mode]] — AGameSession を生成・呼び出す AGameModeBase

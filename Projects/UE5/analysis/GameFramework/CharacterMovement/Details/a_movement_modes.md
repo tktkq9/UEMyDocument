@@ -192,6 +192,45 @@ void UMyCharacterMovementComponent::OnMovementModeChanged(EMovementMode Prev, ui
 
 ---
 
+## コード実行フロー
+
+### TickComponent → PhysWalking
+
+```
+UCharacterMovementComponent::TickComponent(DeltaTime) [CMC.cpp]
+  └─ PerformMovement(DeltaTime)
+       ├─ UpdateBasedMovement()                      ← 動く床への追従
+       ├─ ApplyAccumulatedForces()                   ← AddImpulse / AddForce 適用
+       └─ switch(MovementMode):
+            MOVE_Walking → PhysWalking(dt, Iterations)
+              ├─ CalcVelocity()                      ← 速度計算（摩擦・加速）
+              ├─ MoveAlongFloor()
+              │    ├─ SafeMoveUpdatedComponent()     ← カプセル移動
+              │    └─ (衝突) StepUp() or SlideAlongSurface()
+              └─ FindFloor() → AdjustFloorHeight()
+```
+
+### SetMovementMode の通知連鎖
+
+```
+CMC::SetMovementMode(NewMode)
+  └─ OnMovementModeChanged(OldMode, OldCustomMode)   ← virtual
+       └─ ACharacter::OnMovementModeChanged()
+            └─ K2_OnMovementModeChanged()            ← Blueprint イベント発火
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `UCharacterMovementComponent` | `PerformMovement()` | 移動処理のメインループ |
+| `UCharacterMovementComponent` | `PhysWalking()` | 地面移動の物理計算 |
+| `UCharacterMovementComponent` | `CalcVelocity()` | 速度・加速・摩擦の更新 |
+| `UCharacterMovementComponent` | `SetMovementMode()` | モード変更と通知 |
+| `ACharacter` | `OnMovementModeChanged()` | Blueprint へのブリッジ |
+
+---
+
 ## 関連ドキュメント
 
 - [[b_cmc_networking]] — クライアント予測・ServerMove

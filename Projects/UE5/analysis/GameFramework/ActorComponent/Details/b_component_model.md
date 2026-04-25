@@ -210,6 +210,46 @@ public:
 
 ---
 
+## コード実行フロー
+
+### RegisterComponent → BeginPlay
+
+```
+AActor::RegisterAllComponents()                      [Actor.cpp]
+  └─ for each Component:
+       UActorComponent::RegisterComponentWithWorld() [ActorComponent.cpp]
+         ├─ OnRegister()                             ← 物理・レンダー登録
+         ├─ CreateRenderState_Concurrent()           (UPrimitiveComponent)
+         ├─ CreatePhysicsState()                     (UPrimitiveComponent)
+         └─ InitializeComponent()                    (bWantsInitializeComponent のみ)
+
+[BeginPlay フェーズ]
+UActorComponent::BeginPlay()
+  └─ bHasBegunPlay = true
+```
+
+### AttachToComponent フロー
+
+```
+Child::AttachToComponent(Parent, Rules, SocketName)  [SceneComponent.cpp]
+  ├─ DetachFromComponent() → 既存親から切り離し
+  ├─ AttachParent = Parent
+  ├─ Parent->AttachChildren.Add(this)
+  └─ UpdateComponentToWorld()                        ← ワールド Transform 再計算
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `AActor` | `RegisterAllComponents()` | 全 Component を World に登録 |
+| `UActorComponent` | `OnRegister()` | 物理・レンダー状態生成 |
+| `UActorComponent` | `InitializeComponent()` | ゲームロジック初期化 |
+| `USceneComponent` | `AttachToComponent()` | 親子関係の構築 |
+| `USceneComponent` | `UpdateComponentToWorld()` | ワールド Transform の伝播 |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_actor_lifecycle]] — Actor 全体のライフサイクル

@@ -233,6 +233,47 @@ ai.debug.BrainLogLevel 1
 
 ---
 
+## コード実行フロー
+
+### Possess → RunBehaviorTree
+
+```
+AController::Possess(InPawn)                         [Controller.cpp]
+  └─ AAIController::OnPossess(InPawn)               [AIController.cpp]
+       ├─ Super::OnPossess()                         ← Pawn::PossessedBy / SetPawn
+       ├─ if (bStartAILogicOnPossess)
+       │    └─ BrainComponent->StartLogic()          ← BT 実行開始
+       └─ PerceptionComponent->RequestStimuliListenerUpdate()
+
+AAIController::RunBehaviorTree(BTAsset)             [AIController.cpp]
+  └─ UseBlackboard(BTAsset->BlackboardAsset, BBComp)
+       └─ InitializeBlackboard(BBComp, BBAsset)
+  └─ UBehaviorTreeComponent::StartTree(BTAsset)     ← ルートノードから実行
+```
+
+### MoveToActor フロー
+
+```
+AAIController::MoveToActor(Goal, Radius, ...)        [AIController.cpp]
+  └─ BuildPathfindingQuery()
+  └─ PathFollowingComponent->RequestMove(MoveRequest, Path)
+       └─ NavigationSystem::FindPathSync()           ← NavMesh パス探索
+  └─ (毎フレーム) PathFollowingComponent->FollowPathSegment()
+       └─ CMC->RequestDirectMove() or AddInputVector()
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `AAIController` | `OnPossess()` | BT 開始・知覚登録 |
+| `AAIController` | `RunBehaviorTree()` | BT アセットの実行開始 |
+| `UBehaviorTreeComponent` | `StartTree()` | BT ルートから実行 |
+| `UPathFollowingComponent` | `RequestMove()` | ナビメッシュ経路追従 |
+| `AAIController` | `SetFocus()` | 優先度付きフォーカス設定 |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_player_controller]] — 人間プレイヤー用 Controller

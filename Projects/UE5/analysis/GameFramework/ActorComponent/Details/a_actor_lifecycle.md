@@ -190,6 +190,51 @@ void SomeOtherClass::OnSomething(AActor* Actor)
 
 ---
 
+## コード実行フロー
+
+### SpawnActor → BeginPlay
+
+```
+UWorld::SpawnActor(Class, Transform, Params)         [World.cpp]
+  └─ StaticConstructObject_Internal()                ← UObject 生成（CDO からコピー）
+       └─ AActor::PostSpawnInitialize()              [Actor.cpp]
+            ├─ RegisterAllComponents()
+            │    └─ for each Component:
+            │         ├─ OnRegister()
+            │         └─ InitializeComponent()       (bWantsInitializeComponent のみ)
+            ├─ PreInitializeComponents()
+            └─ PostInitializeComponents()
+  └─ FinishSpawning()
+       └─ ExecuteConstruction()                      ← OnConstruction(Transform)
+  └─ (World が BeginPlay 済み) → BeginPlay()        [Actor.cpp]
+       ├─ RegisterAllActorTickFunctions()
+       └─ for each Component: Component::BeginPlay()
+```
+
+### EndPlay → Destroy
+
+```
+UWorld::DestroyActor(Actor)                          [World.cpp]
+  └─ Actor::EndPlay(EEndPlayReason::Destroyed)
+       └─ for each Component: Component::EndPlay()
+  └─ Actor::BeginDestroy()
+  └─ GC: Actor::FinishDestroy()
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `UWorld` | `SpawnActor()` | Actor 生成エントリポイント |
+| `AActor` | `PostSpawnInitialize()` | Component 登録・初期化の統括 |
+| `AActor` | `PreInitializeComponents()` | Component 初期化前フック |
+| `AActor` | `PostInitializeComponents()` | Component 初期化後フック |
+| `AActor` | `BeginPlay()` | ゲーム開始通知 |
+| `AActor` | `EndPlay(Reason)` | 終了通知（理由付き） |
+| `AActor` | `Destroyed()` | 破棄直前の最終コールバック |
+
+---
+
 ## 関連ドキュメント
 
 - [[b_component_model]] — コンポーネントの RegisterComponent / Attach

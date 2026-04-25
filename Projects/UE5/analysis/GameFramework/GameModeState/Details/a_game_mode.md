@@ -231,6 +231,59 @@ bool AMyGameMode::ReadyToEndMatch()
 
 ---
 
+## コード実行フロー
+
+### プレイヤーログインフロー
+
+```
+[新規接続]
+UNetDriver::NotifyAcceptingConnection()              [NetDriver.cpp]
+  └─ AGameSession::ApproveLogin()                   ← 満員・パスワードチェック
+       └─ AGameModeBase::PreLogin()                 [GameModeBase.cpp]
+            └─ ErrorMessage.IsEmpty() → 承認
+
+AGameModeBase::Login()                              [GameModeBase.cpp]
+  ├─ PlayerControllerClass からPC 生成
+  └─ return NewPlayerController
+
+AGameModeBase::PostLogin(NewPC)
+  ├─ ClientSetHUD(HUDClass) RPC
+  ├─ GameState 同期
+  └─ HandleStartingNewPlayer(NewPC)
+       └─ RestartPlayer(NewPC)
+            ├─ ChoosePlayerStart()                  ← APlayerStart を選択
+            ├─ SpawnDefaultPawnFor()                ← DefaultPawnClass をスポーン
+            └─ Controller->Possess(NewPawn)
+```
+
+### MatchState 遷移（AGameMode）
+
+```
+WaitingToStart
+  └─ (毎フレーム) ReadyToStartMatch() == true
+       └─ SetMatchState("InProgress")
+            └─ HandleMatchHasStarted()
+
+InProgress
+  └─ (毎フレーム) ReadyToEndMatch() == true
+       └─ SetMatchState("WaitingPostMatch")
+            └─ HandleMatchHasEnded()
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `AGameSession` | `ApproveLogin()` | 接続の最初の承認判定 |
+| `AGameModeBase` | `PreLogin()` | カスタム承認ロジック |
+| `AGameModeBase` | `Login()` | PlayerController 生成 |
+| `AGameModeBase` | `PostLogin()` | HUD 送信・スポーン開始 |
+| `AGameModeBase` | `RestartPlayer()` | スポーン〜Possess の一連処理 |
+| `AGameMode` | `ReadyToStartMatch()` | WaitingToStart → InProgress 条件 |
+| `AGameMode` | `SetMatchState()` | 状態変更と Handler 呼び出し |
+
+---
+
 ## 関連ドキュメント
 
 - [[b_game_state]] — 全プレイヤーに複製されるゲーム状態

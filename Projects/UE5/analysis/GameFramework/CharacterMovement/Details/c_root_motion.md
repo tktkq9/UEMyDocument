@@ -184,6 +184,48 @@ struct FRootMotionSource_MyDash : public FRootMotionSource
 
 ---
 
+## コード実行フロー
+
+### AnimRootMotion 適用フロー
+
+```
+USkeletalMeshComponent::TickAnimation()              [SkeletalMeshComponent.cpp]
+  └─ UAnimInstance::UpdateAnimation()
+       └─ RootBone 変位 → FRootMotionMovementParams に蓄積
+
+CMC::PerformMovement(DeltaTime)                      [CMC.cpp]
+  ├─ ConsumeRootMotion()                             ← AnimInstance から変位取得
+  │    └─ RootMotionParams.Set(RootMotionTransform)
+  ├─ HasAnimRootMotion() == true:
+  │    ├─ CalcAnimRootMotionVelocity()               ← 変位 / DeltaTime → 速度
+  │    └─ ApplyRootMotionToVelocity()               ← Velocity を RootMotion で上書き
+  └─ PhysWalking / PhysFalling で RootMotion 速度を使って移動
+```
+
+### FRootMotionSource 適用フロー
+
+```
+CMC::ApplyRootMotionSource(SourcePtr)
+  └─ CurrentRootMotion.PendingAddRootMotionSources.Add(Source)
+
+CMC::PerformMovement()
+  └─ CurrentRootMotion.PrepareRootMotion(DeltaTime, Character, CMC)
+       └─ for each Source: Source->PrepareRootMotion()  ← 変位計算
+  └─ ApplyRootMotionToVelocity()                    ← 合成して Velocity に適用
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `UAnimInstance` | `UpdateAnimation()` | RootBone 変位の計算 |
+| `UCharacterMovementComponent` | `ConsumeRootMotion()` | AnimInstance から変位を取得 |
+| `UCharacterMovementComponent` | `ApplyRootMotionToVelocity()` | RootMotion を速度に変換 |
+| `FRootMotionSource` | `PrepareRootMotion()` | コード起動 RootMotion の変位計算 |
+| `FRootMotionSourceGroup` | `PrepareRootMotion()` | 複数 Source の合成 |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_movement_modes]] — PhysWalking / PhysFalling と RootMotion の相互作用

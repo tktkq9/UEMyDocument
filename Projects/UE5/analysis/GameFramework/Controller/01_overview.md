@@ -163,6 +163,37 @@ APlayerController::PlayerTick
 
 ---
 
+## コード実行フロー
+
+### Possess → 入力処理
+
+```
+AController::Possess(Pawn)                           [Controller.cpp]
+  └─ APlayerController::OnPossess(Pawn)
+       ├─ Pawn->PossessedBy(this)                   ← Owner・ネット権限設定
+       ├─ ClientRestart(Pawn)                        ← クライアントへ RPC
+       │    └─ Pawn->PawnClientRestart()
+       │         └─ SetupPlayerInputComponent()     ← InputComponent 生成
+       └─ ChangeState(NAME_Playing)
+
+[毎フレーム – ローカル PC のみ]
+APlayerController::PlayerTick()
+  └─ ProcessPlayerInput()                            ← BindAxis デリゲート発火
+       └─ Pawn::MoveForward(Val) → CMC::AddInputVector()
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `AController` | `Possess()` | Pawn との結合（サーバー権限） |
+| `APlayerController` | `OnPossess()` | ClientRestart RPC 送信 |
+| `APawn` | `SetupPlayerInputComponent()` | 入力バインドの設定 |
+| `APlayerController` | `PlayerTick()` | 入力処理の毎フレーム更新 |
+| `AAIController` | `RunBehaviorTree()` | BT の実行開始 |
+
+---
+
 ## 関連ドキュメント
 
 - [[../01_gameframework_overview]] — GameFramework 全体

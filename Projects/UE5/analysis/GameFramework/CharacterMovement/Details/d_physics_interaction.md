@@ -201,6 +201,46 @@ virtual void HandleWalkingOffLedge(
 
 ---
 
+## コード実行フロー
+
+### FindFloor → IsWalkable
+
+```
+CMC::PhysWalking() → MoveAlongFloor() 後
+  └─ FindFloor(CapsuleLocation, OutFloor, bCanUseCachedLocation)
+       └─ ComputeFloorDist()
+            ├─ CapsuleSweep（垂直下向き）
+            │    └─ ヒット → FFindFloorResult.bBlockingHit = true
+            └─ スイープ失敗 → LineTrace フォールバック
+       └─ IsWalkable(HitResult)
+            └─ HitNormal.Z >= WalkableFloorZ → bWalkableFloor = true
+```
+
+### StepUp → 段差登り
+
+```
+CMC::MoveAlongFloor() → SafeMoveUpdatedComponent() で壁ヒット
+  └─ CanStepUp(Hit) == true かつ Hit高さ <= MaxStepHeight
+       └─ StepUp(GravDir, Delta, Hit)
+            ├─ 1) カプセルを MaxStepHeight 上に移動
+            ├─ 2) 元の方向へ SafeMoveUpdatedComponent
+            ├─ 3) 成功 → FindFloor で床確認 → IsWalkable → 確定
+            └─ 4) 失敗 → RevertMove() で元位置に戻す
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `UCharacterMovementComponent` | `FindFloor()` | カプセルスイープで床を検出 |
+| `UCharacterMovementComponent` | `ComputeFloorDist()` | スイープ距離の計算 |
+| `UCharacterMovementComponent` | `IsWalkable()` | 床の傾斜チェック |
+| `UCharacterMovementComponent` | `StepUp()` | 段差登り処理 |
+| `UCharacterMovementComponent` | `SlideAlongSurface()` | 壁面スライド |
+| `ACharacter` | `LaunchCharacter()` | PendingLaunchVelocity セット → CMC に委譲 |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_movement_modes]] — PhysWalking / PhysFalling のフロー

@@ -206,3 +206,47 @@ if (IsLocallyControlled())   // 自分が操作している Pawn
 - [[Subsystems/01_overview]] — Subsystem フレームワーク
 - [[../Core/UObject/01_overview]] — UObject 基底システム
 - [[../Network/01_network_overview]] — レプリケーション・RPC
+
+---
+
+## コード実行フロー
+
+### ゲーム起動〜プレイヤー操作開始までの全体フロー
+
+```
+[エンジン起動]
+UGameInstance::Init()
+  └─ SubsystemCollection.Initialize()               ← GameInstance Subsystem 起動
+
+UWorld::InitializeActorsForPlay()
+  └─ SubsystemCollection.Initialize(World)          ← World Subsystem 起動
+  └─ AGameModeBase::InitGame()                      ← GameMode 初期化
+  └─ AGameModeBase::InitGameState()                 ← GameState 生成
+
+UWorld::BeginPlay()
+  └─ AGameStateBase::HandleBeginPlay()              ← 全 Actor の BeginPlay 発火
+
+[プレイヤー接続]
+AGameSession::ApproveLogin() → AGameModeBase::Login()
+  └─ AGameModeBase::PostLogin()
+       └─ RestartPlayer() → SpawnDefaultPawnFor() → Controller::Possess(Pawn)
+            └─ APlayerController::OnPossess()
+                 └─ ClientRestart() → SetupPlayerInputComponent()
+
+[毎フレーム]
+UWorld::Tick()
+  ├─ FTickTaskManager → 各 Actor / Component の Tick
+  └─ UCharacterMovementComponent::TickComponent()
+       └─ PerformMovement() or ReplicateMoveToServer()
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `UGameInstance` | `Init()` | ゲームセッション全体の起動 |
+| `AGameModeBase` | `InitGame()` | ルールクラスの初期化 |
+| `AGameStateBase` | `HandleBeginPlay()` | 全 Actor への BeginPlay 伝播 |
+| `AGameModeBase` | `PostLogin()` | プレイヤー接続完了後の処理 |
+| `AController` | `Possess()` | Controller と Pawn の結合 |
+| `UCharacterMovementComponent` | `PerformMovement()` | キャラクター移動の実行 |

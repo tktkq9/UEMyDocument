@@ -208,6 +208,46 @@ for (APlayerState* PS : GetWorld()->GetGameState()->PlayerArray)
 
 ---
 
+## コード実行フロー
+
+### BeginPlay の起動経路
+
+```
+UWorld::BeginPlay()                                  [World.cpp]
+  └─ AGameStateBase::HandleBeginPlay()              [GameStateBase.cpp]
+       ├─ bReplicatedHasBegunPlay = true            ← 複製開始
+       └─ for each Actor in Levels:
+            └─ AActor::BeginPlay()
+
+[クライアント側]
+AGameStateBase::OnRep_ReplicatedHasBegunPlay()       ← 複製受信
+  └─ UWorld::BeginPlay()                            → 同じ経路で全 Actor の BeginPlay
+```
+
+### PlayerState の登録フロー
+
+```
+AGameModeBase::Login() → PostLogin()
+  └─ AGameStateBase::AddPlayerState(PlayerState)   [GameStateBase.cpp]
+       └─ PlayerArray.AddUnique(PlayerState)        ← 複製プロパティに追加
+
+AGameModeBase::Logout(Exiting)
+  └─ AGameStateBase::RemovePlayerState(PlayerState)
+       └─ PlayerArray.Remove(PlayerState)
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `AGameStateBase` | `HandleBeginPlay()` | World の BeginPlay を全 Actor に伝播 |
+| `AGameStateBase` | `OnRep_ReplicatedHasBegunPlay()` | クライアント側 BeginPlay トリガー |
+| `AGameStateBase` | `AddPlayerState()` | PlayerArray への登録 |
+| `AGameState` | `OnRep_MatchState()` | MatchState 変更をクライアントに通知 |
+| `AGameStateBase` | `GetServerWorldTimeSeconds()` | サーバー基準時刻の取得 |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_game_mode]] — GameState に書き込む権限側 GameMode

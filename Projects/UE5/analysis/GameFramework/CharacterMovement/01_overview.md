@@ -174,6 +174,37 @@ CMC->ApplyRootMotionSource(Source);
 
 ---
 
+## コード実行フロー
+
+### TickComponent → ネット予測
+
+```
+UCharacterMovementComponent::TickComponent(DeltaTime)
+  ├─ (ローカル PC) PerformMovement()                ← ローカル物理実行
+  │    └─ switch(MovementMode): PhysWalking / PhysFalling / ...
+  └─ ReplicateMoveToServer()                        ← サーバーへ RPC
+
+[Server]
+ServerMove_PerformMovement() → ServerMoveHandleClientError()
+  └─ (ズレ検出) ClientAdjustPosition() RPC
+
+[Client]
+ClientAdjustPosition() → ClientUpdatePositionAfterServerUpdate()
+  └─ SavedMoves を Replay                          ← 位置補正後に再適用
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `UCharacterMovementComponent` | `PerformMovement()` | 移動物理のメインループ |
+| `UCharacterMovementComponent` | `ReplicateMoveToServer()` | 入力 RPC の送信 |
+| `UCharacterMovementComponent` | `ServerMoveHandleClientError()` | 位置誤差の判定 |
+| `UCharacterMovementComponent` | `ClientAdjustPosition()` | クライアント補正 RPC |
+| `UCharacterMovementComponent` | `ApplyRootMotionToVelocity()` | RootMotion 速度の適用 |
+
+---
+
 ## 関連ドキュメント
 
 - [[../01_gameframework_overview]] — GameFramework 全体

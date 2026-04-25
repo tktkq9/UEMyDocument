@@ -201,6 +201,55 @@ FSubsystemCollectionBase::DeactivateExternalSubsystem(UMyPluginSubsystem::Static
 
 ---
 
+## コード実行フロー
+
+### Initialize → 依存関係解決 → Deinitialize
+
+```
+FSubsystemCollectionBase::Initialize(Outer)
+  └─ AddAndInitializeSubsystem(SubsystemClass)
+       ├─ NewObject<USubsystem>(Outer, Class)
+       └─ Subsystem->Initialize(Collection)
+            └─ (内部で) Collection.InitializeDependency<UDep>()
+                 └─ AddAndInitializeSubsystem(DepClass)  ← 再帰的に先に初期化
+                      └─ Dep->Initialize(Collection)
+
+FSubsystemCollectionBase::Deinitialize()
+  └─ for each Subsystem in 逆順:
+       └─ Subsystem->Deinitialize()
+```
+
+### UWorldSubsystem ライフサイクル
+
+```
+UWorld 生成
+  └─ SubsystemCollection.Initialize(World)
+       └─ WorldSubsystem->Initialize()
+
+全 WorldSubsystem 初期化後
+  └─ WorldSubsystem->PostInitialize()
+
+AGameModeBase が BeginPlay フェーズへ移行する直前
+  └─ WorldSubsystem->OnWorldBeginPlay(World)
+
+UWorld 破棄
+  └─ WorldSubsystem->PreDeinitialize()
+  └─ WorldSubsystem->Deinitialize()
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `FSubsystemCollectionBase` | `Initialize()` | 全 Subsystem の生成と初期化 |
+| `FSubsystemCollectionBase` | `InitializeDependency()` | 依存 Subsystem を先行して初期化 |
+| `USubsystem` | `ShouldCreateSubsystem()` | 生成条件（CDO 呼び出し） |
+| `USubsystem` | `Initialize()` | インスタンス初期化 |
+| `UWorldSubsystem` | `PostInitialize()` | 全 WS 初期化後のフック |
+| `UWorldSubsystem` | `OnWorldBeginPlay()` | BeginPlay 前のフック |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_subsystem_types]] — 各 Subsystem の種類と生存期間

@@ -136,6 +136,37 @@ class USceneComponent : public UActorComponent
 
 ---
 
+## コード実行フロー
+
+### SpawnActor → Component 初期化 → BeginPlay
+
+```
+UWorld::SpawnActor()
+  └─ AActor::PostSpawnInitialize()
+       ├─ RegisterAllComponents()
+       │    └─ UActorComponent::RegisterComponentWithWorld()
+       │         ├─ OnRegister()
+       │         └─ InitializeComponent()   (bWantsInitializeComponent のみ)
+       ├─ PreInitializeComponents()
+       └─ PostInitializeComponents()
+  └─ FinishSpawning() → ExecuteConstruction()
+  └─ AActor::BeginPlay()
+       └─ UActorComponent::BeginPlay()     (全 Component)
+```
+
+### 関与クラス・関数
+
+| クラス | 関数 | 役割 |
+|--------|------|------|
+| `UWorld` | `SpawnActor()` | Actor の生成エントリポイント |
+| `AActor` | `PostSpawnInitialize()` | Component 登録・初期化の統括 |
+| `UActorComponent` | `OnRegister()` | ワールドへの登録通知 |
+| `UActorComponent` | `InitializeComponent()` | ゲームロジック初期化 |
+| `AActor` | `BeginPlay()` | ゲーム開始通知 |
+| `UActorComponent` | `BeginPlay()` | Component のゲーム開始通知 |
+
+---
+
 ## 関連ドキュメント
 
 - [[../01_gameframework_overview]] — GameFramework 全体
