@@ -42,9 +42,9 @@
 
 ### Subsystems — サブシステムフレームワーク
 - [x] `Subsystems/01_overview.md` … Subsystems 概要（2026-04-25 完了）
-- [ ] `Subsystems/Details/a_subsystem_types.md` … UGameInstanceSubsystem・UWorldSubsystem・ULocalPlayerSubsystem
-- [ ] `Subsystems/Details/b_subsystem_lifecycle.md` … Initialize/Deinitialize・ShouldCreateSubsystem・依存関係
-- [ ] `Subsystems/Details/c_tickable_subsystem.md` … FTickableGameObject・TickableWorldSubsystem
+- [x] `Subsystems/Details/a_subsystem_types.md` … UGameInstanceSubsystem・UWorldSubsystem・ULocalPlayerSubsystem（2026-04-25）
+- [x] `Subsystems/Details/b_subsystem_lifecycle.md` … Initialize/Deinitialize・ShouldCreateSubsystem・依存関係（2026-04-25）
+- [x] `Subsystems/Details/c_tickable_subsystem.md` … FTickableGameObject・TickableWorldSubsystem（2026-04-25）
 - [ ] `Subsystems/Reference/ref_subsystem_api.md` … USubsystem / UGameInstanceSubsystem API
 
 ---
