@@ -219,6 +219,75 @@ FJsonSerializer::Serialize(JsonObj.ToSharedRef(), Writer);
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（SaveGame 生成 〜 保存 〜 ロード）
+
+```
+(セーブ - 同期)
+UGameplayStatics::SaveGameToSlot(SaveGame, SlotName, UserIndex)   [GameplayStatics.cpp]
+  ├─ UGameplayStatics::SaveGameToMemory(SaveGame, OutBytes)
+  │    ├─ FMemoryWriter MemWriter(OutBytes)
+  │    ├─ FSaveGameHeader Header(SaveGame->GetClass())
+  │    │    └─ Header.Write(MemWriter)                              ← クラス名・バージョン
+  │    └─ FObjectAndNameAsStringProxyArchive ProxyAr(MemWriter, true)
+  │         ├─ ProxyAr.ArIsSaveGame = true                          ← CPF_SaveGame のみ書く
+  │         └─ SaveGame->Serialize(ProxyAr)
+  │              └─ Class->SerializeBin で UPROPERTY(SaveGame) のみ I/O
+  │                   └─ UObject* は GetPathName() の文字列に変換
+  └─ ISaveGameSystem::SaveGame(SlotName, UserIndex, Bytes)         [SaveGameSystem.h]
+       └─ FGenericSaveGameSystem::SaveGame()                       [GenericPlatformSurvey.cpp]
+            └─ ファイル書き込み: %LOCALAPPDATA%/.../SaveGames/SlotName.sav
+
+(セーブ - 非同期、UE 5.1+)
+UGameplayStatics::AsyncSaveGameToSlot(SaveGame, SlotName, UI, Delegate)
+  └─ FAsyncTask<FAsyncSaveGameToSlotTask>->StartBackgroundTask()    ← TaskGraph
+       ├─ ThreadPool で SaveGameToMemory() 実行                     ← データ準備をワーカー化
+       └─ GameThread に戻って Delegate 発火
+
+(ロード)
+UGameplayStatics::LoadGameFromSlot(SlotName, UserIndex)
+  ├─ ISaveGameSystem::LoadGame(SlotName, UserIndex, OutBytes)      ← ファイル読込
+  └─ UGameplayStatics::LoadGameFromMemory(Bytes)
+       ├─ FMemoryReader MemReader(Bytes)
+       ├─ FSaveGameHeader Header
+       │    └─ Header.Read(MemReader)                               ← クラス名取得
+       ├─ UClass* SaveClass = StaticLoadClass(Header.SaveGameClassName)
+       ├─ NewObject<USaveGame>(GetTransientPackage(), SaveClass)    ← インスタンス生成
+       └─ FObjectAndNameAsStringProxyArchive ProxyAr(MemReader)
+            ├─ ProxyAr.ArIsSaveGame = true
+            └─ SaveGame->Serialize(ProxyAr)                         ← UPROPERTY(SaveGame) 復元
+
+(スロット管理)
+DoesSaveGameExist(SlotName, UI)  → ISaveGameSystem::DoesSaveGameExist()
+DeleteGameInSlot(SlotName, UI)   → ISaveGameSystem::DeleteGame()
+```
+
+### フロー詳細
+
+1. **SaveGame オブジェクト生成** — `CreateSaveGameObject<T>()` で `NewObject` ベースの USaveGame 派生インスタンスを生成。`Outer` は `GetTransientPackage()`（[[UObject/Details/c_outer_chain]]）。
+2. **SaveGameToMemory** — `FMemoryWriter` を `FObjectAndNameAsStringProxyArchive` でラップ。`ArIsSaveGame = true` を立てることで `CPF_SaveGame` フラグのプロパティのみが処理対象になる（[[a_farchive]]）。
+3. **UObject 参照の文字列化** — `FObjectAndNameAsStringProxyArchive` は UObject ポインタを `GetPathName()` 文字列として保存。ロード時に `StaticFindObject` でパスから復元するため、外部参照が壊れない。
+4. **プラットフォーム抽象** — `ISaveGameSystem` がプラットフォーム差を吸収。Windows/Mac は `FGenericSaveGameSystem` がファイル書き込み、Console は専用ストレージ API。
+5. **非同期版** — `AsyncSaveGameToSlot` は `FAsyncTask` でデータ準備（Serialize）をバックグラウンドに逃がし、完了時に GameThread でデリゲートを発火（[[AsyncTasks/Details/b_async_patterns]]）。
+6. **ロード経路** — `FSaveGameHeader` から保存時のクラス名を読み、`StaticLoadClass` で UClass を解決して `NewObject` でインスタンス生成。その後 ProxyArchive で逆方向に Serialize して値を復元。
+7. **バージョン互換** — SaveGame は `FCustomVersion` か独自のバージョンフィールドで管理。`Serialize()` 内で `Ar.IsLoading() && SaveVersion < N` 分岐により旧データの修正が可能。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `UGameplayStatics::SaveGameToSlot` / `LoadGameFromSlot` | `GameplayStatics.cpp` | 高レベル API |
+| `UGameplayStatics::SaveGameToMemory` / `LoadGameFromMemory` | `GameplayStatics.cpp` | バイト配列 I/O |
+| `UGameplayStatics::CreateSaveGameObject` | `GameplayStatics.cpp` | USaveGame 生成 |
+| `FObjectAndNameAsStringProxyArchive` | `ArchiveObjectAndNameAsStringProxyArchive.h` | UObject* を文字列化するプロキシ |
+| `FSaveGameHeader::Write` / `Read` | `GameplayStatics.cpp` | ヘッダ I/O |
+| `ISaveGameSystem` | `SaveGameSystem.h` | プラットフォーム抽象インターフェース |
+| `FGenericSaveGameSystem::SaveGame` / `LoadGame` | プラットフォーム別実装 | ファイル I/O |
+| `FAsyncTask<FAsyncSaveGameToSlotTask>` | `GameplayStatics.cpp` | 非同期保存タスク |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_farchive]] — `FMemoryWriter`/`FMemoryReader` の基底 `FArchive`

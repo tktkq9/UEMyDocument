@@ -190,6 +190,72 @@ if (SpawnClass)
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（UClass 構築 〜 型チェック 〜 探索）
+
+```
+(ビルド時)
+UnrealHeaderTool が UCLASS マクロを解析
+  └─ {Module}.generated.cpp 出力
+       ├─ Z_Construct_UClass_UMyComponent_NoRegister()              ← 軽量初期化
+       ├─ Z_Construct_UClass_UMyComponent()                         ← フル初期化
+       └─ UMyComponent::StaticClass() 定義                          ← TClassCompiledInDefer
+
+(エンジン起動時 - UClass 登録)
+ProcessNewlyLoadedUObjects()                                       [UObjectGlobals.cpp]
+  ├─ UClassRegisterAllCompiledInClasses()
+  │    └─ for each TClassCompiledInDefer:
+  │         └─ Z_Construct_UClass_UMyComponent()
+  │              ├─ UECodeGen_Private::ConstructUClass()
+  │              ├─ AddCppProperty で FProperty を Children に追加  ← [[b_fproperty]]
+  │              ├─ AddFunctionToFunctionMap で UFunction 登録      ← [[c_ufunction]]
+  │              └─ ImplementsInterface 設定
+  └─ UObjectLoadAllCompiledInDefaultProperties()
+       └─ Class->CreateDefaultObject()                              ← CDO 生成
+
+(StaticClass)
+UMyComponent::StaticClass()                                        [UHT 生成]
+  └─ static UClass* キャッシュ返却（初回は GetPrivateStaticClass で構築）
+
+(型チェック)
+Obj->IsA<AActor>()                                                 [Object.h]
+  └─ UClass::IsChildOf(AActor::StaticClass())
+       ├─ ClassCastFlags & CASTCLASS_AActor (高速パス)              ← O(1) ビット判定
+       └─ for (Class = this; Class; Class = Class->SuperStruct)     ← O(N) フォールバック
+
+(クラス探索)
+FindObject<UClass>(nullptr, TEXT("/Script/Engine.Actor"))          [UObjectGlobals.cpp]
+  └─ StaticFindObject() → FUObjectHashTables 経由
+
+TObjectIterator<UClass>                                            [UObjectIterator.h]
+  └─ GUObjectArray を全走査
+```
+
+### フロー詳細
+
+1. **UHT 生成** — UnrealHeaderTool が `.h` を解析して `.generated.cpp` に `Z_Construct_UClass_*` 関数を出力。`StaticClass()` テンプレートも生成される。
+2. **UClass 登録** — `ProcessNewlyLoadedUObjects` から `UClassRegisterAllCompiledInClasses` が呼ばれ、各 `Z_Construct_UClass_*` が UClass インスタンスを構築。`AddCppProperty` で `FProperty` リストを構築し、`AddFunctionToFunctionMap` で `UFunction` を登録。
+3. **CDO 生成** — `UObjectLoadAllCompiledInDefaultProperties` が `CreateDefaultObject` を呼び、各クラスの CDO を生成（[[UObject/Details/d_class_default_object]]）。
+4. **StaticClass 解決** — `T::StaticClass()` は UHT 生成のキャッシュ済み `UClass*` を返す O(1) アクセス。
+5. **IsA 高速パス** — 頻出型（AActor、UActorComponent 等）は `ClassCastFlags` ビットで判定。それ以外は `SuperStruct` チェーンを上って `IsChildOf` 検査。
+6. **インターフェース実装** — `Interfaces` 配列に `FImplementedInterface` が登録され、`Cast<IMyInterface>(Obj)` 時にポインタオフセット調整に使われる。
+7. **クラス探索** — `FindObject<UClass>` は `FUObjectHashTables` を、`TObjectIterator<UClass>` は `GUObjectArray` を直接走査する（[[UObject/Details/c_outer_chain]]）。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `Z_Construct_UClass_*` | `*.generated.cpp` | UHT 生成の UClass 構築関数 |
+| `UClassRegisterAllCompiledInClasses` | `UObjectGlobals.cpp` | UClass 登録ドライバ |
+| `UECodeGen_Private::ConstructUClass` | `UObjectGlobals.cpp` | UClass 構築の共通実装 |
+| `UClass::CreateDefaultObject` | `Class.cpp` | CDO 生成 |
+| `UClass::IsChildOf` | `Class.h` | 継承チェーン判定 |
+| `UClass::ImplementsInterface` | `Class.cpp` | インターフェース実装チェック |
+| `TObjectIterator<UClass>` | `UObjectIterator.h` | UClass 全走査 |
+
+---
+
 ## 関連ドキュメント
 
 - [[b_fproperty]] — `UClass` が保持するプロパティリスト

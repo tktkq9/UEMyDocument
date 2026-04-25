@@ -219,6 +219,91 @@ UObject 派生
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（MakeShared 〜 参照カウント 〜 Pin 〜 解放）
+
+```
+(MakeShared - 一括確保)
+TSharedPtr<FMyData> P = MakeShared<FMyData>(Args...)              [SharedPointer.h]
+  └─ FSharedReferencer<Mode>::MakeSharedRef
+       └─ TIntrusiveReferenceController<T, Mode>* Ref
+            ├─ ::operator new(sizeof(TIntrusiveReferenceController))  ← 1回のアロケで
+            ├─ new (RefCtrl) TIntrusiveReferenceController(Args...)   ← Ctrl + Object 同居
+            │    ├─ SharedRefCount = 1
+            │    ├─ WeakRefCount   = 1                                ← 弱参照分も最初から
+            │    └─ T(Args...)                                        ← in-place 構築
+            └─ return TSharedRef<T>(Ref)
+
+(MakeShareable - 旧式 2 回アロック)
+TSharedPtr<FMyData> P = MakeShareable(new FMyData())              [SharedPointer.h]
+  └─ FSharedReferencer<Mode>::FSharedReferencer(NewPtr)
+       └─ new TReferenceControllerWithDeleter(NewPtr)             ← Object とは別ヒープ
+            ← 2 回アロケのため Cache miss しやすい
+
+(コピー - 参照カウント増)
+TSharedPtr<T> Q = P                                                [SharedPointer.h]
+  └─ FSharedReferencer::FSharedReferencer(Other)
+       └─ ReferenceController->AddSharedReference()
+            └─ if (ThreadSafe) FPlatformAtomics::InterlockedIncrement(&SharedRefCount)
+            └─ else            ++SharedRefCount                      ← NotThreadSafe は単純 inc
+
+(解放 - 参照カウント減)
+P.Reset() または スコープ終了                                       [SharedPointer.h]
+  └─ ~FSharedReferencer()
+       └─ ReferenceController->ReleaseSharedReference()
+            ├─ if (--SharedRefCount == 0):
+            │    ├─ DestroyObject() → T::~T()                       ← オブジェクト破棄
+            │    └─ ReleaseWeakReference()                          ← 弱参照分も減
+            │         └─ if (--WeakRefCount == 0):
+            │              └─ delete this (Controller 解放)         ← 全てが消えた
+
+(TWeakPtr::Pin - 安全な強参照取得)
+TSharedPtr<T> Locked = Weak.Pin()                                 [SharedPointer.h]
+  └─ FWeakReferencer::Pin()
+       └─ ReferenceController->ConditionallyAddSharedReference()
+            ├─ Loop CAS:
+            │    ├─ Old = SharedRefCount
+            │    ├─ if (Old == 0) return false                       ← 既に破棄済み
+            │    └─ CompareAndSwap(SharedRefCount, Old, Old + 1)    ← 競合なら再試行
+            └─ return TSharedPtr (有効) または empty
+
+(TUniquePtr - 軽量単独所有)
+TUniquePtr<T> U = MakeUnique<T>(Args...)                          [UniquePtr.h]
+  └─ TUniquePtr(new T(Args...))                                    ← 単純 new、参照カウントなし
+~TUniquePtr()
+  └─ delete Ptr                                                    ← 単純 delete
+
+(MoveTemp - 所有権移転)
+TUniquePtr<T> Moved = MoveTemp(U)
+  └─ Moved.Ptr = U.Ptr; U.Ptr = nullptr                            ← ポインタすり替えのみ
+```
+
+### フロー詳細
+
+1. **MakeShared の最適化** — 参照カウントブロックとオブジェクトを単一アロケーションで隣接配置（`TIntrusiveReferenceController<T>`）。`MakeShareable(new T)` は 2 回アロケートしてしまうので推奨されない。
+2. **WeakRefCount の初期値** — `MakeShared` 直後の `WeakRefCount` は 1（強参照ブロック自身が弱参照を 1 つ持つ扱い）。これにより `SharedRefCount==0` でもコントローラ自体は `WeakRefCount==0` まで残り、`TWeakPtr::Pin` の競合を安全にハンドルできる。
+3. **ThreadSafe vs NotThreadSafe** — `ESPMode::ThreadSafe`（既定）は `FPlatformAtomics::InterlockedIncrement` を使う。`NotThreadSafe` は単純な `++` で速いが GameThread 限定。Slate ウィジェット系は `ThreadSafe`、エディタ拡張の一部は `NotThreadSafe` を選ぶ。
+4. **Pin の CAS ループ** — `TWeakPtr::Pin` は `ConditionallyAddSharedReference` で CAS ループ。「`SharedRefCount > 0` ならインクリメント」を原子的に行うことで、別スレッドが同時に最後の `Reset` をしても安全。
+5. **TUniquePtr が軽い理由** — 参照カウントを持たず、ポインタ 1 本だけ。デストラクタは単純 `delete`。`MoveTemp` でポインタすり替えのみ。`std::unique_ptr` と同じ。
+6. **UObject に使ってはいけない** — `TSharedPtr<UObject派生>` は GC（[[../../UObject/Details/b_garbage_collection]]）とは独立して参照カウントを管理してしまい、二重解放やリークの原因になる。UObject は `UPROPERTY` 生ポインタか `TWeakObjectPtr` を使う。
+7. **TSharedRef の null 不可** — コンパイル時に `nullptr` を弾くため、関数引数・戻り値で「絶対に有効」を表現できる。`TSharedPtr → TSharedRef` 変換は実行時 assert で null チェック。
+8. **TArray との組合せ** — `TArray<TSharedPtr<T>>` は要素ごとに参照カウントブロックがあり、リアロケーション時にコピー（参照カウント増減）が走る。`Reserve` で再確保を抑えるとよい（[[a_array_map_set]]）。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `MakeShared<T>` | `Templates/SharedPointer.h` | 参照ブロック + オブジェクト一括確保 |
+| `TIntrusiveReferenceController` | `Templates/SharedPointerInternals.h` | カウンタ + オブジェクト同居型 |
+| `TReferenceControllerWithDeleter` | `Templates/SharedPointerInternals.h` | 旧 MakeShareable 用（別アロック） |
+| `FSharedReferencer::AddSharedReference` / `ReleaseSharedReference` | `Templates/SharedPointer.h` | 強参照カウント増減 |
+| `FWeakReferencer::Pin` / `ConditionallyAddSharedReference` | `Templates/SharedPointer.h` | 弱参照→強参照の安全変換（CAS） |
+| `MakeUnique<T>` / `TUniquePtr` | `Templates/UniquePtr.h` | 単独所有スマートポインタ |
+| `MoveTemp` | `Templates/UnrealTemplate.h` | 所有権ムーブ |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_array_map_set]] — TArray<TSharedPtr<T>> など

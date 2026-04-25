@@ -245,6 +245,63 @@ ENQUEUE_RENDER_COMMAND(SetColorCommand)(
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（タスク投入 〜 実行）
+
+```
+(TaskGraph 経路)
+FFunctionGraphTask::CreateAndDispatchWhenReady(Lambda, StatId, Prereq, Thread)  [TaskGraphInterfaces.h]
+  └─ FBaseGraphTask::Schedule()                                    [TaskGraph.cpp]
+       ├─ 前提条件タスクの完了を待つ                                ← FGraphEvent
+       └─ FTaskGraphInterface::QueueTask(Task, Thread)
+            └─ FNamedTaskThread / FTaskThreadAnyThread が拾って実行 ← ENamedThreads で振分
+
+(UE::Tasks 経路)
+UE::Tasks::Launch(DebugName, Lambda, Priority)                    [Tasks/Task.h]
+  └─ LowLevelTasks::FScheduler::Get().TryLaunch(Task)             [Async/Fundamental/Scheduler.cpp]
+       └─ ParkingLot ベースのワーカープールで実行                   ← ワークスティーリング
+
+(Async ヘルパ経路)
+Async(EAsyncExecution::Thread, Lambda)                            [Async/Async.h]
+  └─ 内部で TaskGraph / FRunnable / ThreadPool を選択
+       └─ TFuture<T> を返す                                        ← .Get() でブロック待機
+
+(GameThread → RenderThread)
+ENQUEUE_RENDER_COMMAND(Name)([](FRHICommandListImmediate& RHI){...})  [RenderingThread.h]
+  └─ FFunctionGraphTask::CreateAndDispatchWhenReady(..., ENamedThreads::GetRenderThread_Local)
+       └─ FRenderingThread が処理                                   ← 1 フレーム遅延で追従
+
+(ParallelFor)
+ParallelFor(Count, [](int32 Index){...}, Flags)                   [Async/ParallelFor.h]
+  └─ TaskGraph に Count/Workers のバッチを分配
+       └─ 全タスク完了まで呼出元スレッドもワーカー化して支援
+```
+
+### フロー詳細
+
+1. **タスク投入** — `FFunctionGraphTask::CreateAndDispatchWhenReady` が `FBaseGraphTask` を生成し、前提条件があれば未完了の間キュー保留する（[[Details/a_task_graph]]）。
+2. **スレッド振分** — `ENamedThreads` で指定したスレッドにタスクをキュー。`AnyThread` 系は `FTaskThreadAnyThread` プールへ、`GameThread`/`RenderThread` は専用キューへ送られる。
+3. **UE::Tasks v2** — `LowLevelTasks::FScheduler` が ParkingLot ベースで管理し、待機中のスレッドが他タスクを盗む（ワークスティーリング、[[Details/b_async_patterns]]）。
+4. **RenderThread 連携** — `ENQUEUE_RENDER_COMMAND` マクロが `FFunctionGraphTask` を生成して RenderThread にディスパッチ。`FlushRenderingCommands()` で同期可能（[[Details/c_game_thread]]）。
+5. **ParallelFor 駆動** — 内部で TaskGraph に Count を分割投入し、呼出元スレッド自身もワーカー扱いで処理に参加（[[Details/d_parallel_for]]）。
+6. **同期プリミティブ** — `UE::FMutex` が ParkingLot 経由で軽量にブロック。`FCriticalSection` は OS ネイティブ Mutex の薄いラッパ。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `FFunctionGraphTask::CreateAndDispatchWhenReady` | `TaskGraphInterfaces.h` | TaskGraph タスク投入 |
+| `FTaskGraphInterface::QueueTask` | `TaskGraph.cpp` | スレッド振分・キューイング |
+| `UE::Tasks::Launch` | `Tasks/Task.h` | Task System v2 タスク起動 |
+| `LowLevelTasks::FScheduler::TryLaunch` | `Async/Fundamental/Scheduler.cpp` | v2 スケジューラ |
+| `Async` / `TFuture::Get` | `Async/Async.h` | 汎用非同期ヘルパ |
+| `ParallelFor` | `Async/ParallelFor.h` | 並列ループ |
+| `ENQUEUE_RENDER_COMMAND` | `RenderingThread.h` | GameThread→RenderThread 投入 |
+| `FRunnableThread::Create` | `HAL/RunnableThread.h` | 独立スレッド生成 |
+
+---
+
 ## 備考
 
 - **GameThread 絶対則**: `UObject` 操作・Tick・BP は GameThread で。`UWorld` アクセスも原則 GameThread

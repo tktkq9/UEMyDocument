@@ -199,6 +199,71 @@ if (Ar.IsLoading() && Ar.UE4Ver() < VER_UE4_SOME_FEATURE)
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（Serialize 〜 operator<< 〜 カスタムバージョン）
+
+```
+(基本パターン)
+UObject::Serialize(FArchive& Ar)                                   [Object.cpp]
+  ├─ Super::Serialize(Ar)                                           ← UObject 基底（リフレクション経由）
+  │    └─ Class->SerializeBin(Ar, this)                              [Class.cpp]
+  │         └─ for each FProperty: Prop->SerializeBinProperty(Slot, Container)
+  │              └─ Prop->SerializeItem(Slot, ValuePtr)              ← 型別バイナリ I/O
+  └─ Ar << CustomMember                                              ← カスタム手動シリアライズ
+       └─ FArchive::operator<<(int32&) 等
+            └─ FArchive::ByteOrderSerialize(Data, Size)              ← 仮想関数
+                 └─ Serialize(Data, Size)                            ← 派生クラスの実装
+
+(派生クラスの実装)
+FMemoryWriter::Serialize(void* Data, int64 Num)                     [MemoryWriter.cpp]
+  └─ Bytes.Append((uint8*)Data, Num)                                 ← TArray<uint8> 末尾追加
+
+FMemoryReader::Serialize(void* Data, int64 Num)                     [MemoryReader.cpp]
+  └─ FMemory::Memcpy(Data, &Bytes[Offset], Num); Offset += Num
+
+FLinkerLoad::Serialize(void* Data, int64 Num)                       [LinkerLoad.cpp]
+  └─ Loader->Serialize(Data, Num)                                    ← FFileHandle 経由
+
+(カスタムバージョン)
+Ar.UsingCustomVersion(GUID)                                         [Archive.cpp]
+  └─ FArchiveState::CustomVersionContainer.SetVersionUsingRegistry(GUID)
+       └─ Save 時はサマリーに自動追加                                ← FPackageFileSummary
+
+if (Ar.CustomVer(GUID) >= MyVersion::Feature)                       [Archive.h]
+  └─ CustomVersionContainer.GetVersion(GUID).Version
+
+(FStructuredArchive)
+FStructuredArchiveFromArchive Adapter(Ar)                          [StructuredArchiveFromArchive.h]
+  └─ FStructuredArchive内部の BinaryArchiveFormatter / JsonArchiveFormatter で I/O
+       └─ Slot.EnterRecord/EnterArray でフォーマット切替可能
+```
+
+### フロー詳細
+
+1. **基本パターン** — `Serialize(FArchive&)` をオーバーライドし、`Super::Serialize(Ar)` で UPROPERTY を自動シリアライズ。手動メンバは `Ar << Member` で書く。
+2. **operator<< 実装** — `FArchive::operator<<(int32&)` 等は `ByteOrderSerialize` を呼ぶ。これは仮想関数で、派生クラスの `Serialize(void*, int64)` に最終的に到達する。
+3. **派生別 I/O** — `FMemoryWriter` は `TArray<uint8>` 末尾追加、`FMemoryReader` は `FMemory::Memcpy` で復元、`FLinkerLoad` は `FFileHandle` 経由でディスク I/O。
+4. **UPROPERTY 自動経路** — `UObject::Serialize` 基底実装が `Class->SerializeBin` を呼び、各 `FProperty::SerializeBinProperty` が型別実装でバイナリ化（[[Reflection/Details/b_fproperty]]）。
+5. **カスタムバージョン** — `Ar.UsingCustomVersion(GUID)` で使用宣言。Save 時は `FPackageFileSummary::CustomVersionContainer` に自動追加され、Load 時は `Ar.CustomVer(GUID)` で値を確認できる。
+6. **IsLoading/IsSaving 分岐** — 単方向シリアライズなので、ロード時のみ・セーブ時のみの処理は `if (Ar.IsLoading())` / `if (Ar.IsSaving())` で分ける。
+7. **FStructuredArchive 経路** — `FStructuredArchiveFromArchive` で `FArchive` をスロット形式にラップ。`BinaryArchiveFormatter` / `JsonArchiveFormatter` を切り替えるだけで Binary/JSON 両対応。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `FArchive::operator<<` | `Archive.h` | プリミティブ I/O |
+| `FArchive::ByteOrderSerialize` | `Archive.h` | エンディアン対応バイト列 I/O |
+| `FArchive::Serialize` (virtual) | `Archive.h` | 派生クラスの最終実装ポイント |
+| `FMemoryWriter::Serialize` | `MemoryWriter.cpp` | TArray バッファ書込 |
+| `FMemoryReader::Serialize` | `MemoryReader.cpp` | TArray バッファ読込 |
+| `UObject::Serialize` | `Object.cpp` | UPROPERTY 自動シリアライズ |
+| `UStruct::SerializeBin` | `Class.cpp` | リフレクション経由 I/O |
+| `FArchive::UsingCustomVersion` / `CustomVer` | `Archive.cpp` | カスタムバージョン管理 |
+
+---
+
 ## 関連ドキュメント
 
 - [[b_asset_serialization]] — `FLinkerLoad`/`FLinkerSave` を使った `.uasset` I/O

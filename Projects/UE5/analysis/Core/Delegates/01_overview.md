@@ -211,6 +211,68 @@ int32 Result = Fn(3.7f);
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（バインド 〜 Broadcast 〜 タイマー発火）
+
+```
+(ネイティブ Multicast)
+Delegate.AddUObject(Object, &Class::Method)                       [Delegate.h]
+  └─ TMulticastDelegateBase::AddDelegateInstance()                 [DelegateBase.h]
+       └─ TBaseUObjectMethodDelegateInstance を生成                 ← UObject 弱参照ラップ
+            └─ InvocationList に格納                                ← TArray<IDelegateInstance*>
+
+Delegate.Broadcast(Args...)                                        [MulticastDelegateBase.h]
+  └─ for each instance in InvocationList
+       ├─ instance->IsCompactable() ? skip : Execute()              ← 破棄済み UObject はスキップ
+       └─ TBaseUObjectMethodDelegateInstance::ExecuteIfSafe()
+            └─ (Object.Get() ? Object->Method(Args) : nop)           ← 弱参照解決
+
+(Dynamic Multicast - Blueprint 公開)
+Delegate.AddDynamic(this, &Class::Method)                          [ScriptDelegates.h]
+  └─ TScriptDelegate::BindUFunction(Object, FunctionName)
+       └─ FScriptDelegate に Object + UFunction* を格納
+
+Delegate.Broadcast(Args...)
+  └─ TMulticastScriptDelegate::ProcessMulticastDelegate(Params)
+       └─ for each FScriptDelegate
+            └─ Object->ProcessEvent(UFunction, Params)              ← リフレクション経由
+
+(タイマー)
+GetWorldTimerManager().SetTimer(Handle, Obj, &Fn, Rate, Loop)      [TimerManager.h]
+  └─ FTimerManager::InternalSetTimer()                              [TimerManager.cpp]
+       └─ ActiveTimerHeap に FTimerData を追加                       ← 優先度キュー（min-heap）
+
+UWorld::Tick()
+  └─ FTimerManager::Tick(DeltaTime)                                 [TimerManager.cpp]
+       ├─ InternalTime += DeltaTime
+       └─ while (Heap.Top().ExpireTime <= InternalTime)
+            ├─ Timer.TimerDelegate.Execute()                        ← デリゲート発火
+            └─ Loop なら ExpireTime += Rate して再投入
+```
+
+### フロー詳細
+
+1. **バインド** — `AddUObject` は `TBaseUObjectMethodDelegateInstance` を生成し、UObject を弱参照（`FWeakObjectPtr`）でラップして `InvocationList` に格納する（[[Details/a_delegate_types]]）。
+2. **Broadcast** — `TMulticastDelegate::Broadcast` が `InvocationList` を走査し、各インスタンスを `ExecuteIfSafe` で呼ぶ。UObject が破棄されていれば自動でスキップされる。
+3. **Dynamic 経路** — `AddDynamic` は `FScriptDelegate` に `UFunction*` と Object ポインタを格納。`Broadcast` 時は `UObject::ProcessEvent` 経由でリフレクション呼出（[[Details/b_dynamic_delegates]]）。
+4. **タイマー登録** — `SetTimer` が `FTimerData` を生成し、`ActiveTimerHeap`（min-heap）に挿入。`FTimerHandle` は内部 ID。
+5. **タイマー発火** — `UWorld::Tick` 中に `FTimerManager::Tick` が呼ばれ、期限到達した `FTimerData` を順次取り出してデリゲートを発火。Loop 指定なら再投入される（[[Details/c_timer]]）。
+6. **TFunction** — SBO（Small Buffer Optimization）で小ラムダはアロケーション不要。`std::function` 相当の型消去。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `TMulticastDelegateBase::AddDelegateInstance` | `DelegateBase.h` | バインド本体 |
+| `TBaseUObjectMethodDelegateInstance::ExecuteIfSafe` | `DelegateInstancesImpl.h` | UObject 弱参照デリゲート実行 |
+| `TMulticastDelegate::Broadcast` | `MulticastDelegateBase.h` | 全リスナー一斉呼出 |
+| `TMulticastScriptDelegate::ProcessMulticastDelegate` | `ScriptDelegates.h` | Dynamic Multicast 実行 |
+| `FTimerManager::SetTimer` / `Tick` | `TimerManager.cpp` | タイマー登録・発火ドライバ |
+| `UObject::ProcessEvent` | `Class.cpp` | UFunction 経由の関数呼出 |
+
+---
+
 ## 備考
 
 - **ネイティブ vs Dynamic の選択基準**:

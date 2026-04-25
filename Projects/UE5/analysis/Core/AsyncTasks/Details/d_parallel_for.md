@@ -219,6 +219,66 @@ FPlatformProcess::ReturnSynchEventToPool(DoneEvent);
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（ParallelFor 起動 〜 バッチ分割 〜 完了同期）
+
+```
+ParallelFor(Num, Body, Flags)                                     [Async/ParallelFor.h]
+  └─ ParallelForInternal(Num, MinBatchSize, BatchSizeFunc, Body, ..., Flags)
+       ├─ if (Flags & ForceSingleThread) || Num <= 1:
+       │    └─ for (i=0; i<Num; ++i) Body(i); return;              ← フォールバック
+       ├─ NumWorkers = FTaskGraphInterface::Get().GetNumWorkerThreads()
+       ├─ NumBatches = ceil(Num / BatchSize)                       ← 自動分割
+       └─ FParallelForData* Data = new FParallelForData(...)
+            ├─ Data->IndexToDo = ATOMIC_INIT(0)                    ← 共有インデックス
+            └─ for (i=0; i<NumBatches-1; ++i):
+                 └─ UE::Tasks::Launch("ParallelFor", [Data, Body](){
+                      └─ FParallelForData::Process(Data, Body)     ← ワーカー実行
+                    });
+            └─ FParallelForData::Process(Data, Body) を呼出元でも実行 ← GT 自身も参加
+
+(各ワーカーの実行ループ)
+FParallelForData::Process(Data, Body)                             [ParallelFor.cpp]
+  └─ while (true):
+       ├─ MyIndex = Data->IndexToDo.fetch_add(1, ...)              ← アトミックに次のバッチ取得
+       ├─ if (MyIndex >= NumBatches) break
+       └─ Range = ComputeRange(MyIndex)
+            └─ for (i in Range): Body(i)                           ← ユーザー関数実行
+       └─ Data->NumCompleted.fetch_add(1, ...)
+            └─ if (NumCompleted == NumBatches) Event.Trigger()     ← 完了通知
+
+(同期)
+ParallelForInternal の最後:
+  └─ Event.Wait()                                                  ← 全バッチ完了まで待機
+       └─ Data 解放
+```
+
+### フロー詳細
+
+1. **シングルスレッドフォールバック** — `ForceSingleThread` フラグや要素数 1 以下の場合、その場でループ実行して即帰る。
+2. **バッチ分割** — `NumWorkers` を基準に要素数を自動分割。`Unbalanced` フラグの場合は動的に取得（後述）、それ以外は均等分割。
+3. **タスク投入** — `NumBatches - 1` 個のワーカータスクを `UE::Tasks::Launch` で起動し、最後の 1 バッチは呼出元スレッド自身が実行（GameThread もワーカー化）（[[b_async_patterns]]）。
+4. **アトミックバッチ取得** — `Data->IndexToDo` を `fetch_add` で取り合うことで、Unbalanced ケース（バッチ間で処理時間が大きく異なる）でも処理が偏らない。
+5. **完了同期** — 全バッチ完了時に `FEvent::Trigger()` でシグナル。呼出元の `Event.Wait()` がアンブロックして `ParallelFor` から戻る。
+6. **PumpRenderingThread フラグ** — GT から呼んだ場合、待機中に RT コマンドをフラッシュすることで RT のスタベーションを防ぐ（[[c_game_thread]]）。
+7. **書き込み競合回避** — `TArray::Add` 等は非スレッドセーフ。インデックス分割書き込み・`TAtomic`・`FCriticalSection`/`FRWLock` で保護が必要（[[Containers/Details/c_smart_pointers]]）。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `ParallelFor` / `ParallelForTemplate` | `Async/ParallelFor.h` | 並列ループ API |
+| `ParallelForInternal` | `Async/ParallelFor.h` | 内部実装本体 |
+| `FParallelForData::Process` | `Async/ParallelFor.cpp` | ワーカー実行ループ |
+| `UE::Tasks::Launch` | `Tasks/Task.h` | バッチタスク投入 |
+| `FTaskGraphInterface::GetNumWorkerThreads` | `TaskGraph.cpp` | ワーカー数取得 |
+| `TAtomic` / `std::atomic` | `Templates/Atomic.h` | バッチインデックスのアトミック取得 |
+| `FRWLock` / `FReadScopeLock` / `FWriteScopeLock` | `Misc/ScopeRWLock.h` | 読み書きロック |
+| `FEvent` | `HAL/Event.h` | 完了シグナル |
+
+---
+
 ## 関連ドキュメント
 
 - [[b_async_patterns]] — `UE::Tasks::Launch` との比較・FRunnable

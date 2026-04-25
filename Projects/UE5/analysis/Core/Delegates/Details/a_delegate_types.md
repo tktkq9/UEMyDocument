@@ -190,6 +190,77 @@ AsyncTask(ENamedThreads::GameThread, [this]()
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（バインド 〜 Execute / Broadcast 〜 解除）
+
+```
+(TDelegate - シングル)
+MyDelegate.BindUObject(Object, &Class::Method)                    [Delegate.h]
+  └─ TDelegateBase::Reset()
+       └─ new TBaseUObjectMethodDelegateInstance(Object, Method)    [DelegateInstancesImpl.h]
+            ├─ FWeakObjectPtr WeakObject = Object                  ← 弱参照保存
+            └─ DelegateInstance に格納（インライン or ヒープ）
+
+MyDelegate.Execute(Args...)                                        [Delegate.h]
+  └─ DelegateInstance->Execute(Args...)
+       └─ (Class*)WeakObject.Get()->Method(Args...)                ← UObject 解決後呼出
+
+MyDelegate.ExecuteIfBound(Args...)
+  └─ if (DelegateInstance && IsBound()) Execute(Args...)           ← null/破棄チェック付き
+
+(TMulticastDelegate - マルチ)
+Delegate.AddUObject(Object, &Class::Method)                       [MulticastDelegate.h]
+  └─ AddDelegateInstance(...)
+       ├─ TBaseUObjectMethodDelegateInstance を生成
+       ├─ InvocationList.Add(Instance)                              ← TArray<IDelegateInstance*>
+       └─ return FDelegateHandle (Instance->GetHandle())
+
+Delegate.Broadcast(Args...)                                        [MulticastDelegate.h]
+  └─ Lock.Lock()                                                    ← Broadcast 中の改変防止
+       ├─ for (Instance : InvocationList):
+       │    └─ if (Instance->IsCompactable()) skip                   ← 破棄済み UObject
+       │    └─ Instance->ExecuteIfSafe(Args...)
+       │         └─ if (WeakObject.IsValid()) Object->Method(Args)
+       └─ CompactInvocationList()                                   ← 無効インスタンス削除
+
+Delegate.Remove(Handle)
+  └─ for (Instance : InvocationList):
+       └─ if (Instance->GetHandle() == Handle) MarkInvalid → 次回 Broadcast で除去
+
+(TFunction)
+TFunction<int32(float)> Fn = [](float X) { return ...; }          [Function.h]
+  └─ if (sizeof(Lambda) <= SBO_SIZE) インラインストレージに配置     ← 小型最適化
+  └─ else heap allocation で TFunctionStorage 確保
+Fn(3.14f)
+  └─ TFunctionStorage::Invoke(3.14f)
+       └─ ラムダ実体呼出
+```
+
+### フロー詳細
+
+1. **シングルバインド** — `BindUObject` は `TBaseUObjectMethodDelegateInstance` を生成し UObject を `FWeakObjectPtr` でラップ。インラインストレージに収まるか判定し、収まらなければヒープ確保。
+2. **Execute 実行** — `Execute` は弱参照を解決して呼出。`ExecuteIfBound` は戻り値なしデリゲート専用で、null/破棄チェックを付けて呼ぶ。
+3. **マルチキャスト追加** — `Add*` は新しい `IDelegateInstance` を生成し `InvocationList`（`TArray<IDelegateInstance*>`）に追加。`FDelegateHandle` で識別。
+4. **Broadcast** — `InvocationList` を走査し各インスタンスを `ExecuteIfSafe` で呼ぶ。UObject が破棄されていれば自動でスキップ。Broadcast 中はロックされ Add/Remove が禁止される。
+5. **Remove** — `FDelegateHandle` 一致のインスタンスに無効フラグを立て、次の `CompactInvocationList` で削除。Broadcast 中の改変を避けるための遅延削除。
+6. **TFunction の SBO** — Lambda が小さい場合（コピー不要なキャプチャ少数）はインラインストレージに格納してアロケーションを避ける。大きい場合のみヒープ。
+7. **スレッド安全性** — `Broadcast`/`Execute` は呼出スレッドで動く。バックグラウンドからの Broadcast でリスナーが GameThread 限定なら `AsyncTask(GameThread, ...)` で包む（[[AsyncTasks/Details/c_game_thread]]）。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `TDelegate::BindUObject` / `BindLambda` | `Delegate.h` | シングルバインド API |
+| `TDelegate::Execute` / `ExecuteIfBound` | `Delegate.h` | デリゲート実行 |
+| `TBaseUObjectMethodDelegateInstance` | `DelegateInstancesImpl.h` | UObject 弱参照デリゲート |
+| `TMulticastDelegate::AddUObject` / `Add*` | `MulticastDelegate.h` | マルチキャスト追加 |
+| `TMulticastDelegate::Broadcast` | `MulticastDelegate.h` | 全リスナー一斉実行 |
+| `TMulticastDelegate::Remove` / `CompactInvocationList` | `MulticastDelegate.h` | 解除と圧縮 |
+| `TFunction::operator()` | `Function.h` | TFunction 呼出 |
+
+---
+
 ## 関連ドキュメント
 
 - [[b_dynamic_delegates]] — Blueprint 対応 Dynamic デリゲート

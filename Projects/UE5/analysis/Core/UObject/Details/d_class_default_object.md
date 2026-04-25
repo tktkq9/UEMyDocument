@@ -159,6 +159,64 @@ UMyCharacter::UMyCharacter()
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（CDO 生成 〜 取得 〜 プロパティコピー）
+
+```
+(エンジン起動時 - CDO 一括生成)
+ProcessNewlyLoadedUObjects()                                       [UObjectGlobals.cpp]
+  ├─ UClassRegisterAllCompiledInClasses()                          ← UClass 登録
+  └─ UObjectLoadAllCompiledInDefaultProperties()
+       └─ for each Class: Class->GetDefaultObject(true)
+            └─ UClass::CreateDefaultObject()                       [Class.cpp]
+                 ├─ if (ClassDefaultObject) return ClassDefaultObject  ← 既存返却
+                 ├─ FObjectInitializer Initializer(NewCDO, Archetype, ...)
+                 ├─ Class->ClassConstructor(Initializer)            ← T::T() 呼出
+                 └─ ClassDefaultObject = NewCDO（RF_ClassDefaultObject）
+
+(NewObject 時 - CDO からプロパティコピー)
+NewObject<T>()                                                     [UObjectGlobals.h]
+  └─ StaticConstructObject_Internal()
+       └─ FObjectInitializer ctor                                   [UObjectGlobals.h]
+            ├─ if (CDO 未生成) Class->GetDefaultObject()
+            ├─ ObjectArchetype = CDO（または Blueprint Archetype）
+            └─ InitProperties()                                     [UObjectGlobals.cpp]
+                 └─ for each Prop in Class:
+                      └─ Prop->CopyCompleteValue(Dest, Src=Archetype) ← デフォルト値転写
+
+(取得 API)
+GetDefault<T>()                                                    [UObjectGlobals.h]
+  └─ T::StaticClass()->GetDefaultObject<T>()
+       └─ UClass::ClassDefaultObject (キャッシュ済み)                ← O(1) 返却
+
+GetMutableDefault<T>()                                             [UObjectGlobals.h]
+  └─ const_cast 相当（書き込み可、危険）
+```
+
+### フロー詳細
+
+1. **起動時の一括生成** — `FEngineLoop::PreInit` が `ProcessNewlyLoadedUObjects` を呼び、`UObjectLoadAllCompiledInDefaultProperties` がすべての UClass に対して `CreateDefaultObject` を実行する（[[Reflection/Details/a_uclass]]）。
+2. **CDO ctor 実行** — `Class->ClassConstructor` が `T::T(FObjectInitializer&)` を呼ぶ。CDO 生成時は `RF_ClassDefaultObject` フラグが立つ。
+3. **CDO はルートセット相当** — `ClassDefaultObject` は `UClass` から強参照されるため GC で破棄されない。アプリ終了まで存在。
+4. **プロパティコピー** — `NewObject` 時、`FObjectInitializer::InitProperties` が CDO の各プロパティを `FProperty::CopyCompleteValue` で新インスタンスに転写（[[Reflection/Details/b_fproperty]]）。
+5. **Archetype チェーン** — Blueprint の場合、`ObjectArchetype` は BP CDO に切り替わる。BP CDO のプロパティ → C++ CDO のプロパティ → ... と継承される。
+6. **シリアライゼーション差分** — `UObject::Serialize` は CDO と異なるプロパティのみ書き出す。ロード時は CDO からコピー後、差分で上書き（[[Serialization/Details/a_farchive]]）。
+7. **取得 API** — `GetDefault<T>()` は `UClass::ClassDefaultObject` を返すだけで O(1)。リフレクション情報のプロキシとしてエディタや GAS でも多用される。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `UClass::CreateDefaultObject` | `Class.cpp` | CDO 生成本体 |
+| `UClass::GetDefaultObject` | `Class.h` | CDO 取得（キャッシュ返却） |
+| `UObjectLoadAllCompiledInDefaultProperties` | `UObjectGlobals.cpp` | 起動時 CDO 一括生成 |
+| `FObjectInitializer::InitProperties` | `UObjectGlobals.cpp` | CDO → Instance プロパティコピー |
+| `FProperty::CopyCompleteValue` | `UnrealType.h` | プロパティ単位のコピー |
+| `GetDefault<T>` / `GetMutableDefault<T>` | `UObjectGlobals.h` | CDO アクセサ |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_lifecycle]] — `NewObject` と `PostInitProperties` でのプロパティコピー

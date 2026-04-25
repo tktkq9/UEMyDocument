@@ -145,6 +145,50 @@ classDiagram
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（エンジン起動 〜 メインループ）
+
+```
+FEngineLoop::PreInit()                                          [LaunchEngineLoop.cpp]
+  ├─ FModuleManager::Get().LoadModule("CoreUObject")           ← UObject システム起動
+  │    └─ ProcessNewlyLoadedUObjects()                         [UObjectGlobals.cpp]
+  │         ├─ UClassRegisterAllCompiledInClasses()            ← UClass 登録
+  │         └─ UObjectLoadAllCompiledInDefaultProperties()     ← CDO 一括生成
+  └─ InitEngineTextLocalization()                              ← FText ローカライズ初期化
+
+FEngineLoop::Tick()                                             [LaunchEngineLoop.cpp]
+  ├─ GEngine->Tick(DeltaSeconds, ...)                          [UnrealEngine.cpp]
+  │    ├─ UWorld::Tick()                                       ← ゲームロジック
+  │    └─ FTimerManager::Tick()                                ← タイマー発火
+  ├─ ENQUEUE_RENDER_COMMAND(...)                               ← RenderThread 投入
+  ├─ FlushAsyncLoading()                                       ← 非同期ロード進行
+  └─ IncrementalPurgeGarbage()                                 [GarbageCollection.cpp]
+       └─ CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS)          ← 条件成立時に GC
+```
+
+### フロー詳細
+
+1. **`CoreUObject` モジュールロード** — `FEngineLoop::PreInit()` が最初にロードし、`ProcessNewlyLoadedUObjects()` が登録された全 `UClass` を構築する（`UObjectGlobals.cpp`）。
+2. **CDO 生成** — `UObjectLoadAllCompiledInDefaultProperties()` が各 `UClass` に `CreateDefaultObject()` を呼び、CDO を生成する（[[UObject/Details/d_class_default_object]]）。
+3. **GameThread Tick** — `FEngineLoop::Tick()` → `GEngine->Tick()` → `UWorld::Tick()` の順に駆動。`FTimerManager::Tick` がタイマーを進める（[[Delegates/Details/c_timer]]）。
+4. **RenderThread 投入** — `ENQUEUE_RENDER_COMMAND` マクロが `FFunctionGraphTask` を生成して RenderThread にディスパッチ（[[AsyncTasks/Details/c_game_thread]]）。
+5. **GC 駆動** — `gc.TimeBetweenPurgingPendingKillObjects` 経過か `IncrementalReachabilityTimeLimit` 超過で `CollectGarbage()` が起動し、マーク&スイープ後に到達不能 UObject を `BeginDestroy → FinishDestroy` で破棄する（[[UObject/Details/b_garbage_collection]]）。
+6. **非同期ロード進行** — `FlushAsyncLoading()` が `FAsyncLoadingThread2`（Zen Loader）と GameThread を同期し、`PostLoad()` を呼ぶ（[[Serialization/Details/b_asset_serialization]]）。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `FEngineLoop::PreInit` / `Tick` | `LaunchEngineLoop.cpp` | エンジン全体の起動・メインループ |
+| `ProcessNewlyLoadedUObjects` | `UObjectGlobals.cpp` | UCLASS 自動登録 |
+| `UClass::CreateDefaultObject` | `Class.cpp` | CDO 生成 |
+| `UWorld::Tick` | `LevelTick.cpp` | ゲームスレッドの Tick ドライバ |
+| `CollectGarbage` / `IncrementalPurgeGarbage` | `GarbageCollection.cpp` | GC 起動 |
+| `FlushAsyncLoading` | `AsyncLoading2.cpp` | 非同期ロードの GameThread 同期点 |
+
+---
+
 ## 備考
 
 - UE5 ではプロパティ実装が `UProperty`（UE4）から `FProperty`（UE5）へ変更された。GC 対象外となり、メモリ・GC 負荷が削減

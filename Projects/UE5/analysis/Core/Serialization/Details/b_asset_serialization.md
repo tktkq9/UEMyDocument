@@ -195,6 +195,80 @@ UStaticMesh* Mesh = MeshRef.Get();
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（パッケージロード 〜 セーブ 〜 BulkData）
+
+```
+(非同期ロード - Zen Loader)
+LoadPackageAsync(PackagePath, CompletionDelegate)                  [PackageName.cpp]
+  └─ FAsyncLoadingThread2::QueuePackage()                          [AsyncLoading2.cpp]
+       ├─ PendingPackages に追加（GameThread から即帰る）
+       └─ AsyncLoadingThread が拾う:
+            ├─ FAsyncPackage2::ProcessPackageSummary()              ← FPackageFileSummary 読込
+            │    └─ FPackageFileSummary::Serialize(LinkerArchive)
+            ├─ ProcessPackageImportsAndExports()
+            │    ├─ Name テーブル展開（FNamePool に登録）
+            │    ├─ FObjectImport[] 構築
+            │    └─ FObjectExport[] 構築
+            ├─ ProcessExportBundleEntry() (各 Export ごと):
+            │    ├─ StaticConstructObject_Internal()                ← UObject 生成
+            │    └─ Export->Object->Serialize(FLinkerLoad&)
+            │         └─ Class->SerializeBin → FProperty::SerializeBinProperty
+            └─ GameThread 同期点: FlushAsyncLoading()                ← PostLoad 発火
+                 └─ Object->PostLoad()                              ← ロード後フック
+
+(同期ロード - レガシー)
+LoadPackage(nullptr, PackagePath, LOAD_None)                       [Package.cpp]
+  └─ FLinkerLoad::CreateLinker()                                   [LinkerLoad.cpp]
+       └─ Preload(Object) で同期的に上記と同じシーケンス
+
+(セーブ - エディタ専用)
+UPackage::SavePackage(Package, Asset, Filename, SaveArgs)         [SavePackage.cpp]
+  ├─ FSaveContext::Setup() で Export/Import 収集
+  ├─ FLinkerSave::Save()                                           [LinkerSave.cpp]
+  │    ├─ Name テーブル構築
+  │    ├─ FPackageFileSummary 書き込み（オフセットは仮）
+  │    ├─ Name/Import/Export テーブル書き込み
+  │    ├─ for each Export: Object->Serialize(FLinkerSave&)
+  │    │    └─ Class->SerializeBin → 各 FProperty を書く
+  │    └─ FPackageFileSummary を実オフセットで書き直す              ← シーク戻る
+  └─ FBulkData の遅延書き込み
+       └─ BULKDATA_PayloadAtEndOfFile フラグなら .uasset 末尾 or .ubulk 別ファイル
+
+(BulkData ロード)
+FByteBulkData::GetData()                                          [BulkData.cpp]
+  ├─ if (Loaded) return Pointer
+  └─ LoadBulkDataWithFileReader()
+       └─ FArchive Reader で BulkDataOffsetInFile から SerialSize を読む
+```
+
+### フロー詳細
+
+1. **非同期ロード起動** — `LoadPackageAsync` が `FAsyncLoadingThread2::QueuePackage` でキュー登録。GameThread はブロックされず、AsyncLoadingThread がバックグラウンドで処理。
+2. **Summary/テーブル展開** — `FAsyncPackage2` が `FPackageFileSummary` を先頭から読み、Name/Import/Export テーブルを順次デシリアライズ。Name は `FNamePool` に登録（[[Containers/Details/b_string_types]]）。
+3. **Export 構築** — 各 `FObjectExport` に対して `StaticConstructObject_Internal` で UObject を生成。クラスは `Import` テーブルから解決される（[[UObject/Details/a_lifecycle]]）。
+4. **Serialize 復元** — 生成済み UObject の `Serialize(FLinkerLoad&)` を呼ぶ。`UStruct::SerializeBin` がリフレクション経由で UPROPERTY を順次復元。
+5. **GameThread 同期** — 全 Export の Serialize 完了後、`FlushAsyncLoading` 経由で GameThread に戻り、`PostLoad()` が呼ばれる（async loading の唯一の同期点）。
+6. **セーブ経路** — `UPackage::SavePackage` が Export/Import を収集し、`FLinkerSave` で Summary/テーブル/Export Data を順次書く。Summary は実オフセット確定後にシーク戻して上書き。
+7. **BulkData** — メッシュ・テクスチャ等の大容量データは `FBulkData` が遅延ロード。`GetData()` 時に `BulkDataOffsetInFile` から必要分だけ読み込む。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `LoadPackageAsync` | `PackageName.cpp` | 非同期ロード API |
+| `FAsyncLoadingThread2::QueuePackage` | `AsyncLoading2.cpp` | Zen Loader キュー |
+| `FAsyncPackage2::ProcessPackageSummary` | `AsyncLoading2.cpp` | Summary/テーブル展開 |
+| `FLinkerLoad::CreateLinker` / `Preload` | `LinkerLoad.cpp` | パッケージ → UObject 復元 |
+| `FPackageFileSummary::Serialize` | `PackageFileSummary.cpp` | ヘッダ I/O |
+| `UPackage::SavePackage` | `SavePackage.cpp` | エディタセーブドライバ |
+| `FLinkerSave::Save` | `LinkerSave.cpp` | パッケージ書き込み本体 |
+| `FByteBulkData::GetData` | `BulkData.cpp` | BulkData 遅延ロード |
+| `FlushAsyncLoading` | `AsyncLoading2.cpp` | GameThread 同期点 |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_farchive]] — `FLinkerLoad`/`FLinkerSave` の基底 `FArchive`

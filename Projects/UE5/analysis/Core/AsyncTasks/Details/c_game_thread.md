@@ -247,6 +247,73 @@ ENQUEUE_RENDER_COMMAND(Good)(
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（GT → RT → RHIThread → GPU）
+
+```
+(GameThread → RenderThread)
+ENQUEUE_RENDER_COMMAND(Name)([Captured](FRHICommandListImmediate& RHI){...})  [RenderingThread.h]
+  └─ TEnqueueUniqueRenderCommandType<Name>::EnqueueUniqueRenderCommand(Lambda)
+       └─ FFunctionGraphTask::CreateAndDispatchWhenReady(
+            Lambda, StatId, GameThreadCompletionEvent,
+            ENamedThreads::GetRenderThread_Local())                  ← RT 専用キュー
+
+(RenderThread 実行)
+FRenderingThread::Run()                                            [RenderingThread.cpp]
+  └─ FTaskGraphInterface::ProcessThreadUntilIdle(ENamedThreads::GetRenderThread())
+       └─ ProcessTasks() ループ
+            └─ Task->ExecuteTask() → Lambda(RHICmdList) 実行
+                 └─ RHICmdList.SetRenderTargets/Draw/Dispatch       ← RHI コマンド積み
+
+(RT → RHIThread)
+RHICmdList.Flush() / RHIThread キック                              [RHICommandList.cpp]
+  └─ FRHICommandListExecutor::ExecuteList(CmdList)
+       ├─ if (RHIThread 有効) RHIThread に投入                       ← FRHITask
+       └─ else GPU に直接発行（即時実行）
+
+(RHIThread 実行)
+FRHIThread::Run()                                                  [RHICommandList.cpp]
+  └─ for each command: cmd->Execute(D3D12Context)
+       └─ ID3D12CommandList::Dispatch / Draw                        ← GPU 命令発行
+
+(RenderThread → GameThread)
+AsyncTask(ENamedThreads::GameThread, []() { ... })                 [Async.h]
+  └─ FFunctionGraphTask::CreateAndDispatchWhenReady(..., GameThread)
+       └─ GameThread の Tick で TaskGraph キュー消化時に実行
+
+(同期待機)
+FlushRenderingCommands()                                           [RenderingThread.cpp]
+  └─ FRHICommandListImmediate::ImmediateFlush(WaitForOutstandingTasks)
+       └─ RT/RHI のすべてのタスクが完了するまで GameThread をブロック ← レベル遷移等
+```
+
+### フロー詳細
+
+1. **マクロ展開** — `ENQUEUE_RENDER_COMMAND(Name)(Lambda)` は `TEnqueueUniqueRenderCommandType` 経由で `FFunctionGraphTask::CreateAndDispatchWhenReady` に展開され、`ENamedThreads::GetRenderThread_Local()` をターゲットに投入される（[[a_task_graph]]）。
+2. **キャプチャの安全性** — Lambda がキャプチャする UObject ポインタは RT 上では触れない。プリミティブ値や RHI リソースのみキャプチャするのが鉄則。
+3. **RenderThread ループ** — `FRenderingThread`（FRunnable）が `ProcessThreadUntilIdle` でキューを消化。各タスクが `RHICmdList` 経由で RHI コマンドを積む。
+4. **RHIThread 分離** — RHI コマンドは `FRHICommandListExecutor` が `RHIThread` に転送。RT は次フレームの構築を続けられる（パイプライン化）。
+5. **GPU 発行** — RHIThread が D3D12/Vulkan/Metal の Context API を呼んで GPU コマンドを発行。
+6. **GT に戻る** — RT 内で GT 処理が必要なら `AsyncTask(ENamedThreads::GameThread, Lambda)` で TaskGraph 経由で戻す。
+7. **同期点** — `FlushRenderingCommands()` は GT をブロックして RT/RHI のキューを空にする。レベル遷移・終了処理・スクリーンショット撮影で使用。ゲームループ中の使用は厳禁（フレーム時間が崩壊する）。
+8. **同期プリミティブ** — `FCriticalSection`/`UE::FMutex` で共有データを保護。`FThreadSafeCounter`/`std::atomic` でカウンタ。`FEvent` でシグナル待機（[[b_async_patterns]]）。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `ENQUEUE_RENDER_COMMAND` | `RenderingThread.h` | GT → RT 投入マクロ |
+| `TEnqueueUniqueRenderCommandType` | `RenderingThread.h` | マクロ展開先テンプレート |
+| `FRenderingThread::Run` | `RenderingThread.cpp` | RT メインループ |
+| `FRHICommandListExecutor::ExecuteList` | `RHICommandList.cpp` | RHIThread 投入 |
+| `FRHIThread::Run` | `RHICommandList.cpp` | RHIThread メインループ |
+| `FlushRenderingCommands` | `RenderingThread.cpp` | RT 完全フラッシュ |
+| `AsyncTask(ENamedThreads::GameThread, ...)` | `Async.h` | RT → GT 通知 |
+| `IsInGameThread` / `IsInRenderingThread` | `RenderingThread.h` | スレッド ID チェック |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_task_graph]] — FTaskGraph・ENamedThreads（GameThread/RenderThread 指定）

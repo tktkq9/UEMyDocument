@@ -128,6 +128,67 @@ bool bImplements = Obj->GetClass()->ImplementsInterface(UMyInterface::StaticClas
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（パス解決・Rename・検索）
+
+```
+(パス取得)
+UObject::GetPathName(StopOuter)                                   [UObjectBaseUtility.cpp]
+  └─ GetPathName(StopOuter, StringBuilder)
+       ├─ if (Outer != StopOuter && Outer != nullptr):
+       │    └─ Outer->GetPathName(StopOuter, Out)                  ← 再帰で Outer チェーンを上る
+       │    └─ Out.Append(SubObjectDelimiter ":" or ".")
+       └─ Out.Append(GetName())                                     ← FName を末尾に追加
+
+(パス → オブジェクト解決)
+StaticFindObject(Class, Outer, Name, bExactClass)                 [UObjectGlobals.cpp]
+  └─ StaticFindObjectFast()
+       └─ FUObjectHashTables::Get().HashObjects.Find(Hash)         ← Outer+Name のハッシュ
+            └─ 見つかれば UObject* を返す（ロード済みのみ）
+
+StaticLoadObject(Class, Outer, Name)                              [UObjectGlobals.cpp]
+  └─ StaticFindObject() で先に検索
+       └─ 未ヒットなら StaticLoadObjectInternal()
+            └─ LoadPackageInternal()                               ← 必要なら同期ロード
+                 └─ FLinkerLoad で .uasset から取得
+
+(Rename - 移動)
+UObject::Rename(NewName, NewOuter, Flags)                         [Object.cpp]
+  ├─ FUObjectHashTables::Get().RemoveObject(this)                  ← 旧 Hash 解除
+  ├─ ClassPrivate->Rename(...)                                     ← サブオブジェクトも再帰
+  ├─ NamePrivate = NewName / OuterPrivate = NewOuter
+  └─ FUObjectHashTables::Get().AddObject(this)                     ← 新 Hash 登録
+
+(Outer 検索)
+UObject::GetTypedOuter<T>()                                       [UObjectBaseUtility.h]
+  └─ for (Outer = GetOuter(); Outer; Outer = Outer->GetOuter())
+       └─ if (Outer->IsA<T>()) return (T*)Outer                    ← 型一致まで上る
+```
+
+### フロー詳細
+
+1. **パス組み立て** — `GetPathName` は Outer チェーンを再帰的に上って文字列を組み立てる。サブオブジェクト境界（パッケージ内オブジェクトの所有関係）は `:` で区切る。
+2. **ハッシュ検索** — `StaticFindObject` は `FUObjectHashTables` の `HashObjects` で Outer+Name のハッシュ一致を見る。`O(1)` でロード済みオブジェクトを取得。
+3. **ロード経路** — `StaticLoadObject` は未ロードなら `LoadPackageInternal` を経て `FLinkerLoad` を起動し、パッケージから対象 UObject を復元（[[Serialization/Details/b_asset_serialization]]）。
+4. **Rename** — `Rename` は旧 Hash を `FUObjectHashTables` から外し、Outer/Name を更新したうえで新 Hash を登録する。サブオブジェクトもツリー全体で再ハッシュ。
+5. **TypedOuter 検索** — `GetTypedOuter<T>()` は Outer をループでたどり、最初に `IsA<T>()` を満たす祖先を返す。`UPackage` まで一致しなければ `nullptr`。
+6. **GetTransientPackage** — `/Engine/Transient` を返す。`RF_Transient` 付きで `NewObject` する一時 UObject の Outer に使う（[[a_lifecycle]]）。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `UObjectBaseUtility::GetPathName` / `GetFullName` | `UObjectBaseUtility.cpp` | フルパス組み立て |
+| `UObjectBaseUtility::GetTypedOuter` | `UObjectBaseUtility.h` | 型指定 Outer 検索 |
+| `StaticFindObject` / `StaticFindObjectFast` | `UObjectGlobals.cpp` | パス → オブジェクト解決 |
+| `StaticLoadObject` / `LoadPackageInternal` | `UObjectGlobals.cpp` | 必要時にロード |
+| `UObject::Rename` | `Object.cpp` | Outer/Name の付け替え |
+| `FUObjectHashTables::AddObject` / `RemoveObject` | `UObjectHash.cpp` | 名前ハッシュ管理 |
+| `GetTransientPackage` | `UObjectGlobals.cpp` | 一時パッケージ取得 |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_lifecycle]] — `NewObject` の Outer 指定

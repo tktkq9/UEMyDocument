@@ -198,6 +198,56 @@ UHT が生成するもの:
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（UHT 生成 〜 ランタイム呼び出し）
+
+```
+ビルド時:
+UnrealHeaderTool が .h を解析
+  └─ .generated.h を生成
+       ├─ Z_Construct_UClass_UMyComponent()         ← UClass 構築関数
+       ├─ Z_Construct_UFunction_UMyComponent_Foo()  ← UFunction 構築関数
+       ├─ UMyComponent::StaticClass()               ← 静的アクセサ
+       └─ DECLARE_FUNCTION(execFoo)                 ← Blueprint VM シム
+
+エンジン起動時:
+ProcessNewlyLoadedUObjects()                                   [UObjectGlobals.cpp]
+  ├─ UClassRegisterAllCompiledInClasses()
+  │    └─ Z_Construct_UClass_UMyComponent()                    ← FProperty / UFunction 登録
+  └─ UObjectLoadAllCompiledInDefaultProperties()
+       └─ Class->CreateDefaultObject()                          ← CDO 生成
+
+ランタイム呼び出し（Blueprint → C++）:
+BP ノード実行
+  └─ UObject::ProcessEvent(UFunction* Func, void* Parms)        [Class.cpp]
+       ├─ [FUNC_Native] Func->Func(this, Stack, Result)          ← execFoo を呼ぶ
+       │    └─ P_THIS->Foo(P_Param1, P_Param2)                   ← C++ 実装
+       └─ [BP only] FFrame::Step → ProcessInternal               ← VM バイトコード
+```
+
+### フロー詳細
+
+1. **UHT 解析** — `UnrealHeaderTool` がヘッダ内の `UCLASS`/`UPROPERTY`/`UFUNCTION` マクロを検出し、`.generated.h` に `Z_Construct_*` 関数を出力する。
+2. **静的初期化** — モジュールロード時に `Z_Construct_UClass_*` がグローバル初期化として実行され、`UClass` インスタンスを構築。`FProperty` リスト・`UFunction` リスト・メタデータが登録される（[[Details/a_uclass]]）。
+3. **CDO 生成** — `UObjectLoadAllCompiledInDefaultProperties()` が各 `UClass` に対して `CreateDefaultObject()` を呼び出す。
+4. **ProcessEvent 経路** — Blueprint VM が C++ 関数を呼ぶときは `UObject::ProcessEvent(UFunction*, void* Parms)` を経由。`FUNC_Native` フラグがあれば UHT 生成の `execFoo` シム関数を呼ぶ（[[Details/c_ufunction]]）。
+5. **プロパティアクセス** — `FindPropertyByName` で `FProperty*` を取得し、`GetPropertyValue_InContainer` / `SetPropertyValue_InContainer` で値を読み書きする（[[Details/b_fproperty]]）。
+6. **メタデータ参照** — `Prop->GetMetaData(TEXT("ClampMin"))` で `UMetaData` から取得（エディタビルドのみ、[[Details/d_metadata]]）。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `Z_Construct_UClass_*` | `*.generated.cpp` | UHT 生成の UClass 構築関数 |
+| `UClassRegisterAllCompiledInClasses` | `UObjectGlobals.cpp` | 全 UClass 登録ドライバ |
+| `UObject::ProcessEvent` | `Class.cpp` | BP → C++ 関数呼び出しのエントリ |
+| `execFoo` (DECLARE_FUNCTION) | UHT 生成 | Blueprint VM シム |
+| `UClass::FindPropertyByName` | `Class.cpp` | プロパティ検索 |
+| `FProperty::GetPropertyValue_InContainer` | `UnrealType.h` | プロパティ値取得 |
+
+---
+
 ## 備考
 
 - **UHT（UnrealHeaderTool）が前提** — UHT なしでは `UCLASS` マクロは無効。ビルド時に `.generated.h` が生成される

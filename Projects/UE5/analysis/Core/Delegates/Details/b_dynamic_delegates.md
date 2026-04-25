@@ -160,6 +160,72 @@ void HandleHealthChanged(float HP) { ... }
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（AddDynamic 〜 Broadcast 〜 ProcessEvent）
+
+```
+(Dynamic Multicast バインド)
+OnHealthChanged.AddDynamic(this, &AMyActor::HandleHealthChanged)   [DynamicDelegate.h]
+  └─ __Internal_AddDynamic(InUserObject, InMethodPtr, FunctionName)
+       └─ TMulticastScriptDelegate::Add(FScriptDelegate)
+            ├─ FScriptDelegate::BindUFunction(Object, FName)        [ScriptDelegates.h]
+            │    ├─ Object = InUserObject (TWeakObjectPtr で保持)   ← UObject 弱参照
+            │    └─ FunctionName = FName("HandleHealthChanged")
+            └─ InvocationList.Add(NewDelegate)                       ← TArray<FScriptDelegate>
+
+(Broadcast 実行)
+OnHealthChanged.Broadcast(NewHealth)                                [DynamicDelegate.h]
+  └─ TMulticastScriptDelegate::ProcessMulticastDelegate<UObject>(Params)
+       │                                                             [ScriptDelegates.h]
+       └─ for (FScriptDelegate& Delegate : InvocationList):
+            └─ Delegate.ProcessDelegate<UObject>(Params)
+                 ├─ if (!Object.IsValid()) skip                      ← GC されていれば除去
+                 └─ UFunction* Func = Object->FindFunction(FunctionName)
+                      └─ Object->ProcessEvent(Func, Params)          ← リフレクション呼出
+
+(C++ 関数実体に到達)
+UObject::ProcessEvent(Func, Params)                                 [UObject.cpp]
+  └─ Func->Invoke(Object, Stack, ReturnValue)
+       └─ Func->FUNC_Native_*  (UHT 生成 thunk)
+            └─ HandleHealthChanged(NewHealth)                        ← ユーザー関数
+
+(BlueprintAssignable - BP からのバインド)
+BP "Bind Event to OnHealthChanged" ノード                           [Blueprint VM]
+  └─ KismetCompiler が FScriptDelegate を生成
+       └─ AddDynamic と同じ経路で InvocationList に追加
+
+(SetTimerByFunctionName 経由)
+GetWorldTimerManager().SetTimerByFunctionName(this, FName("MyCallback"), 2.0f)
+  └─ FTimerDelegate Delegate                                         [TimerManager.cpp]
+       └─ Delegate.BindUFunction(Object, FName)                      ← FScriptDelegate と同じ
+  └─ SetTimer(Handle, Delegate, 2.0f, false)
+```
+
+### フロー詳細
+
+1. **AddDynamic 内部** — マクロは `__Internal_AddDynamic` を展開し、`FScriptDelegate::BindUFunction` で UObject と関数名 (`FName`) のペアを `TMulticastScriptDelegate::InvocationList` に追加する。UObject は `TWeakObjectPtr` で保持されるので GC で解除される。
+2. **UFUNCTION 必須の理由** — Dynamic デリゲートは関数名 (`FName`) でリフレクション解決するため、対象関数が `UFunction` リフレクション情報を持っている必要がある（[[Reflection/Details/c_ufunction]]）。
+3. **Broadcast 経路** — `ProcessMulticastDelegate` が `InvocationList` を走査し、各 `FScriptDelegate::ProcessDelegate` を呼ぶ。無効な UObject は自動でスキップされる。
+4. **ProcessEvent 呼出** — `Object->FindFunction(FunctionName)` で `UFunction*` を取得し、`UObject::ProcessEvent` でパラメータを Stack に積んで Native thunk を呼ぶ。これが「リフレクション経由」のコスト源（[[Reflection/Details/c_ufunction]]）。
+5. **ネイティブ vs Dynamic** — 通常デリゲート（[[a_delegate_types]]）は関数ポインタ直接呼出だが、Dynamic は `FName 検索 + ProcessEvent + Stack 積み` のため一桁遅い。代わりに BP 連携・シリアライズが可能。
+6. **シリアライズ可能な理由** — `FScriptDelegate` は `Object*` と `FName` だけなので `UPROPERTY` でセーブデータに含められる。通常デリゲートは関数ポインタなので保存不可。
+7. **BlueprintAssignable** — BP から `Assign` ノードでバインド可能にする `UPROPERTY` 指定子。BP コンパイラが `FScriptDelegate` を生成して同じ `InvocationList` に追加するため、C++ と BP のバインドが混在できる。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `TDynamicDelegate::__Internal_BindDynamic` | `DynamicDelegate.h` | Dynamic 単体バインド（マクロ展開） |
+| `TDynamicMulticastDelegate::__Internal_AddDynamic` | `DynamicDelegate.h` | Dynamic マルチバインド |
+| `FScriptDelegate::BindUFunction` | `ScriptDelegates.h` | UObject + FName でバインド |
+| `FScriptDelegate::ProcessDelegate` | `ScriptDelegates.h` | リフレクション経由実行 |
+| `TMulticastScriptDelegate::ProcessMulticastDelegate` | `ScriptDelegates.h` | InvocationList 走査 Broadcast |
+| `UObject::FindFunction` | `UObject.cpp` | FName から UFunction* 解決 |
+| `UObject::ProcessEvent` | `UObject.cpp` | UFunction を Stack 経由で呼出 |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_delegate_types]] — 通常デリゲート（TDelegate/TMulticastDelegate）

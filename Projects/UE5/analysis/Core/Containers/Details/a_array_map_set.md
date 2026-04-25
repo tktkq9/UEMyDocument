@@ -207,6 +207,91 @@ TSet<UObject*> ObjectSet;
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（Add 〜 リアロケーション 〜 Find）
+
+```
+(TArray::Add - 末尾追加)
+Arr.Add(NewElem)                                                  [Containers/Array.h]
+  └─ Emplace(Forward<T>(NewElem))
+       ├─ const int32 Index = AddUninitialized(1)
+       │    └─ if (ArrayNum + 1 > ArrayMax):
+       │         └─ ResizeGrow(ArrayNum + 1)                       ← 容量不足
+       │              ├─ NewMax = AllocatorInstance.CalculateSlackGrow(...)
+       │              │    └─ ≒ ArrayMax * 1.375 + 4              ← 増分ポリシー
+       │              ├─ AllocatorInstance.ResizeAllocation(OldNum, NewMax, sizeof(T))
+       │              │    └─ Realloc → 新領域確保 → memcpy → 旧領域 Free
+       │              └─ ArrayMax = NewMax
+       │    └─ ArrayNum += 1
+       └─ new (Data + Index) T(Forward<Args>(Args)...)             ← placement new
+
+(TArray::RemoveAt)
+Arr.RemoveAt(Index)                                               [Containers/Array.h]
+  └─ DestructItems(Data + Index, 1)                                ← デストラクタ
+  └─ if (Index < ArrayNum - 1):
+       └─ memmove(Data + Index, Data + Index + 1, ...)             ← 後続要素を前詰め
+  └─ ArrayNum -= 1
+
+(TArray::RemoveAtSwap - 高速版)
+Arr.RemoveAtSwap(Index)
+  └─ DestructItems(Data + Index, 1)
+  └─ if (Index < ArrayNum - 1):
+       └─ memcpy(Data + Index, Data + ArrayNum - 1, sizeof(T))     ← 末尾を Index へ移動
+  └─ ArrayNum -= 1                                                 ← O(1) だが順序崩れる
+
+(TMap::Add)
+Map.Add(Key, Value)                                               [Containers/Map.h]
+  └─ Pairs.Emplace(MoveTemp(Key), MoveTemp(Value))                 ← Pairs は TSet<TPair>
+       └─ TSet::Emplace(...)                                       [Containers/Set.h]
+            ├─ Hash = GetTypeHash(Key)
+            ├─ HashIndex = Hash & (HashSize - 1)
+            ├─ if (FindElementIndex(Hash, Key) != INDEX_NONE):
+            │    └─ 既存要素を上書き
+            └─ else:
+                 ├─ Elements.Add(NewPair)                          ← TSparseArray
+                 └─ HashTable[HashIndex] チェイン追加               ← 線形連鎖
+
+(TMap::Find)
+Value* Found = Map.Find(Key)                                      [Containers/Map.h]
+  └─ Pairs.Find(KeyFuncs::GetSetKey(Key))
+       └─ TSet::FindId(Key)
+            ├─ Hash = GetTypeHash(Key)
+            └─ for (Index in HashTable[Hash & Mask] チェイン):
+                 └─ if (Elements[Index].Key == Key) return &Elements[Index]
+
+(TSet::Add)
+Set.Add(Elem)                                                     [Containers/Set.h]
+  └─ FindOrAddByHash(GetTypeHash(Elem), Elem)
+       ├─ if (Elements.Num() / HashSize > LoadFactor):
+       │    └─ ConditionalRehash → HashSize *= 2 → 全要素再ハッシュ ← 再ハッシュ
+       └─ HashTable[Hash & Mask] にチェイン追加
+```
+
+### フロー詳細
+
+1. **TArray のリアロケーション** — `ArrayNum + 1 > ArrayMax` で `ResizeGrow` を呼ぶ。`CalculateSlackGrow` の標準ポリシーは `≒1.375 倍 + 4`（指数+定数）。`Reserve` で事前確保すれば再確保を回避できる。
+2. **memcpy 前提** — UE のアロケータは `Realloc` 時に旧領域を `memmove` で移すが、トリビアル型でなくても呼ばれる。非トリビアル型を `TArray` に入れる場合、ムーブコンストラクタが呼ばれず単純コピーで動くこと（POD 互換）が前提。
+3. **RemoveAt vs RemoveAtSwap** — `RemoveAt` は順序維持で O(n)、`RemoveAtSwap` は末尾と交換して O(1) だが順序が崩れる。順序が不要なホットパスでは `RemoveAtSwap` を選ぶ。
+4. **TMap = TSet<TPair>** — `TMap` の実体は `TSet<TPair<K,V>>`。キー比較は `KeyFuncs<K>` が決め、デフォルトは `GetTypeHash(K)` + `operator==`。カスタム型を Map のキーにするには両方を定義する。
+5. **TSet のチェイン** — UE の TSet はオープンチェイン（`HashTable[Bucket]` → `Elements` のリンクリスト）。`LoadFactor` を超えると `HashSize` を倍にして再ハッシュする。
+6. **TSparseArray の役割** — TSet の要素は `TSparseArray` に格納されるため、削除しても他要素のインデックスがズレない。これが TMap の安定インデックスを支えている。
+7. **GC 連携** — `UPROPERTY` を付けた `TArray<UObject*>` / `TMap<K, UObject*>` は `FProperty::EmitReferenceInfo` 経由で GC のリファレンス追跡対象になる（[[../../UObject/Details/b_garbage_collection]]）。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `TArray::Add` / `Emplace` / `AddUninitialized` | `Containers/Array.h` | 末尾追加 |
+| `TArray::ResizeGrow` / `CalculateSlackGrow` | `Containers/Array.h` | 容量拡張ポリシー |
+| `TArray::RemoveAt` / `RemoveAtSwap` | `Containers/Array.h` | 削除（順序維持/高速） |
+| `TMap::Add` / `Find` / `FindOrAdd` | `Containers/Map.h` | キー値ペア管理（内部 TSet） |
+| `TSet::Emplace` / `FindId` / `ConditionalRehash` | `Containers/Set.h` | ハッシュセット本体 |
+| `TSparseArray::Add` / `RemoveAt` | `Containers/SparseArray.h` | インデックス安定スパース配列 |
+| `GetTypeHash` | `Templates/TypeHash.h` | ハッシュ関数（型ごとに特殊化） |
+
+---
+
 ## 関連ドキュメント
 
 - [[b_string_types]] — FString / FName / FText

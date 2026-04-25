@@ -218,6 +218,71 @@ TUniquePtr<FMyStruct> UPtr = MakeUnique<FMyStruct>();
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（コンテナ操作・文字列・スマートポインタ）
+
+```
+(TArray)
+TArray::Add(Element)                                              [Array.h]
+  └─ TArray::AddUninitialized(1)
+       ├─ ResizeAllocation(NewMax) (要素数 == 容量なら)            ← ヒューリスティックで Grow
+       │    └─ Allocator::ResizeAllocation()                       ← FHeapAllocator が realloc
+       └─ new (GetData() + Index) ElementType(Element)             ← placement new
+
+(TMap)
+TMap::Add(Key, Value)                                             [Map.h]
+  └─ TSortableMapBase::Emplace()                                   [Map.h]
+       └─ Pairs.Emplace(MoveTemp(Key), MoveTemp(Value))             ← TSet<TPair> に格納
+            └─ TSet::Emplace(KeyHash, Pair)                         ← ハッシュ計算 + バケット解決
+
+(FName)
+FName Name(TEXT("Player"))                                         [NameTypes.h]
+  └─ FName::Init(WideName, FNAME_Add)
+       ├─ FNameHelper::CalculateHash(Str)                           ← ハッシュ計算
+       ├─ FNamePool::Find(Hash, Str)                                ← グローバルプール検索
+       │    └─ ヒット: 既存 EntryId 返却                            ← O(1) 比較に貢献
+       └─ Miss: FNameEntry をプールに追加 + EntryId 払い出し
+
+(FString)
+FString Str = TEXT("Hello") + FString(TEXT(", World"));            [String.h]
+  └─ FString::operator+ → FString::operator+=
+       └─ Data.Append(Other.Data)                                   ← 内部は TArray<TCHAR>
+
+(TSharedPtr)
+MakeShared<FFoo>(Args...)                                          [SharedPointer.h]
+  └─ new TIntrusiveReferenceController<FFoo>(...)                  ← オブジェクト + 参照カウンタ統合確保
+       └─ TSharedPtr<FFoo>(Controller)                              ← SharedReferenceCount = 1
+
+TSharedPtr ~ destructor
+  └─ TReferenceControllerBase::ReleaseSharedReference()            ← Atomic デクリメント
+       └─ if (SharedRefCount == 0) DestroyObject()                  ← 0 で破棄
+            └─ if (WeakRefCount == 0) delete Controller             ← 弱参照も尽きたら本体解放
+```
+
+### フロー詳細
+
+1. **TArray 拡張** — `Add` が容量不足を検知すると `ResizeAllocation` が `Allocator` に再確保を依頼。標準は `FHeapAllocator` で `FMemory::Realloc` を呼ぶ。Grow 戦略は `DefaultCalculateSlackGrow`（[[Details/a_array_map_set]]）。
+2. **TMap/TSet 内部** — `TMap` は `TSet<TPair<K,V>>` の薄いラッパ。`TSet` は `TSparseArray` + ハッシュバケット（`TArray<int32>`）の二段構成で、要素は穴あき配列に格納される。
+3. **FName プール** — グローバル `FNamePool` がスレッドセーフに `FNameEntry` を管理。同一文字列は単一エントリを共有し、`FName` 比較は EntryId 比較で O(1)（[[Details/b_string_types]]）。
+4. **FString 操作** — 内部は `TArray<TCHAR>` のため、Append/Concat は TArray と同じ Grow ロジック。`FString::Printf` は可変長書式化を行う。
+5. **FText ローカライズ** — `NSLOCTEXT` マクロが `FTextHistory` にローカライズキーを記録。実表示時に `FInternationalization` が翻訳を解決。
+6. **SharedPtr 参照カウント** — `MakeShared` は `TIntrusiveReferenceController` を 1 アロケーションで生成（オブジェクト本体と参照カウンタを連結）。`ESPMode::ThreadSafe` 指定で参照カウントが Atomic 化される（[[Details/c_smart_pointers]]）。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `TArray::Add` / `ResizeAllocation` | `Array.h` | 動的配列の追加・再確保 |
+| `FHeapAllocator::ResizeAllocation` | `ContainerAllocationPolicies.h` | デフォルトアロケータ |
+| `TSet::Emplace` | `Set.h` | ハッシュテーブルへの挿入 |
+| `FNamePool::Find` / `Store` | `NameTypes.cpp` | FName プール管理 |
+| `FString::operator+=` | `String.h` | 文字列連結 |
+| `TIntrusiveReferenceController` | `SharedPointerInternals.h` | SharedPtr 参照カウンタ |
+| `MakeShared<T>` | `SharedPointer.h` | SharedPtr 生成（1 アロック） |
+
+---
+
 ## 備考
 
 - **TArray の削除順序**: 順序維持なら `RemoveAt`、気にしないなら `RemoveAtSwap`（O(1)）

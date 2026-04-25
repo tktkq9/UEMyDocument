@@ -229,6 +229,76 @@ uint16 RepIdx = Prop->RepIndex;
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（FProperty 登録 〜 値アクセス 〜 シリアライズ）
+
+```
+(UHT 生成 〜 登録)
+Z_Construct_UClass_UMyComponent()                                  [*.generated.cpp]
+  └─ UECodeGen_Private::ConstructUClass()
+       └─ NewProp_Health = new FFloatProperty(Class, "Health", ...) ← FProperty サブクラス生成
+            └─ Class->AddCppProperty(NewProp)                        [Class.cpp]
+                 └─ Children リンクリストに挿入
+                      ├─ Property->Next = Children                   ← 単方向リスト
+                      └─ Children = Property
+
+(プロパティ検索)
+UClass::FindPropertyByName(Name)                                   [Class.cpp]
+  └─ for (FField* Field = Children; Field; Field = Field->Next)
+       └─ if (Field->GetFName() == Name && Field is FProperty)
+            └─ return (FProperty*)Field
+
+(値の取得・設定)
+FProperty::GetPropertyValue_InContainer(Container)                 [UnrealType.h]
+  └─ ContainerPtrToValuePtr<T>(Container)
+       └─ (uint8*)Container + Property->GetOffset_ForInternal()      ← オフセット計算
+            └─ *(T*)Ptr 参照
+
+(コピー)
+FProperty::CopyCompleteValue(Dest, Src)                            [UnrealType.h]
+  └─ for (Index = 0; Index < ArrayDim; ++Index)
+       └─ CopySingleValue(DestPtr + ElementSize*Index, SrcPtr + ...) ← 型別実装
+
+(シリアライズ)
+UObject::Serialize(FArchive& Ar)                                   [Object.cpp]
+  └─ Class->SerializeBin(Ar, this)                                  [Class.cpp]
+       └─ for (FProperty* Prop = ...; Prop; Prop = Prop->Next)
+            └─ Prop->SerializeBinProperty(Slot, Container)
+                 └─ Prop->SerializeItem(Slot, ValuePtr)              ← 型別バイナリ化
+
+(ネット複製)
+FRepLayout::InitFromClass()                                        [RepLayout.cpp]
+  └─ for each FProperty with CPF_Net flag:
+       └─ RepLayoutCmds に追加（RepIndex でアクセス）
+            └─ Channel->ReplicateActor() で差分送信
+```
+
+### フロー詳細
+
+1. **FProperty 生成** — UHT 生成の `Z_Construct_UClass_*` が `new FIntProperty/FFloatProperty/...` でサブクラスを生成し、`AddCppProperty` で `UStruct::Children` リンクリストに挿入する。
+2. **オフセット計算** — `FProperty::Offset_Internal` は C++ メンバの実バイトオフセット。`ContainerPtrToValuePtr<T>` がポインタ算術でアドレスを算出する。
+3. **値の操作** — `GetPropertyValue_InContainer` / `SetPropertyValue_InContainer` が型安全に値を取り出す。`CastField<FFloatProperty>(Prop)` で型を確定する必要がある。
+4. **CopyCompleteValue** — `ArrayDim` ループで `CopySingleValue` を呼ぶ。CDO → Instance のコピーで使われる（[[UObject/Details/d_class_default_object]]）。
+5. **シリアライズ** — `UObject::Serialize` が `Class->SerializeBin` を呼び、各 `FProperty::SerializeBinProperty` が型別実装でバイナリ I/O を行う（[[Serialization/Details/a_farchive]]）。
+6. **ネット複製** — `CPF_Net` フラグが立った `FProperty` は `FRepLayout` のコマンドリストに登録され、`RepIndex` でアクセスされる。
+7. **FBoolProperty 特殊化** — ビットフィールド対応で `FieldMask`/`ByteMask` を持ち、バイト内のビット位置を管理する。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `UECodeGen_Private::ConstructUClass` | `UObjectGlobals.cpp` | FProperty 一括登録 |
+| `UStruct::AddCppProperty` | `Class.cpp` | Children リスト挿入 |
+| `UStruct::FindPropertyByName` | `Class.cpp` | 名前検索（O(N)） |
+| `FProperty::ContainerPtrToValuePtr` | `UnrealType.h` | オフセット計算 |
+| `FProperty::GetPropertyValue_InContainer` | `UnrealType.h` | 型安全アクセサ |
+| `FProperty::CopyCompleteValue` / `CopySingleValue` | `UnrealType.h` | プロパティコピー |
+| `FProperty::SerializeBinProperty` | `PropertyBinaryArchive.cpp` | バイナリ I/O |
+| `FRepLayout::InitFromClass` | `RepLayout.cpp` | ネット複製レイアウト構築 |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_uclass]] — プロパティを所有する `UClass`/`UStruct`

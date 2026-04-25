@@ -135,6 +135,59 @@ graph TD
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（生成 〜 破棄）
+
+```
+NewObject<T>(Outer, Class, Name, Flags)                         [UObjectGlobals.h:1304]
+  └─ StaticConstructObject_Internal(Params)                     [UObjectGlobals.cpp]
+       ├─ StaticAllocateObject()                                ← メモリ確保 + GUObjectArray 登録
+       │    └─ FUObjectArray::AllocateUObjectIndex()           [UObjectArray.cpp]
+       ├─ Class->CreateDefaultObject() (CDO 未生成なら)         [Class.cpp]
+       ├─ FObjectInitializer::FObjectInitializer()              ← CDO からプロパティコピー
+       ├─ T::T() コンストラクタ                                  ← CreateDefaultSubobject 呼び出し可
+       └─ FObjectInitializer::~FObjectInitializer()
+            └─ PostConstructInit()
+                 └─ Object->PostInitProperties()                ← 初期化フック
+
+(ディスクロード時)
+FLinkerLoad::Preload(Object)                                    [LinkerLoad.cpp]
+  ├─ Object->Serialize(LinkerArchive)                           ← UPROPERTY 復元
+  └─ Object->PostLoad()                                         ← ロード後フック
+
+(GC 破棄時)
+CollectGarbage()                                                [GarbageCollection.cpp]
+  └─ IncrementalPurgeGarbage()
+       ├─ Object->ConditionalBeginDestroy()
+       │    └─ Object->BeginDestroy()                           ← 非同期解放開始
+       ├─ Object->IsReadyForFinishDestroy()                     ← ポーリング
+       └─ Object->ConditionalFinishDestroy()
+            └─ Object->FinishDestroy()                          ← 同期解放
+```
+
+### フロー詳細
+
+1. **メモリ確保** — `StaticAllocateObject()` が `FUObjectArray` から `InternalIndex` を取得し、メモリブロックを確保（`UObjectAllocator.cpp`）。
+2. **CDO コピー** — `FObjectInitializer` が CDO のプロパティを新インスタンスにコピーする（[[Details/d_class_default_object]]）。
+3. **コンストラクタ実行** — `T::T()` が呼ばれる。コンストラクタ内では `CreateDefaultSubobject<U>()` が使える（[[Details/a_lifecycle]]）。
+4. **`PostInitProperties()` フック** — `FObjectInitializer` のデストラクタが呼び出す。派生クラスはここで初期化を完了させる。
+5. **ロードパス** — `FLinkerLoad::Preload` が `Serialize()` で UPROPERTY を復元し、その後 `PostLoad()` を呼ぶ（[[Serialization/Details/b_asset_serialization]]）。
+6. **GC 破棄** — `CollectGarbage` が到達不能オブジェクトを検出し、`BeginDestroy` → `IsReadyForFinishDestroy` ポーリング → `FinishDestroy` の順で破棄する（[[Details/b_garbage_collection]]）。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `NewObject<T>` | `UObjectGlobals.h:1304` | 型安全な生成エントリ |
+| `StaticConstructObject_Internal` | `UObjectGlobals.cpp` | 内部生成ドライバ |
+| `FUObjectArray::AllocateUObjectIndex` | `UObjectArray.cpp` | InternalIndex 払い出し |
+| `FObjectInitializer` | `UObjectGlobals.h` | コンストラクタコンテキスト・CDO コピー |
+| `UObject::PostInitProperties` / `PostLoad` | `Object.cpp` | 初期化フック |
+| `UObject::BeginDestroy` / `FinishDestroy` | `Object.cpp` | 破棄フック |
+
+---
+
 ## 備考
 
 - **UObject は `new` で作れない** — 必ず `NewObject<T>()` 経由（`UClass` 登録・GC・Outer 設定が必要なため）

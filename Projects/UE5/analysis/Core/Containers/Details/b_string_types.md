@@ -203,6 +203,92 @@ FText MyText = LOCTEXT("WelcomeMessage", "Welcome!");
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（FString 連結 〜 FName 登録 〜 FText フォーマット）
+
+```
+(FString 連結)
+FString A = TEXT("Hello"); A += TEXT(" World")                    [UnrealString.h]
+  └─ FString::operator+=(const TCHAR* Str)
+       ├─ const int32 OldNum = Data.Num()
+       ├─ const int32 AddNum = TCString::Strlen(Str)
+       └─ Data.AddUninitialized(AddNum) → memcpy(Data + OldNum, Str, ...)
+            └─ Data は TArray<TCHAR> なのでリアロックは TArray と同じ
+                                                                    [Containers/Array.h]
+
+(FString::Printf - 書式化)
+FString::Printf(TEXT("Score: %d"), 42)                            [UnrealString.h]
+  └─ TStringBuilder<512> Builder
+       └─ FCString::GetVarArgs(Buffer, Size, Fmt, ArgList)
+            └─ vswprintf 相当
+       └─ FString(Builder.ToString())                              ← 完成 FString
+
+(FName 生成 - 名前テーブル登録)
+FName Name = TEXT("MyActor")                                      [NameTypes.h]
+  └─ FName::FName(const TCHAR* Str)
+       └─ Init(Str, NAME_NO_NUMBER_INTERNAL, FNAME_Add)
+            └─ FNamePool::Find(EntryName)                          [NamePool.cpp]
+                 ├─ Hash = HashString(StrView)
+                 ├─ Bucket = Hash & (Slots.Num() - 1)
+                 ├─ for (Entry in Slots[Bucket]):
+                 │    └─ if (Entry == StrView) return ExistingHandle ← O(1) 既存ヒット
+                 └─ if (FNAME_Add):
+                      ├─ Pool->Allocate(StrLen) → FNameEntry を確保 ← Block アロケータ
+                      ├─ Slots[Bucket].Add(NewEntryHandle)
+                      └─ return NewEntryHandle
+       └─ ComparisonIndex = ComparisonHandle
+       └─ DisplayIndex    = DisplayHandle (大文字小文字保持)
+
+(FName 比較 - O(1))
+NameA == NameB
+  └─ return ComparisonIndex == ComparisonIndex && Number == Number ← 整数比較のみ
+
+(FText フォーマット)
+FText T = FText::Format(LOCTEXT("K", "Score: {0}"), ArgValue)    [Text.h]
+  └─ FTextFormatter::Format(Pattern, Arguments)
+       ├─ Pattern->Tokenize() → トークンリスト                   [TextFormatter.cpp]
+       ├─ for (Token in Tokens):
+       │    └─ if (FormatArgument) Arguments[Index].ToText(Result)
+       │    └─ else AppendLiteral(Result)
+       └─ FText 生成
+            ├─ TextData = MakeShareable(new FTextHistory_Format)
+            └─ Source は LocalizationManager から解決             ← 言語切替で再生成
+
+(FText 表示時)
+FText::ToString()                                                 [Text.h]
+  └─ TextData->GetSourceString()                                  ← 表示文字列
+       └─ FTextLocalizationManager::GetLocalizedString(Namespace, Key)
+            └─ ローカライズリソースから検索 → なければ Source 返却
+```
+
+### フロー詳細
+
+1. **FString は TArray<TCHAR>** — 内部ストレージは `TArray<TCHAR>`（NUL 終端含む）。連結は `TArray::AddUninitialized` + `memcpy` で実装され、リアロケーション挙動は TArray と同じ（[[a_array_map_set]]）。
+2. **FString::Printf** — `TStringBuilder` を経由して書式化後 `FString` を構築。`vswprintf` を呼ぶため可変引数。プラットフォームによっては `swprintf_s` などにマッピング。
+3. **FNamePool 構造** — グローバル唯一の `FNamePool`。文字列ハッシュ → バケット → エントリ（リンクリスト）。一度登録された文字列は破棄されない（プロセス終了まで保持）。
+4. **ComparisonIndex vs DisplayIndex** — 大文字小文字無視比較のため、内部では小文字統一した `ComparisonIndex` を比較に使い、表示用に元ケースを保持した `DisplayIndex` を別途保持する。
+5. **FName 比較が O(1) な理由** — 比較は `ComparisonIndex`（int32）と `Number`（int32）の整数比較のみ。文字列ハッシュも比較も不要。これが Tag や Bone 名に使われる理由。
+6. **Number 部** — `Actor_0` の `_0` 部分は `Number` フィールドに分離保存される。同名連番の Actor が大量にあっても `FNamePool` のエントリは 1 つで済む。
+7. **FText のローカライズ** — `LOCTEXT` マクロで作る `FText` は `Namespace + Key` を持ち、表示時に `FTextLocalizationManager` がカルチャ別リソースを引く。`FromString` 直接生成は非ローカライズ（デバッグ用）。
+8. **FText の不変性** — `FText` 内部は `TSharedRef<FTextHistory>`（[[c_smart_pointers]]）。コピーは参照カウント増加のみで安価。
+9. **TCHAR 型** — Windows は `wchar_t`（UTF-16）、その他は `UCS2CHAR`/`char16_t`。`TEXT()` マクロが適切なリテラルに展開。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `FString::operator+=` / `Printf` | `Containers/UnrealString.h` | 連結・書式化 |
+| `FString::Data` (`TArray<TCHAR>`) | `Containers/UnrealString.h` | 文字列ストレージ本体 |
+| `FName::Init` | `UObject/NameTypes.cpp` | エントリ登録 |
+| `FNamePool::Find` / `Allocate` | `UObject/NamePool.cpp` | グローバル名前テーブル |
+| `FNameEntry` | `UObject/NameTypes.h` | プール内 1 エントリ |
+| `FText::Format` / `FTextFormatter` | `Internationalization/TextFormatter.cpp` | フォーマット解決 |
+| `FTextLocalizationManager::GetLocalizedString` | `TextLocalizationManager.cpp` | カルチャ別文字列取得 |
+| `FTextHistory_*` | `Internationalization/TextHistory.h` | FText 内部の履歴／ソース |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_array_map_set]] — TMap<FName, T> など文字列型を使ったコンテナ

@@ -189,6 +189,55 @@ void UMyObject::Serialize(FArchive& Ar)
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（パッケージロード経路）
+
+```
+LoadPackageAsync("/Game/Foo/Bar", CompletionDelegate)            [PackageName.cpp]
+  └─ FAsyncLoadingThread2::QueuePackage()                        [AsyncLoading2.cpp]
+       ├─ AsyncLoadingThread でファイル I/O
+       ├─ FLinkerLoad::CreateLinker()                            [LinkerLoad.cpp]
+       │    ├─ FPackageFileSummary デシリアライズ                ← ヘッダ読み込み
+       │    ├─ Name テーブル展開                                  ← FName プールに登録
+       │    ├─ Import / Export テーブル展開
+       │    └─ Preload(Export)
+       │         ├─ StaticConstructObject_Internal()             ← 各 Export を生成
+       │         └─ UObject::Serialize(LinkerArchive)
+       │              └─ FArchive::operator<<(MyMember)          ← UPROPERTY 復元
+       │                   = FArchive::ByteOrderSerialize() 等を再帰呼び出し
+       └─ GameThread 同期: UObject::PostLoad()                    ← ロード完了フック
+
+(セーブ経路 - エディタ専用)
+UPackage::Save() / UPackage::SavePackage()                       [SavePackage.cpp]
+  └─ FLinkerSave::Save()                                          [LinkerSave.cpp]
+       ├─ Export 収集 + Import 解決 + Name テーブル構築
+       ├─ FPackageFileSummary 書き込み
+       └─ Object->Serialize(SaveArchive)                          ← UPROPERTY を書き込む
+```
+
+### フロー詳細
+
+1. **非同期ロード起動** — `LoadPackageAsync()` が `FAsyncLoadingThread2`（Zen Loader）にパッケージ名をキュー登録。GameThread はブロックされない（[[Details/b_asset_serialization]]）。
+2. **Linker 生成** — `FLinkerLoad::CreateLinker()` が `FPackageFileSummary` を読み、Name/Import/Export テーブルを展開する（`LinkerLoad.cpp`）。
+3. **Export 構築** — 各 `FObjectExport` に対して `StaticConstructObject_Internal()` で UObject を生成し、その `Serialize(FArchive&)` を呼んで UPROPERTY を復元する。
+4. **`operator<<` 再帰** — `Ar << MyMember` は `FArchive::ByteOrderSerialize()` 等のプリミティブ I/O を経由してバイト列を読む。コンテナ・UObject 参照は型ごとの専用 operator が処理する（[[Details/a_farchive]]）。
+5. **GameThread 同期** — Serialize 完了後、`PostLoad()` が GameThread で呼ばれる（async loading の唯一の同期点）。
+6. **SaveGame 経路** — `UGameplayStatics::SaveGameToSlot()` は `FMemoryWriter` ベースで `CPF_SaveGame` フラグのプロパティだけを書く（[[Details/c_save_game]]）。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `LoadPackageAsync` | `PackageName.cpp` | 非同期ロード API |
+| `FAsyncLoadingThread2::QueuePackage` | `AsyncLoading2.cpp` | Zen Loader キュー |
+| `FLinkerLoad::CreateLinker` / `Preload` | `LinkerLoad.cpp` | パッケージ → UObject 復元 |
+| `FArchive::operator<<` | `Archive.h` | プリミティブ・コンテナの I/O |
+| `UObject::Serialize` | `Object.cpp` | UPROPERTY シリアライゼーション |
+| `UPackage::SavePackage` | `SavePackage.cpp` | セーブドライバ（エディタ） |
+
+---
+
 ## 備考
 
 - **FArchive は単方向** — Load/Save を同じコードで書くため、`operator<<` しか使えない（`>>` なし）

@@ -209,6 +209,88 @@ WS->TimeDilation = 0.5f;  // スローモーション（0.5x）
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（SetTimer 〜 Tick 〜 デリゲート発火）
+
+```
+(タイマー登録)
+GetWorldTimerManager().SetTimer(Handle, this, &AMyActor::OnFire, 2.0f, false)
+                                                                  [TimerManager.h]
+  └─ FTimerManager::SetTimer(Handle, FTimerDelegate, Rate, bLoop, FirstDelay, bIgnorePause)
+       │                                                          [TimerManager.cpp]
+       └─ InternalSetTimer(NewTimerData)
+            ├─ FTimerData::Delegate = FTimerDelegate(Object, Method)  ← 弱参照保存
+            ├─ ExpireTime = InternalTime + (FirstDelay ?? Rate)
+            ├─ Timers.Emplace(NewHandle, NewTimerData)              ← TSparseArray 格納
+            └─ ActiveTimerHeap.HeapPush(NewHandle)                  ← min-heap (時間順)
+       └─ Handle = FTimerHandle (内部 IndexAndSerialNumber)
+
+(毎フレーム Tick)
+UWorld::Tick(LevelTick, DeltaSeconds)                              [LevelTick.cpp]
+  └─ FTimerManager::Tick(DeltaTime)                                [TimerManager.cpp]
+       ├─ InternalTime += DeltaTime * (bIgnorePause ? 1 : TimeDilation)
+       └─ while (ActiveTimerHeap.Num() > 0):
+            ├─ TopHandle = ActiveTimerHeap.HeapTop()
+            ├─ if (Top.ExpireTime > InternalTime) break             ← 未満了で終了
+            ├─ ActiveTimerHeap.HeapPop()
+            ├─ CurrentlyExecutingTimer = TopHandle                  ← 実行中フラグ
+            └─ Top.Delegate.Execute()                                ← 関数発火
+                 └─ FTimerDelegate::Execute → ExecuteIfBound
+                      └─ TBaseUObjectMethodDelegateInstance::Execute
+                           └─ if (WeakObject.IsValid()) Object->Method()
+
+(ループタイマーの再投入)
+Tick の中で発火後:
+  └─ if (Top.bLoop):
+       ├─ Top.ExpireTime = InternalTime + Rate
+       └─ ActiveTimerHeap.HeapPush(TopHandle)                      ← 再ヒープ挿入
+  └─ else:
+       └─ Timers.RemoveAt(Top.IndexAndSerialNumber)                 ← TSparseArray 解放
+
+(キャンセル)
+GetWorldTimerManager().ClearTimer(Handle)
+  └─ FTimerData* Data = Timers.Find(Handle)
+       └─ Data->Status = ETimerStatus::PendingRemoval               ← 遅延削除
+            └─ 次の Tick で ActiveTimerHeap から除去
+
+(SetTimerForNextTick)
+SetTimerForNextTick(this, &AMyActor::OnNextTick)
+  └─ ParallelTimerSchedule.Add(...)                                 ← 次フレーム専用キュー
+       └─ UWorld::Tick の最初に処理 → Execute → 即破棄
+
+(ポーズ対応)
+UWorld::SetPauseState → bPaused
+  └─ FTimerManager::Tick():
+       ├─ if (bPaused && !Timer.bIgnorePause) skip InternalTime 増加
+       └─ else 通常通り進行
+```
+
+### フロー詳細
+
+1. **SetTimer 内部** — `FTimerDelegate`（`TBaseDelegate<void()>`）を生成し、`FTimerData` に格納。`Timers`（`TSparseArray<FTimerData>`）に追加し、`ActiveTimerHeap`（`TArray<FTimerHandle>` の min-heap）にプッシュする。
+2. **FTimerHandle の正体** — `IndexAndSerialNumber`（32bit Index + 32bit Serial）。Serial 番号で「同じスロットに別のタイマーが入った」ケースを検知して誤発火を防ぐ。
+3. **Tick の主処理** — `InternalTime` を `DeltaTime * TimeDilation` で進め、ヒープトップが満了していれば `HeapPop` して `Delegate.Execute()` を呼ぶ。1 Tick で複数満了タイマーが処理される。
+4. **デリゲート発火** — `FTimerDelegate` は `TDelegate<void()>` のエイリアス。中身は `TBaseUObjectMethodDelegateInstance` で、UObject が GC されていれば `WeakObject.IsValid()` で防がれる（[[a_delegate_types]]）。
+5. **ループ再投入** — `bLoop=true` なら同じハンドルで `ExpireTime` を更新して再ヒープ挿入。Rate 0 のループは無限ループになるためエンジン側で警告。
+6. **ClearTimer の遅延削除** — `Tick` 中の改変を防ぐため、即削除せず `PendingRemoval` フラグを立てて次回 Tick の冒頭で除去する。
+7. **SetTimerByFunctionName** — `FName` 文字列から `UFunction` を解決して呼ぶ Dynamic 経路（[[b_dynamic_delegates]]）。型安全な `SetTimer` より遅いが BP との互換性に使う。
+8. **ポーズ・タイムダイレーション** — `InternalTime` 進行に `WorldSettings::TimeDilation` を掛ける。`bIgnorePause=true` のタイマーだけは個別に DeltaTime を進める専用パスを通る。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `FTimerManager::SetTimer` / `InternalSetTimer` | `TimerManager.cpp` | タイマー登録 |
+| `FTimerManager::Tick` | `TimerManager.cpp` | フレーム毎の満了処理 |
+| `FTimerManager::ClearTimer` | `TimerManager.cpp` | タイマー解除（遅延削除） |
+| `FTimerData` | `TimerManager.h` | タイマー1件の状態（デリゲート/満了時刻/ループ） |
+| `FTimerHandle` | `TimerManager.h` | IndexAndSerialNumber 識別子 |
+| `FTimerDelegate` | `TimerManager.h` | `TDelegate<void()>` のエイリアス |
+| `TBaseUObjectMethodDelegateInstance` | `DelegateInstancesImpl.h` | UObject 弱参照デリゲート |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_delegate_types]] — FTimerDelegate の元となる TDelegate/TMulticastDelegate

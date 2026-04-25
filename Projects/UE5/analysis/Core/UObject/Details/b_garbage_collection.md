@@ -194,6 +194,62 @@ GC 実行中は他スレッドから UObject を操作してはいけない。`F
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（GC 起動 〜 マーク&スイープ 〜 破棄）
+
+```
+(駆動)
+FEngineLoop::Tick()                                                [LaunchEngineLoop.cpp]
+  └─ IncrementalPurgeGarbage(false, TimeLimit)                     [GarbageCollection.cpp]
+       └─ if (条件成立) CollectGarbage(KeepFlags, bPerformFullPurge)
+
+CollectGarbage(KeepFlags, bForceFull)                              [GarbageCollection.cpp]
+  └─ CollectGarbageInternal()
+       ├─ FGCScopeGuard で GameThread 排他取得                      ← 他スレッドの UObject 操作禁止
+       ├─ CollectReferences()                                       ← マーク フェーズ
+       │    ├─ FRealtimeGC::PerformReachabilityAnalysis()
+       │    │    ├─ Roots を収集（GUObjectArray::RootSet）
+       │    │    ├─ FGCObject::AddReferencedObjects() 呼出           ← 非 UObject ルート
+       │    │    └─ TFastReferenceCollector で並列 BFS                ← gc.AllowParallelGC
+       │    └─ Reachable フラグ未設定 = 不到達と判定
+       └─ IncrementalPurgeGarbage()                                 ← スイープ フェーズ
+            ├─ Object->ConditionalBeginDestroy()
+            │    └─ Object->BeginDestroy()                          ← 非同期解放開始
+            ├─ while !Object->IsReadyForFinishDestroy() yield
+            └─ Object->ConditionalFinishDestroy()
+                 ├─ Object->FinishDestroy()
+                 └─ GUObjectAllocator.FreeUObject(Object)            ← メモリ返却
+
+(FGCObject 経路)
+FGCObject ctor                                                     [GCObject.cpp]
+  └─ FGCObject::GGCObjectReferencer に自動登録
+       └─ GC 走査時に AddReferencedObjects() を呼び出して Reachable 化
+```
+
+### フロー詳細
+
+1. **トリガ判定** — `IncrementalPurgeGarbage` が毎フレーム呼ばれ、`gc.TimeBetweenPurgingPendingKillObjects` 経過 or インクリメンタル予算 (`gc.IncrementalReachabilityTimeLimit`) を超過した時点で `CollectGarbage` を発動。
+2. **GC スコープロック** — `FGCScopeGuard` が GameThread を排他取得。GC 中は他スレッドからの UObject 操作禁止（[[a_lifecycle]]）。
+3. **ルート収集** — `GUObjectArray::RootSet`（`AddToRoot()` 済み）と `FGCObject::AddReferencedObjects()` 由来の参照をルートとして列挙。
+4. **並列マーク** — `TFastReferenceCollector` が UPROPERTY ポインタを辿る BFS を複数ワーカーで並列実行（`gc.AllowParallelGC`）。各 UObject に Reachable フラグを立てる。
+5. **クラスタ最適化** — `gc.CreateGCClusters` 有効時、`UStaticMesh` 等のクラスタは 1 ノードとして扱われ、参照グラフのノード数を大幅に削減。
+6. **スイープ** — Reachable でないオブジェクトに `BeginDestroy → IsReadyForFinishDestroy ポーリング → FinishDestroy` を順次実行し、最後に `GUObjectAllocator.FreeUObject` でメモリを返却。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `CollectGarbage` / `IncrementalPurgeGarbage` | `GarbageCollection.cpp` | GC 起動エントリ |
+| `FRealtimeGC::PerformReachabilityAnalysis` | `GarbageCollection.cpp` | マーク フェーズ本体 |
+| `TFastReferenceCollector` | `FastReferenceCollector.h` | 並列 BFS 参照走査 |
+| `FGCObject::AddReferencedObjects` | `GCObject.cpp` | 非 UObject からの参照通知 |
+| `FGCObject::GGCObjectReferencer` | `GCObject.cpp` | FGCObject の集約ルート |
+| `UObject::ConditionalBeginDestroy` / `FinishDestroy` | `Object.cpp` | 破棄シーケンス |
+| `GUObjectAllocator.FreeUObject` | `UObjectAllocator.cpp` | メモリ返却 |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_lifecycle]] — `BeginDestroy` / `FinishDestroy` の詳細

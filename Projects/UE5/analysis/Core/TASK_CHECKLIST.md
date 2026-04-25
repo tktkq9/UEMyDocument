@@ -69,3 +69,18 @@
 | Containers | 1/1 | 3/3 | 1/1 | 5/5 |
 
 **合計**: 概要 1 + ソースマップ 1 + サブフォルダ概要 6 + Details 21 + Reference 8 = **37 ファイル**
+
+---
+
+## Ph4: コード実行フロー追記（2026-04-25 完了）
+
+全 28 ファイル（overview 7 本 + Details 21 本）に `## コード実行フロー` セクションを追記。
+ASCII コールツリー → 番号付きフロー詳細（wikilink 付き）→ 関与クラス・関数一覧（3 列表）の形式。
+
+- [x] `01_core_overview.md`
+- [x] `UObject/01_overview.md` + Details 4 本
+- [x] `Reflection/01_overview.md` + Details 4 本
+- [x] `Serialization/01_overview.md` + Details 3 本
+- [x] `AsyncTasks/01_overview.md` + Details 4 本
+- [x] `Delegates/01_overview.md` + Details 3 本
+- [x] `Containers/01_overview.md` + Details 3 本

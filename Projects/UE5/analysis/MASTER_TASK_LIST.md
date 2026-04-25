@@ -53,7 +53,7 @@
 - [x] Ph1: 概要（`01_core_overview.md` 更新 + サブフォルダ概要 6 本、2026-04-24 完了）
 - [x] Ph2: Details（21 本、2026-04-24 完了）
 - [x] Ph3: Reference（8 本、2026-04-25 完了）
-- [ ] Ph4: Flow 追記
+- [x] Ph4: Flow 追記（28 本: overview 7 + Details 21、2026-04-25 完了）
 
 ### Physics — 35 ファイル
 

@@ -176,6 +176,67 @@ FString Val = Prop->GetMetaData(TEXT("MyCustomKey"));
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（メタデータ登録 〜 取得 〜 EditCondition 評価）
+
+```
+(UHT 生成 - メタデータ登録)
+Z_Construct_UClass_UMyComponent()                                  [*.generated.cpp]
+  └─ UECodeGen_Private::ConstructUClass()
+       └─ UStruct::SetMetaData(Key, Value)                         [Class.cpp]
+            └─ UMetaData::SetValue(Object, Key, Value)
+                 └─ ObjectMetaDataMap.FindOrAdd(Object).Add(Key, Value)
+
+(取得経路)
+FProperty::GetMetaData(TEXT("ClampMin"))                          [Field.h]
+  └─ UMetaData* MD = GetOutermost()->GetMetaData()
+       └─ MD->GetValue(this, Key)
+            └─ ObjectMetaDataMap.Find(Object) → Map.Find(Key)
+                 └─ FString 値を返す（未登録なら空）
+
+(EditCondition 評価 - エディタ)
+FPropertyHandleBase::IsEditable()                                  [PropertyHandleImpl.cpp]
+  └─ FEditConditionParser::Evaluate(Expression, Context)            [EditConditionParser.cpp]
+       ├─ 字句解析: "bIsAlive" / "==" / "Active"
+       ├─ プロパティ解決: Container->FindPropertyByName("bIsAlive")
+       └─ 値評価: bIsAlive == true ? 編集可 : 編集不可
+            └─ EditConditionHides あれば UI 自体を隠す
+
+(ClampMin 適用 - エディタの Slider)
+SNumericEntryBox<float>::OnValueChanged()                         [SlateWidgets]
+  └─ Prop->GetMetaData(TEXT("ClampMin")) → "0.0"
+       └─ FCString::Atof で数値化
+            └─ FMath::Clamp(Value, MinVal, MaxVal) で値を制限
+
+(クック時 - 除去)
+UPackage::SavePackage()                                           [SavePackage.cpp]
+  └─ if (CookingTarget) UMetaData をシリアライズ対象から除外          ← クック後消失
+```
+
+### フロー詳細
+
+1. **UHT 登録** — UHT が `meta=(...)` 内の各キーバリューを抽出し、`Z_Construct_UClass_*` 内で `SetMetaData` を呼んで `UMetaData` に登録する。
+2. **UMetaData の所有** — メタデータは `UPackage` が所有する `UMetaData` インスタンスに集約される（`UPackage::GetMetaData()` で取得）。各 `UField`/`FField` を起点とした `TMap<FName, FString>` を持つ。
+3. **取得 API** — `FProperty::GetMetaData(Key)` は `GetOutermost()->GetMetaData()` 経由で `UMetaData::GetValue` を呼ぶ。継承先プロパティは親クラスのメタも参照する。
+4. **EditCondition** — エディタの `FEditConditionParser` がメタ値を C++ 風の式として字句解析・評価する。プロパティ参照・比較演算子・論理演算子をサポート。
+5. **UI 制御** — `SNumericEntryBox` 等の Slate Widget が `ClampMin`/`UIMin`/`Units` などを読み取り、入力範囲・表示書式を決定。
+6. **クック除去** — `UPackage::SavePackage` がクックターゲット向けには `UMetaData` を保存対象から外す。ランタイムには `WITH_EDITORONLY_DATA` のため存在しない。
+7. **カスタム指定子** — UHT がパース・登録までを担うので、独自キーは `Prop->GetMetaData(TEXT("MyCustomKey"))` で取得し、エディタ Customization で解釈する。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `UMetaData::SetValue` / `GetValue` | `MetaData.cpp` | メタデータ KVS の本体 |
+| `UStruct::SetMetaData` | `Class.cpp` | UClass/UStruct への登録ヘルパ |
+| `FField::GetMetaData` / `HasMetaData` | `Field.h` | FProperty/UFunction からの取得 |
+| `FEditConditionParser::Evaluate` | `EditConditionParser.cpp` | EditCondition 式評価 |
+| `FPropertyHandleBase::IsEditable` | `PropertyHandleImpl.cpp` | Details パネル編集可否 |
+| `UPackage::SavePackage` | `SavePackage.cpp` | クック時のメタ除去 |
+
+---
+
 ## 備考
 
 - **ランタイム非存在**: クック後のビルドにはメタデータが含まれないため、ゲームコードで `GetMetaData` を呼ぶと `WITH_EDITOR` でのみコンパイル可

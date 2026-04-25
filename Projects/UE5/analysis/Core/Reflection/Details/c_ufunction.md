@@ -197,6 +197,75 @@ for (TFieldIterator<FProperty> It(MyFunction); It; ++It)
 
 ---
 
+## コード実行フロー
+
+### エントリポイント（ProcessEvent 経由 〜 ネイティブ呼出 〜 RPC）
+
+```
+(BP → C++)
+Blueprint ノード実行（VM バイトコード）
+  └─ FFrame::Step → EX_FinalFunction → CallFunction()              [ScriptCore.cpp]
+       └─ UObject::CallFunction(Stack, RESULT_PARAM, Function)      [ScriptCore.cpp]
+            └─ if (FUNC_Native) Func->Func(this, Stack, RESULT_PARAM)
+                 └─ execMyFunc(this, Stack, RESULT_PARAM)            ← UHT 生成シム
+                      ├─ P_GET_PROPERTY 群でスタックから引数取り出し
+                      ├─ P_FINISH
+                      ├─ P_NATIVE_BEGIN
+                      ├─ P_THIS->MyFunc(P_Param1, P_Param2)          ← C++ 実装
+                      └─ P_NATIVE_END
+
+(C++ → BP - イベント発火)
+UObject::ProcessEvent(UFunction* Func, void* Parms)                [Class.cpp]
+  ├─ if (FUNC_Native) Func->Invoke(this, Stack, Result)             ← ネイティブ呼出
+  └─ if (FUNC_Event) Func->Invoke 経由で VM バイトコード実行
+       └─ ProcessInternal(Func, Stack, Result)                       [ScriptCore.cpp]
+            └─ FFrame Stack で OpCode を 1 個ずつ実行
+
+(動的呼出)
+UObject::FindFunction(FName)                                       [Class.cpp]
+  └─ Class->FindFunctionByName(Name)
+       └─ for (UClass* C = Class; C; C = SuperClass) FuncMap.Find(Name)
+
+MyObj->ProcessEvent(Fn, &ParamsStruct)                              ← 任意関数を動的に発火
+
+(RPC)
+ServerFireWeapon(...)                                              ← UHT 生成スタブ
+  └─ UObject::ProcessEvent → 内部で NetDriver にディスパッチ
+       └─ UNetDriver::InternalProcessRemoteFunction()              [NetDriver.cpp]
+            └─ Channel->SendBunch() でネットワーク送信
+                 └─ 受信側 ProcessRemoteFunction → ServerFireWeapon_Implementation()
+
+(BlueprintNativeEvent)
+OnHealthChanged(NewHealth)                                          ← UHT 生成のディスパッチャ
+  └─ ProcessEvent(Func, &Parms)
+       ├─ BP オーバーライドあり → BP 実装を呼ぶ
+       └─ なし → OnHealthChanged_Implementation() ネイティブ実装
+```
+
+### フロー詳細
+
+1. **UHT が生成するもの** — `DECLARE_FUNCTION(execMyFunc)` シム関数、引数構造体、`UFunction` 構築コード（`Z_Construct_UFunction_*`）。`UFunction::Func` ポインタにシム関数アドレスを設定する。
+2. **BP → C++ 経路** — Blueprint VM が `EX_FinalFunction` バイトコードに到達すると `CallFunction` を呼び、`FUNC_Native` フラグありなら `execMyFunc` シム経由で C++ 実装にジャンプ。
+3. **ProcessEvent** — C++ 側から名前で関数を発火するエントリ。`FindFunction` で `UFunction*` を取り、`ProcessEvent` を呼ぶ。引数はパラメータ構造体として渡す。
+4. **VM 実行** — Blueprint のみ実装（`FUNC_Event`）の場合、`ProcessInternal` が `FFrame` スタックで `EX_*` バイトコードを 1 個ずつ評価する。
+5. **RPC** — `Server`/`Client`/`NetMulticast` 関数は ProcessEvent 内で `UNetDriver::InternalProcessRemoteFunction` を経由してネットワーク送信される。受信側は `_Implementation` を実行。
+6. **BlueprintNativeEvent** — UHT 生成のディスパッチャがまず BP オーバーライド有無を確認し、あれば BP 実装、なければ `_Implementation` を呼ぶ。
+7. **引数走査** — `TFieldIterator<FProperty>` で `UFunction::Children` を辿り、`CPF_Parm`/`CPF_ReturnParm`/`CPF_OutParm` フラグで分類する（[[b_fproperty]]）。
+
+### 関与クラス・関数一覧
+
+| クラス / 関数 | ファイル | 役割 |
+|-------------|---------|------|
+| `UObject::ProcessEvent` | `Class.cpp` | 関数呼び出しエントリ |
+| `UObject::CallFunction` | `ScriptCore.cpp` | BP VM からの C++ 関数呼出 |
+| `ProcessInternal` | `ScriptCore.cpp` | BP バイトコード実行ループ |
+| `execXxx` (DECLARE_FUNCTION) | UHT 生成 | C++ 関数のシム |
+| `UClass::FindFunctionByName` | `Class.cpp` | 名前で UFunction を検索 |
+| `UFunction::Invoke` | `Class.cpp` | UFunction 直接呼出 |
+| `UNetDriver::InternalProcessRemoteFunction` | `NetDriver.cpp` | RPC ディスパッチ |
+
+---
+
 ## 関連ドキュメント
 
 - [[a_uclass]] — `UFunction` を所有する `UClass`
