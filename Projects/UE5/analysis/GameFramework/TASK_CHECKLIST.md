@@ -10,18 +10,18 @@
 
 ### ActorComponent — Actor/Component ライフサイクル
 - [x] `ActorComponent/01_overview.md` … ActorComponent 概要（2026-04-25 完了）
-- [ ] `ActorComponent/Details/a_actor_lifecycle.md` … AActor SpawnActor・BeginPlay・EndPlay・Destroy フロー
-- [ ] `ActorComponent/Details/b_component_model.md` … UActorComponent・USceneComponent・RegisterComponent・Attach
-- [ ] `ActorComponent/Details/c_ticking.md` … FTickFunction・TickGroup・TickDependency・前提条件
-- [ ] `ActorComponent/Details/d_actor_spawning.md` … SpawnActorDeferred・FinishSpawning・テンプレート・ObjectInitializer
+- [x] `ActorComponent/Details/a_actor_lifecycle.md` … AActor SpawnActor・BeginPlay・EndPlay・Destroy フロー（2026-04-25）
+- [x] `ActorComponent/Details/b_component_model.md` … UActorComponent・USceneComponent・RegisterComponent・Attach（2026-04-25）
+- [x] `ActorComponent/Details/c_ticking.md` … FTickFunction・TickGroup・TickDependency・前提条件（2026-04-25）
+- [x] `ActorComponent/Details/d_actor_spawning.md` … SpawnActorDeferred・FinishSpawning・テンプレート・ObjectInitializer（2026-04-25）
 - [ ] `ActorComponent/Reference/ref_actor_api.md` … AActor 主要 API
 - [ ] `ActorComponent/Reference/ref_component_api.md` … UActorComponent / USceneComponent API
 
 ### GameModeState — ゲームモード・ゲームステート
 - [x] `GameModeState/01_overview.md` … GameModeState 概要（2026-04-25 完了）
-- [ ] `GameModeState/Details/a_game_mode.md` … AGameModeBase・InitGame・Login・HandleStartingNewPlayer
-- [ ] `GameModeState/Details/b_game_state.md` … AGameStateBase・レプリケーション・MatchState 遷移
-- [ ] `GameModeState/Details/c_game_session.md` … AGameSession・接続承認・OnlineSubsystem 連携
+- [x] `GameModeState/Details/a_game_mode.md` … AGameModeBase・InitGame・Login・HandleStartingNewPlayer（2026-04-25）
+- [x] `GameModeState/Details/b_game_state.md` … AGameStateBase・レプリケーション・MatchState 遷移（2026-04-25）
+- [x] `GameModeState/Details/c_game_session.md` … AGameSession・接続承認・OnlineSubsystem 連携（2026-04-25）
 - [ ] `GameModeState/Reference/ref_gamemode_api.md` … AGameModeBase / AGameStateBase API
 
 ### Controller — コントローラー・ポゼッション
