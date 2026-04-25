@@ -26,9 +26,9 @@
 
 ### Controller — コントローラー・ポゼッション
 - [x] `Controller/01_overview.md` … Controller 概要（2026-04-25 完了）
-- [ ] `Controller/Details/a_player_controller.md` … APlayerController・入力処理・HUD・カメラ管理
-- [ ] `Controller/Details/b_ai_controller.md` … AAIController・BrainComponent・RunBehaviorTree
-- [ ] `Controller/Details/c_possession.md` … Possess/UnPossess・ViewTarget・SpectatorPawn
+- [x] `Controller/Details/a_player_controller.md` … APlayerController・入力処理・HUD・カメラ管理（2026-04-25）
+- [x] `Controller/Details/b_ai_controller.md` … AAIController・BrainComponent・RunBehaviorTree（2026-04-25）
+- [x] `Controller/Details/c_possession.md` … Possess/UnPossess・ViewTarget・SpectatorPawn（2026-04-25）
 - [ ] `Controller/Reference/ref_controller_api.md` … APlayerController / AAIController / APawn API
 
 ### CharacterMovement — キャラクター移動
