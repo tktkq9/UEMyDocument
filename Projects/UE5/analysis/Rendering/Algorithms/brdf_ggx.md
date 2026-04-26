@@ -3,11 +3,9 @@
 - 上位: [[_algorithm_index]]
 - 関連既存ドキュメント: [[../BasePass/Details/...]] / [[../DeferredLighting/Details/...]]
 - 採用システム: BasePass, DeferredLighting, Lumen, RayTracing, Substrate（全シェーディングモデルの specular 項）
-- 出典: 
-  - **S02**: Walter et al. 2007, "Microfacet Models for Refraction through Rough Surfaces"
-  - **S03**: Burley 2012, "Physically-Based Shading at Disney"（Roughness パラメータ化と GGX 採用根拠）
-  - **S01**: Karis 2013, "Real Shading in Unreal Engine 4"（UE 採用と最適化）
-- 出典 URL: `_source_index.md` 参照
+- 出典 ID: **S02**（[[_source_index]]）— Walter et al. 2007（GGX NDF 原典）
+- 関連: **S03** Burley 2012（Roughness パラメータ化と GGX 採用根拠）
+- 関連: **S01** Karis 2013（UE 採用と最適化）
 
 ---
 

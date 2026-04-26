@@ -9,10 +9,9 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[atmos_clouds]] / [[fog_volumetric]]
 - 採用システム: SkyAtmosphere Component（UE5 既定の空・大気）
-- 出典:
-  - **S60**: Hillaire 2020 EGSR "A Scalable and Production Ready Sky and Atmosphere Rendering Technique"
-  - 親: Bruneton & Neyret 2008 EG "Precomputed Atmospheric Scattering"（事前計算 4D LUT）
-  - 影響元: Nishita et al. 1993「最初の物理大気モデル」
+- 出典 ID: **S60**（[[_source_index]]）— Hillaire 2020 EGSR
+- 親手法: Bruneton & Neyret 2008 EG "Precomputed Atmospheric Scattering"（事前計算 4D LUT）
+- 影響元: Nishita et al. 1993（最初の物理大気モデル）
 
 ---
 

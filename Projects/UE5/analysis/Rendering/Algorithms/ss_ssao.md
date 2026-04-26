@@ -9,10 +9,9 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[ss_ssr]] / [[ss_ssgi]] / [[lumen_final_gather]]
 - 採用システム: 旧来 / モバイル AO（Lumen 不使用時のフォールバック）
-- 出典:
-  - **S40**: Mittring 2007 SIGGRAPH "Finding Next Gen — CryEngine 2"（SSAO 原典）
-  - 影響元: Bavoil & Sainz 2008 "Image-Space Horizon-Based AO" (HBAO), Bunnell 2005
-  - UE 実装: `PostProcessAmbientOcclusion.cpp` / `.usf` / `.ush`
+- 出典 ID: **S40**（[[_source_index]]）— Mittring 2007 SIGGRAPH "CryEngine 2"（SSAO 原典）
+- 影響元: Bavoil & Sainz 2008 "Image-Space Horizon-Based AO" (HBAO), Bunnell 2005
+- UE 実装: `PostProcessAmbientOcclusion.cpp` / `.usf` / `.ush`
 
 ---
 

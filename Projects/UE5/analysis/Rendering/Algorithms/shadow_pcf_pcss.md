@@ -9,10 +9,9 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[vsm_overview]] / [[vsm_page_streaming]]
 - 採用システム: VSM / 旧シャドウマップ系のソフトシャドウ
-- 出典:
-  - **S22**: Reeves et al. 1987 SIGGRAPH "Rendering Antialiased Shadows with Depth Maps" (PCF 原典)
-  - 影響元: Fernando 2005 "Percentage-Closer Soft Shadows" (PCSS 原典)
-  - UE 実装: `ShadowProjectionCommon.ush` / `VirtualShadowMapProjection.usf`
+- 出典 ID: **S22**（[[_source_index]]）— Reeves et al. 1987 SIGGRAPH (PCF 原典)
+- 関連: Fernando 2005 "Percentage-Closer Soft Shadows" (PCSS 原典)
+- UE 実装: `ShadowProjectionCommon.ush` / `VirtualShadowMapProjection.usf`
 
 ---
 

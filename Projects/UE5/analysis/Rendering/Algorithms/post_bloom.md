@@ -9,10 +9,9 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[post_bloom_fft]] / [[tone_aces]] / [[tone_filmic]]
 - 採用システム: 標準 Bloom（高速、quality 1〜5）。FFT Bloom と相互排他
-- 出典:
-  - **S52**: Mittring 2007 / Kawase 2003 GDC "Frame Buffer Postprocessing Effects in DOUBLE-S.T.E.A.L (Wreckless)"（mip-pyramid bloom 系の出典）
-  - 古典理論: Gaussian カーネル分離可能性 + 多段 down/up sample
-  - UE 実装: `PostProcessBloomSetup.cpp` / `PostProcessBloom.usf` / `PostProcessWeightedSampleSum.cpp/.usf`
+- 出典 ID: **S52**（[[_source_index]]）— Mittring 2007 / Kawase 2003 GDC（mip-pyramid bloom 系）
+- 古典理論: Gaussian カーネル分離可能性 + 多段 down/up sample
+- UE 実装: `PostProcessBloomSetup.cpp` / `PostProcessBloom.usf` / `PostProcessWeightedSampleSum.cpp/.usf`
 
 ---
 

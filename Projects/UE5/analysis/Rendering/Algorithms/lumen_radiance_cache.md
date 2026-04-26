@@ -3,9 +3,8 @@
 - 上位: [[_algorithm_index]]
 - 関連: [[lumen_surface_cache]] / [[lumen_final_gather]] / [[lumen_sw_rt]] / [[lumen_hw_rt]]
 - 採用システム: Lumen ScreenProbeGather の遠方サンプル, Translucency Volume Lighting, Volumetric Cloud GI
-- 出典:
-  - **S10**: Wright / Heitz / Hillaire 2022 SIGGRAPH "Lumen: Real-time Global Illumination in Unreal Engine 5" — §5 World-space Radiance Cache
-  - 影響元: Sloan 2008 Stupid Spherical Harmonics Tricks（SH 球面表現の系譜）
+- 出典 ID: **S10**（[[_source_index]]）— §5 World-space Radiance Cache
+- 影響元: Sloan 2008 "Stupid Spherical Harmonics Tricks"（SH 球面表現の系譜）
 
 ---
 

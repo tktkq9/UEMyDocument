@@ -9,9 +9,8 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[nanite_cluster_culling]] / [[nanite_visibility_buffer]] / [[nanite_lod]]
 - 採用システム: 1 三角形が概ね < 32 ピクセルとなる Nanite のラスタパス（多数派）
-- 出典:
-  - **S20**: Karis / Stenson / Sherlock 2021 SIGGRAPH "Nanite: A Deep Dive" — §3 Software Rasterization
-  - 影響元: Olano & Greer 1997 "Triangle Scan Conversion using 2D Homogeneous Coordinates"（HW のエッジ関数定式化）
+- 出典 ID: **S20**（[[_source_index]]）— §3 Software Rasterization
+- 影響元: Olano & Greer 1997 "Triangle Scan Conversion using 2D Homogeneous Coordinates"（HW のエッジ関数定式化）
 
 ---
 

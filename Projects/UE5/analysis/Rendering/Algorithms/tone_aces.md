@@ -9,10 +9,9 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[tone_filmic]] / [[post_bloom]]
 - 採用システム: シネマ向け HDR 出力の事実上の業界標準。UE5 のデフォルト Tone Curve も ACES 派生
-- 出典:
-  - **S50**: ACES v1.3 / v2.0 (Academy Color Encoding Specification, AMPAS)
-  - 関連: SMPTE ST.2065-1 (ACES2065-1) / SMPTE ST.2084 (PQ EOTF)
-  - UE 実装: `ACES/ACES_v1.3.ush` / `ACES/ACESOutputTransform.ush` / `ACES/ACESDisplayEncoding.ush` / `TonemapCommon.ush`
+- 出典 ID: **S50**（[[_source_index]]）— ACES v1.3 / v2.0 (Academy Color Encoding Specification, AMPAS)
+- 関連規格: SMPTE ST.2065-1 (ACES2065-1) / SMPTE ST.2084 (PQ EOTF)
+- UE 実装: `ACES/ACES_v1.3.ush` / `ACES/ACESOutputTransform.ush` / `ACES/ACESDisplayEncoding.ush` / `TonemapCommon.ush`
 
 ---
 

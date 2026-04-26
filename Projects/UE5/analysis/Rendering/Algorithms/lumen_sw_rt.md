@@ -3,9 +3,8 @@
 - 上位: [[_algorithm_index]]
 - 関連: [[lumen_hw_rt]] / [[lumen_surface_cache]] / [[lumen_final_gather]]
 - 採用システム: Lumen GI / Lumen Reflections の SW トレース経路（HW RT が無い・OFF のとき）, DistanceFieldShadows
-- 出典:
-  - **S10**: Wright / Heitz / Hillaire 2022 SIGGRAPH — §4 Software Ray Tracing
-  - 影響元: Wright "Mesh Distance Field"（UE4 から継続）, Crassin "Global SDF" 系
+- 出典 ID: **S10**（[[_source_index]]）— §4 Software Ray Tracing
+- 影響元: Wright "Mesh Distance Field"（UE4 から継続）, Crassin "Global SDF" 系
 
 ---
 

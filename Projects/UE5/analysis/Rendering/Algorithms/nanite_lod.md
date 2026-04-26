@@ -9,9 +9,8 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[nanite_cluster_culling]] / [[nanite_visibility_buffer]] / [[nanite_sw_raster]]
 - 採用システム: Nanite の全カリングパス（クラスタ階層トラバース時）
-- 出典:
-  - **S20**: Karis / Stenson / Sherlock 2021 SIGGRAPH "Nanite: A Deep Dive" — §2 Cluster Hierarchy / §4 Cut Selection
-  - 影響元: Hugues Hoppe 1996 "Progressive Meshes", Cignoni et al. 2003 "BDAM Adaptive Mesh"
+- 出典 ID: **S20**（[[_source_index]]）— §2 Cluster Hierarchy / §4 Cut Selection
+- 影響元: Hoppe 1996 "Progressive Meshes", Cignoni et al. 2003 "BDAM Adaptive Mesh"
 
 ---
 

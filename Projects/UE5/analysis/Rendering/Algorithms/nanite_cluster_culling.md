@@ -9,9 +9,8 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[nanite_visibility_buffer]] / [[nanite_sw_raster]] / [[nanite_lod]]
 - 採用システム: Nanite の全ラスタパス（Primary / Shadow / Lumen Card Capture / VSM）
-- 出典:
-  - **S20**: Karis / Stenson / Sherlock 2021 SIGGRAPH "Nanite: A Deep Dive" — §4 Cluster Hierarchy Traversal / §5 GPU-Driven Culling
-  - 影響元: Brian Karis 2018 "Nanite Vision" 公式講演, Persistent Threads (Aila & Laine 2009)
+- 出典 ID: **S20**（[[_source_index]]）— §4 Cluster Hierarchy Traversal / §5 GPU-Driven Culling
+- 影響元: Karis 2018 "Nanite Vision" 公式講演, Persistent Threads (Aila & Laine 2009)
 
 ---
 

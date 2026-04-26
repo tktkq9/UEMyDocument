@@ -9,9 +9,8 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[vsm_overview]] / [[nanite_cluster_culling]]
 - 採用システム: VSM 全体（特に静的 / 半静的シーン）
-- 出典:
-  - **S21**: Karis 2021 SIGGRAPH "Virtual Shadow Maps in Fortnite Battle Royale Chapter 4" — §4 Caching
-  - 影響元: Sparse Virtual Texturing 系のキャッシュ戦略
+- 出典 ID: **S21**（[[_source_index]]）— §4 Caching
+- 影響元: Sparse Virtual Texturing 系のキャッシュ戦略
 
 ---
 

@@ -9,9 +9,8 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[ss_ssr]] / [[ss_ssao]] / [[lumen_final_gather]]
 - 採用システム: Lumen 不使用時の動的 GI フォールバック
-- 出典:
-  - **S42**: Mara et al. 2017 "Screen-Space Indirect Lighting" / SSR の理論を diffuse に拡張した一群の手法
-  - UE 実装: `ScreenSpaceRayTracing.cpp` / `SSRT/SSRTDiffuseIndirect.usf`
+- 出典 ID: **S42**（[[_source_index]]）— Mara et al. 2017 "Screen-Space Indirect Lighting"（SSR の diffuse 拡張）
+- UE 実装: `ScreenSpaceRayTracing.cpp` / `SSRT/SSRTDiffuseIndirect.usf`
 
 ---
 

@@ -3,10 +3,9 @@
 - 上位: [[_algorithm_index]]
 - 関連: [[brdf_ggx]] / [[brdf_smith]] / [[brdf_lazarov_env]]
 - 採用システム: 全 specular 計算（D・G とペアで F = D·V·F の F）
-- 出典: 
-  - **S05**: Schlick 1994, "An Inexpensive BRDF Model for Physically-Based Rendering"
-  - 完全フレネル: 古典的な物理光学（Fresnel 1818）
-  - **S03**: Burley 2012（Disney での F0 概念整理）
+- 出典 ID: **S05**（[[_source_index]]）— Schlick 1994
+- 親理論: 古典物理光学 Fresnel 1818（完全フレネル）
+- 関連: **S03** Burley 2012（Disney での F0 概念整理）
 
 ---
 

@@ -9,9 +9,8 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[nanite_cluster_culling]] / [[nanite_sw_raster]] / [[nanite_lod]]
 - 採用システム: Nanite の全マテリアル評価パス
-- 出典:
-  - **S20**: Karis / Stenson / Sherlock 2021 SIGGRAPH "Nanite: A Deep Dive" — §6 Material Shading
-  - 影響元: Christopher Burns & Warren Hunt 2013 "Visibility Buffer" 原論文（HPG）
+- 出典 ID: **S20**（[[_source_index]]）— §6 Material Shading
+- 影響元: Burns & Hunt 2013 "Visibility Buffer" HPG（原論文）
 
 ---
 

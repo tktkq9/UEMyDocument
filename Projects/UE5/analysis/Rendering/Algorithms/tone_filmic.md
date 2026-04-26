@@ -9,11 +9,9 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[tone_aces]] / [[post_bloom]]
 - 採用システム: HDR ディスプレイ非対応 / モバイル / 軽量プロファイル / 旧プロジェクト互換
-- 出典:
-  - **S51**: Reinhard et al. 2002 "Photographic Tone Reproduction for Digital Images" (SIGGRAPH)
-  - Hable 2010 GDC "Uncharted 2: HDR Lighting"（Filmic Curve）
-  - Hable 2017 Blog "Filmic Tonemapping with Piecewise Power Curves"
-  - UE 実装: `TonemapCommon.ush` / `PostProcessTonemap.cpp`
+- 出典 ID: **S51**（[[_source_index]]）— Reinhard et al. 2002 (SIGGRAPH)
+- 影響元: Hable 2010 GDC "Uncharted 2: HDR Lighting"（Filmic Curve）/ Hable 2017 Blog "Piecewise Power Curves"
+- UE 実装: `TonemapCommon.ush` / `PostProcessTonemap.cpp`
 
 ---
 

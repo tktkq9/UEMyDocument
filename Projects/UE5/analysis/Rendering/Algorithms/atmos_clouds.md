@@ -9,10 +9,9 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[atmos_hillaire]] / [[fog_volumetric]]
 - 採用システム: VolumetricCloud Component（UE5 既定の体積雲）
-- 出典:
-  - **S61**: Schneider 2015 SIGGRAPH "The Real-Time Volumetric Cloudscapes of Horizon: Zero Dawn"
-  - 続編: Schneider 2017 GDC / SIGGRAPH "Nubis: Authoring Real-Time Volumetric Cloudscapes with the Decima Engine"
-  - 影響元: Bouthors 2008 "Interactive Multiple Anisotropic Scattering in Clouds"
+- 出典 ID: **S61**（[[_source_index]]）— Schneider 2015 SIGGRAPH "Horizon: Zero Dawn"
+- 続編: Schneider 2017 GDC / SIGGRAPH "Nubis: Decima Engine"
+- 影響元: Bouthors 2008 "Interactive Multiple Anisotropic Scattering in Clouds"
 
 ---
 

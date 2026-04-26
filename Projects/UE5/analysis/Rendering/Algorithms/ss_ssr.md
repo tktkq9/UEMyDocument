@@ -9,10 +9,9 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[ss_ssgi]] / [[ss_ssao]] / [[lumen_hw_rt]] / [[brdf_ggx]]
 - 採用システム: 反射のフォールバック（Lumen Reflections / RT Reflections 不使用時）
-- 出典:
-  - **S41**: Stachowiak 2015 SIGGRAPH "Stochastic Screen-Space Reflections" (Killzone/Frostbite 系)
-  - 影響元: Sousa 2011 (Crysis 2 SSR), McGuire & Mara 2014 "Efficient GPU Screen-Space Ray Tracing"
-  - UE 実装: `ScreenSpaceRayTracing.cpp` / `SSRT/*.usf`
+- 出典 ID: **S41**（[[_source_index]]）— Stachowiak 2015 SIGGRAPH "Stochastic SSR" (Killzone/Frostbite 系)
+- 影響元: Sousa 2011 (Crysis 2 SSR), McGuire & Mara 2014 "Efficient GPU Screen-Space Ray Tracing"
+- UE 実装: `ScreenSpaceRayTracing.cpp` / `SSRT/*.usf`
 
 ---
 

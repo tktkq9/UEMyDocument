@@ -9,9 +9,8 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[vsm_page_streaming]] / [[shadow_pcf_pcss]] / [[nanite_cluster_culling]]
 - 採用システム: UE5 標準シャドウ（Directional / Local Light）
-- 出典:
-  - **S21**: Karis 2021 SIGGRAPH "Virtual Shadow Maps in Fortnite Battle Royale Chapter 4" / Epic 公開ドキュメント
-  - 影響元: Sparse Virtual Texturing (SVT, id Tech 5), Mike Day "Cascaded Shadow Maps"
+- 出典 ID: **S21**（[[_source_index]]）— Karis 2021 SIGGRAPH / Epic 公開ドキュメント
+- 影響元: Sparse Virtual Texturing (SVT, id Tech 5), Mike Day "Cascaded Shadow Maps"
 
 ---
 

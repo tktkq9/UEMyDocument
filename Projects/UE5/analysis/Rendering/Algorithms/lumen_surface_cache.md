@@ -3,9 +3,8 @@
 - 上位: [[_algorithm_index]]
 - 関連: [[lumen_radiance_cache]] / [[lumen_sw_rt]] / [[lumen_hw_rt]] / [[lumen_final_gather]]
 - 採用システム: Lumen GI（ScreenProbeGather, ReSTIR Gather, Reflections, Radiosity 全てが SurfaceCache を読む）
-- 出典:
-  - **S10**: Wright / Heitz / Hillaire 2022 SIGGRAPH "Lumen: Real-time Global Illumination in Unreal Engine 5" — §3 Surface Cache
-  - Epic 公式: "Lumen Technical Details" ドキュメント（UE 公式 Docs）
+- 出典 ID: **S10**（[[_source_index]]）— §3 Surface Cache
+- 補助資料: Epic 公式 "Lumen Technical Details"（UE 公式 Docs）
 
 ---
 

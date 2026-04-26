@@ -9,10 +9,9 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[aa_tsr]] / [[brdf_split_sum]]
 - 採用システム: UE5 旧 AA パス（TAA/TAAU）。新規プロジェクトは [[aa_tsr]] が標準。
-- 出典:
-  - **S30**: Karis 2014 SIGGRAPH "High-Quality Temporal Supersampling" (Advances in Real-Time Rendering)
-  - 影響元: Yang et al. 2009 "Amortized Supersampling", Salvi 2016 "Anti-Aliasing"
-  - UE 実装: `TemporalAA.usf` / `PostProcess/TemporalAA.cpp`
+- 出典 ID: **S30**（[[_source_index]]）— Karis 2014 SIGGRAPH "High-Quality Temporal Supersampling"
+- 影響元: Yang et al. 2009 "Amortized Supersampling", Salvi 2016 "Anti-Aliasing"
+- UE 実装: `TemporalAA.usf` / `PostProcess/TemporalAA.cpp`
 
 ---
 

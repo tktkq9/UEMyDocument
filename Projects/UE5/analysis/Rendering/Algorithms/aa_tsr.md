@@ -9,10 +9,9 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[aa_taa]] / [[nanite_visibility_buffer]]
 - 採用システム: UE5 標準 AA / Upscaler（プロジェクト設定 `r.AntiAliasingMethod=4`）
-- 出典:
-  - **S31**: Epic 2022 SIGGRAPH "Lyra & TSR" / Epic Online Learning "TSR Deep Dive"
-  - 影響元: TAAU（UE4.23）, Karis 2014 [[aa_taa]], NN-based upscaler 系（DLSS/FSR）
-  - UE 実装: `PostProcess/TemporalSuperResolution.cpp` / `TemporalSuperResolution/*.usf`
+- 出典 ID: **S31**（[[_source_index]]）— Epic 2022 SIGGRAPH "Lyra & TSR" / Epic Online Learning
+- 影響元: TAAU（UE4.23）, Karis 2014 [[aa_taa]], NN-based upscaler 系（DLSS/FSR）
+- UE 実装: `PostProcess/TemporalSuperResolution.cpp` / `TemporalSuperResolution/*.usf`
 
 ---
 

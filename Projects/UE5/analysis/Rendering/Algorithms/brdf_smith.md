@@ -3,9 +3,8 @@
 - 上位: [[_algorithm_index]]
 - 関連: [[brdf_ggx]] / [[brdf_fresnel_schlick]]
 - 採用システム: 全 specular 計算（GGX とペア）
-- 出典: 
-  - **S04**: Heitz 2014, "Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs"（Smith G2 の理論的整理 + Joint 近似提案）
-  - **S01**: Karis 2013（Schlick 版 G の UE4 初期採用）
+- 出典 ID: **S04**（[[_source_index]]）— Heitz 2014 JCGT（Smith G2 整理 + Joint 近似提案）
+- 関連: **S01** Karis 2013（Schlick 版 G の UE4 初期採用）
 
 ---
 

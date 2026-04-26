@@ -9,10 +9,9 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[post_bloom]] / [[tone_aces]]
 - 採用システム: 写真ぽい lens bloom（任意 PSF 画像をユーザー供給）。標準 Mip-pyramid と相互排他
-- 出典:
-  - **S53**: Cooley & Tukey 1965 "An Algorithm for the Machine Calculation of Complex Fourier Series" (FFT 基礎)
-  - 関連: Convolution Theorem `f * g  ⇔  F · G`
-  - UE 実装: `PostProcessFFTBloom.cpp` / `Bloom/*.usf` (11 ファイル) / `GPUFastFourierTransform.cpp/.usf`
+- 出典 ID: **S53**（[[_source_index]]）— Cooley & Tukey 1965 (FFT 基礎)
+- 関連定理: Convolution Theorem `f * g  ⇔  F · G`
+- UE 実装: `PostProcessFFTBloom.cpp` / `Bloom/*.usf` (11 ファイル) / `GPUFastFourierTransform.cpp/.usf`
 
 ---
 

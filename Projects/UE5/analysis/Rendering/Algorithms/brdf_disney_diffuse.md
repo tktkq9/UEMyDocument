@@ -3,8 +3,7 @@
 - 上位: [[_algorithm_index]]
 - 関連: [[brdf_ggx]] / [[brdf_smith]] / [[brdf_fresnel_schlick]] / [[brdf_lambert]]
 - 採用システム: BasePass DefaultLit, Lumen 統合, Substrate
-- 出典: 
-  - **S03**: Burley 2012, "Physically-Based Shading at Disney"（§5.3 Diffuse モデル）
+- 出典 ID: **S03**（[[_source_index]]）— Burley 2012 §5.3 Diffuse モデル
 
 ---
 

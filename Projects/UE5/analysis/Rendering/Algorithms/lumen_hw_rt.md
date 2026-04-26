@@ -3,9 +3,8 @@
 - 上位: [[_algorithm_index]]
 - 関連: [[lumen_sw_rt]] / [[lumen_surface_cache]] / [[lumen_radiance_cache]] / [[lumen_final_gather]]
 - 採用システム: Lumen GI / Reflections / Translucency / Visualize の HW トレース経路（Inline RT または RayGen）, ShortRangeAO HW
-- 出典:
-  - **S10**: Wright / Heitz / Hillaire 2022 SIGGRAPH — §6 Hardware Ray Tracing
-  - DirectX Raytracing 1.1 仕様（Inline RT / TraceRayInline）
+- 出典 ID: **S10**（[[_source_index]]）— §6 Hardware Ray Tracing
+- 関連仕様: DirectX Raytracing 1.1（Inline RT / TraceRayInline）
 
 ---
 

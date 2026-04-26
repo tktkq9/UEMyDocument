@@ -9,9 +9,8 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[lumen_surface_cache]] / [[lumen_radiance_cache]] / [[lumen_sw_rt]] / [[lumen_hw_rt]] / [[lumen_restir_gather]]
 - 採用システム: Lumen Diffuse GI（Software / Hardware Ray Tracing 両方の最終統合段）
-- 出典:
-  - **S10**: Wright / Heitz / Hillaire 2022 SIGGRAPH "Lumen: Real-time Global Illumination in Unreal Engine 5" — §6 Screen Probe Gather, §7 Importance Sampling, §8 Filtering
-  - 影響元: McGuire 2017 "Stochastic Sampling for Real-Time Indirect" / Heitz 2018 "A Low-Distortion Map Between Triangle and Square"
+- 出典 ID: **S10**（[[_source_index]]）— §6 Screen Probe Gather / §7 Importance Sampling / §8 Filtering
+- 影響元: McGuire 2017 "Stochastic Sampling for Real-Time Indirect" / Heitz 2018 "A Low-Distortion Map Between Triangle and Square"
 
 ---
 

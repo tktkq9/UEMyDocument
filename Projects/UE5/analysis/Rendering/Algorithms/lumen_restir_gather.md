@@ -9,11 +9,10 @@ type: project
 - 上位: [[_algorithm_index]]
 - 関連: [[lumen_final_gather]] / [[lumen_hw_rt]] / [[lumen_surface_cache]]
 - 採用システム: Lumen Diffuse GI（プロトタイプ、`r.Lumen.ReSTIRGather=1` でオプトイン）
-- 出典:
-  - **S11**: Ouyang et al. 2021 EGSR "ReSTIR GI: Path Resampling for Real-Time Path Tracing"
-  - 親: Bitterli et al. 2020 SIGGRAPH "Spatiotemporal reservoir resampling for real-time ray tracing with dynamic direct lighting" (ReSTIR DI 原典)
-  - 影響元: Talbot et al. 2005 "Importance Resampling for Global Illumination" (RIS 原典)
-  - **S10**: Wright et al. 2022 SIGGRAPH "Lumen" — §11 Future Work で ReSTIR Gather を予告
+- 出典 ID: **S11**（[[_source_index]]）— Ouyang et al. 2021 EGSR "ReSTIR GI"
+- 親手法: Bitterli et al. 2020 SIGGRAPH "Spatiotemporal reservoir resampling..." (ReSTIR DI 原典)
+- 影響元: Talbot et al. 2005 "Importance Resampling for Global Illumination" (RIS 原典)
+- 関連: **S10** Lumen 2022 §11 Future Work で ReSTIR Gather を予告
 
 ---
 
