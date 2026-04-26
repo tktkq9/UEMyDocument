@@ -169,5 +169,5 @@ Heitz 2014 自身が「この近似は実用十分」と推奨している。
 - **未読箇所**: 
   - S04 §6 Importance Sampling の VNDF（Visible NDF）— Lumen のサンプリング戦略で使用
 - **次の派生**: 
-  - Lumen reflection サンプリング → [[lumen_reflections]]
-  - Path Tracer での G2 取り扱い → [[../RayTracing/...]]
+  - Lumen reflection サンプリング → [[lumen_reflections]]（未着手）
+  - Path Tracer での G2 取り扱い → [[../RayTracing/...]]（未着手）
