@@ -1,3 +1,9 @@
+---
+name: Smith G2 / Joint Approximation
+description: Heitz 2014 JCGT の Smith G2 整理と UE 実装（Vis_SmithJointApprox / Vis_Schlick）
+type: project
+---
+
 # Smith G2 / Joint Approximation（幾何遮蔽項）
 
 - 上位: [[_algorithm_index]]

@@ -207,4 +207,4 @@ RWBuffer<uint>                        VisibleClustersArgsSWHW;
 - **次の派生**:
   - Visibility Buffer 出力 → [[nanite_visibility_buffer]]
   - VSM への Nanite ラスタ → [[vsm_overview]]（未着手）
-  - GPU Streaming → [[../Geometry/...]] 系
+  - GPU Streaming → [[../Geometry/...]] 系（未着手）

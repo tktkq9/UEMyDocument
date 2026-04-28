@@ -1,3 +1,9 @@
+---
+name: Disney Diffuse (Burley)
+description: Burley 2012 の Disney Diffuse 項の理論と UE 実装（Diffuse_Burley / Diffuse_Chan）
+type: project
+---
+
 # Disney Diffuse (Burley)
 
 - 上位: [[_algorithm_index]]
@@ -163,5 +169,5 @@ CVar 切り替えはなし（プロジェクト設定でレガシー Lambert モ
   - S03 §5.5 Sheen / §5.6 ClearCoat 拡張
   - Chan 2018 の SS（Single Scattering）補正の正確な式
 - **次の派生**: 
-  - Substrate Layer 分離での Diffuse 扱い → [[../Substrate/...]]
+  - Substrate Layer 分離での Diffuse 扱い → [[../Substrate/...]]（未着手）
   - Lumen Surface Cache 内の Diffuse 統合 → [[lumen_surface_cache]]

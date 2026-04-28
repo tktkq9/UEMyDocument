@@ -1,3 +1,9 @@
+---
+name: Schlick Fresnel 近似
+description: Schlick 1994 のフレネル近似と UE 実装（F_Schlick / F_AdobeF82 / F0 計算）
+type: project
+---
+
 # Schlick Fresnel 近似（フレネル項）
 
 - 上位: [[_algorithm_index]]
@@ -201,5 +207,5 @@ float3 F_Schlick(float3 F0, float3 F90, float VoH)
 - **未読箇所**: 
   - Adobe F82 の `K = 49/46656` 定数導出（コメントで「constant folding from CosThetaMax=1/7」とある）
 - **次の派生**: 
-  - 多層 BSDF (ClearCoat) の二重 Fresnel → [[../BasePass/Details/...]]
-  - Substrate での Fresnel 統合 → [[../Substrate/...]]
+  - 多層 BSDF (ClearCoat) の二重 Fresnel → [[../BasePass/Details/...]]（未着手）
+  - Substrate での Fresnel 統合 → [[../Substrate/...]]（未着手）

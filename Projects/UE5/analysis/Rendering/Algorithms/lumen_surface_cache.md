@@ -1,3 +1,9 @@
+---
+name: Lumen Surface Cache
+description: カードベース放射輝度キャッシュ（Lumen GI / Reflections / Radiosity 全てが読む共通入力）
+type: project
+---
+
 # Lumen Surface Cache（カードベース放射輝度キャッシュ）
 
 - 上位: [[_algorithm_index]]

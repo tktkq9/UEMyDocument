@@ -1,3 +1,9 @@
+---
+name: Lumen Software Ray Tracing
+description: Mesh Distance Fields + Global SDF による SW レイトレース経路（HW RT 不在/OFF 時）
+type: project
+---
+
 # Lumen Software Ray Tracing（Mesh Distance Fields + Global SDF）
 
 - 上位: [[_algorithm_index]]
@@ -219,4 +225,4 @@ namespace Lumen {
 - **次の派生**:
   - Heightfield (Landscape) トレース → [[lumen_heightfield_trace]]（未着手）
   - SW RT による Reflection Tracing → [[lumen_reflections_sw]]（未着手）
-  - Mesh SDF オフライン生成パス → [[../Geometry/...]] 系
+  - Mesh SDF オフライン生成パス → [[../Geometry/...]] 系（未着手）

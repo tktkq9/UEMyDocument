@@ -221,6 +221,6 @@ TRDGUniformBufferRef<FNaniteRasterUniformParameters> CreateDebugNaniteRasterUnif
   - Substrate との統合（`Substrate/Substrate.h`）
   - DBuffer デカール統合経路
 - **次の派生**:
-  - Substrate マテリアル → [[../Materials/...]]
-  - Nanite ライティング統合 → [[../Lighting/...]]
+  - Substrate マテリアル → [[../Materials/...]]（未着手）
+  - Nanite ライティング統合 → [[../Lighting/...]]（未着手）
   - Lumen Card Capture との統合 → [[lumen_surface_cache]]

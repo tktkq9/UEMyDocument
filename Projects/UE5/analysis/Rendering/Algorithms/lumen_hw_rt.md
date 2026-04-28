@@ -1,3 +1,9 @@
+---
+name: Lumen Hardware Ray Tracing
+description: DXR / Inline RT 経由の Lumen トレース経路（Hit Lighting / Surface Cache モード / SER）
+type: project
+---
+
 # Lumen Hardware Ray Tracing（DXR/RT Core 経由のレイトレース）
 
 - 上位: [[_algorithm_index]]
@@ -244,5 +250,5 @@ void LumenHardwareRayTracing::SetRayTracingSceneOptions(...)
   - Translucency RayTracing と Hit Lighting の相互作用（`RayTracedTranslucency`）
 - **次の派生**:
   - Hit Lighting Lighting Grid → [[lumen_hit_lighting_grid]]（未着手）
-  - Nanite Ray Tracing プロキシ → [[../Geometry/...]]
+  - Nanite Ray Tracing プロキシ → [[../Geometry/...]]（未着手）
   - ScreenProbe HW RT 詳細パス → [[lumen_final_gather]]

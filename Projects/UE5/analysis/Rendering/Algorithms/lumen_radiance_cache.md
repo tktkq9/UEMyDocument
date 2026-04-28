@@ -1,3 +1,9 @@
+---
+name: Lumen Radiance Cache
+description: 球面プローブベースの遠距離放射輝度キャッシュ（SH 表現 + ScreenProbeGather 遠方フォールバック）
+type: project
+---
+
 # Lumen Radiance Cache（球面プローブベースの遠距離放射輝度キャッシュ）
 
 - 上位: [[_algorithm_index]]

@@ -1,7 +1,13 @@
+---
+name: GGX / Trowbridge-Reitz NDF
+description: Walter 2007 の GGX NDF と UE 実装（D_GGX / D_GGXaniso）+ Disney Roughness パラメータ化
+type: project
+---
+
 # GGX / Trowbridge-Reitz NDF（法線分布関数）
 
 - 上位: [[_algorithm_index]]
-- 関連既存ドキュメント: [[../BasePass/Details/...]] / [[../DeferredLighting/Details/...]]
+- 関連既存ドキュメント: [[../BasePass/Details/...]]（未着手） / [[../DeferredLighting/Details/...]]（未着手）
 - 採用システム: BasePass, DeferredLighting, Lumen, RayTracing, Substrate（全シェーディングモデルの specular 項）
 - 出典 ID: **S02**（[[_source_index]]）— Walter et al. 2007（GGX NDF 原典）
 - 関連: **S03** Burley 2012（Roughness パラメータ化と GGX 採用根拠）
@@ -191,7 +197,7 @@ float D_GGXaniso( float ax, float ay, float NoH, float XoH, float YoH )
   - S02 §4 全反射の取り扱い（屈折を含む完全 BSDF）
   - S03 §5.5 ClearCoat の二重 BRDF
 - **次の派生**: 
-  - Substrate での GGX 拡張 → [[../Substrate/...]]
+  - Substrate での GGX 拡張 → [[../Substrate/...]]（未着手）
   - VSM サンプリングと NDF の関係 → [[vsm_overview]]
 
 未解決事項（`_source_index.md` の質問表に転記済み）:
