@@ -3,7 +3,7 @@
 外部資料（論文・SIGGRAPH course notes・公式記事）のメタデータと UE 実装インデックス。
 
 - 上位: [[_algorithm_index]]
-- 更新日: 2026-04-29
+- 更新日: 2026-04-29（21 PDF キャッシュ完了 / 残 S21 は公式論文不在）
 - ダウンロード補助: [[_papers/_download.sh]]
 
 ---
@@ -20,12 +20,12 @@
 | S01 | Real Shading in Unreal Engine 4 | Karis (Epic) | 2013 | SIGGRAPH course | https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf | `_papers/S01_Karis_RealShadingUE4_2013.pdf` | slide 11 NDF, slide 12 G, slide 14 IBL Split-Sum |
 | S02 | Microfacet Models for Refraction through Rough Surfaces | Walter et al. | 2007 | EGSR | https://www.graphics.cornell.edu/~bjw/microfacetbsdf.pdf | `_papers/S02_Walter_Microfacet_2007.pdf` | Eq.33 GGX NDF, Eq.34 Smith G |
 | S03 | Physically-Based Shading at Disney | Burley | 2012 | SIGGRAPH course | https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf | `_papers/S03_Burley_PBS_Disney_2012.pdf` | §5.3 Disney Diffuse, §5.4 GGX 採用根拠 |
-| S03b | Approximate Reflectance Profiles for Efficient SSS | Burley, Christensen | 2015 | Disney SIGGRAPH | （要 URL 確定） | `_papers/S03_Burley_NormalizedSSS_2015.pdf` | Burley Normalized SSS（[[sss_burley]] 参照） |
+| S03b | Approximate Reflectance Profiles for Efficient SSS | Burley, Christensen | 2015 | Disney SIGGRAPH | https://web.archive.org/web/2023/https://graphics.pixar.com/library/ApproxBSSRDF/paper.pdf | `_papers/S03b_Christensen_Burley_NormalizedSSS_2015.pdf` | Burley Normalized SSS（[[sss_burley]] 参照） |
 | S03c | Physically Based Hair Shading in Unreal | Karis (Epic) | 2016 | SIGGRAPH course | https://blog.selfshadow.com/publications/s2016-shading-course/karis/s2016_pbs_epic_hair.pdf | `_papers/S03_Karis_HairShading_2016.pdf` | 異方性 GGX 拡張（[[brdf_ggx_aniso]] 参照） |
 | S04 | Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs | Heitz | 2014 | JCGT | https://jcgt.org/published/0003/02/03/paper.pdf | `_papers/S04_Heitz_MaskingShadowing_2014.pdf` | §5 Smith G2, Joint vs Separable |
 | S05 | An Inexpensive BRDF Model for Physically-Based Rendering | Schlick | 1994 | Eurographics | https://onlinelibrary.wiley.com/doi/10.1111/1467-8659.1330233 | `_papers/S05_Schlick_1994.pdf`（PDF不可・要旨のみ） | Fresnel 5乗近似 |
 | S06 | Getting More Physical in Call of Duty: Black Ops II | Lazarov | 2013 | SIGGRAPH course | https://blog.selfshadow.com/publications/s2013-shading-course/lazarov/s2013_pbs_black_ops_2_notes.pdf | `_papers/S06_Lazarov_BlackOps2_2013.pdf` | EnvBRDF 多項式近似 |
-| S07 | A Microfacet Based Coupled Specular-Matte BRDF Model with Importance Sampling | Kelemen | 2001 | Eurographics short | （要検索） | `_papers/S07_Kelemen_2001.pdf` | Vis_Kelemen 簡略化 G |
+| S07 | A Microfacet Based Coupled Specular-Matte BRDF Model with Importance Sampling | Kelemen | 2001 | Eurographics short | https://diglib.eg.org/bitstreams/17596c08-140e-46cf-bf8d-57113f201d38/download | `_papers/S07_Kelemen_SpecularMatte_2001.pdf` | Vis_Kelemen 簡略化 G |
 | S08 | Real-Time Polygonal-Light Shading with Linearly Transformed Cosines | Heitz et al. | 2016 | SIGGRAPH | https://eheitzresearch.wordpress.com/415-2/ | （Google Drive 配信のため curl 不適 / 手動取得要） | LTC 行列の構築方法 |
 
 ### グローバルイルミネーション
@@ -39,13 +39,13 @@
 
 | ID | タイトル | 著者 | 年 | 種別 | URL | ローカル | 重要箇所 |
 |----|--------|-----|----|----|-----|--------|--------|
-| S20 | Nanite: A Deep Dive | Karis, Stubbe, Wihlidal (Epic) | 2021 | SIGGRAPH course | https://advances.realtimerendering.com/s2021/Karis_Nanite_SIGGRAPH_Advances_2021_final.pdf | （未取得） | DAG 構築, Visibility Buffer, SW Rasterizer |
+| S20 | Nanite: A Deep Dive | Karis, Stubbe, Wihlidal (Epic) | 2021 | SIGGRAPH course | https://advances.realtimerendering.com/s2021/Karis_Nanite_SIGGRAPH_Advances_2021_final.pdf | `_papers/S20_Karis_Nanite_2021.pdf` | DAG 構築, Visibility Buffer, SW Rasterizer |
 
 ### シャドウ
 
 | ID | タイトル | 著者 | 年 | 種別 | URL | ローカル | 重要箇所 |
 |----|--------|-----|----|----|-----|--------|--------|
-| S21 | Virtual Shadow Maps in Fortnite Battle Royale Chapter 4 | Karis (Epic) | 2023 | Unreal Fest / SIGGRAPH | https://advances.realtimerendering.com/s2023/index.html | （未取得） | Sparse Page allocation, Per-page caching |
+| S21 | Virtual Shadow Maps in Fortnite Battle Royale Chapter 4 | Karis (Epic) | 2023 | Unreal Fest / Epic 公式 | https://dev.epicgames.com/documentation/en-us/unreal-engine/virtual-shadow-maps-in-unreal-engine | （公式論文/スライド PDF 不在 / UE5 ドキュメントが一次情報源） | Sparse Page allocation, Per-page caching |
 | S22 | Percentage-Closer Soft Shadows | Fernando | 2005 | SIGGRAPH sketch | http://developer.download.nvidia.com/shaderlibrary/docs/shadow_PCSS.pdf | `_papers/S22_Fernando_PCSS_2005.pdf` | Blocker search → Penumbra 推定 |
 
 ### アンチエイリアス / 解像度
@@ -61,7 +61,7 @@
 |----|--------|-----|----|----|-----|--------|--------|
 | S40 | Scalable Ambient Obscurance | McGuire et al. | 2012 | HPG | https://research.nvidia.com/sites/default/files/pubs/2012-06_Scalable-Ambient-Obscurance/McGuire12SAO.pdf | `_papers/S40_McGuire_SAO_2012.pdf` | HBAO の派生 |
 | S41 | Stochastic Screen-Space Reflections | Stachowiak (DICE) | 2015 | SIGGRAPH course | https://advances.realtimerendering.com/s2015/ | （advances 2015 は PPT 58MB のみ / PDF 配信なし） | レイマーチ + リサンプル |
-| S42 | Screen Space Global Illumination | Mara et al. | 2016 | I3D | https://research.nvidia.com/publication/2016-03_deep-g-buffers-stable-global-illumination | （研究公開ページ 404 / 要再調査） | 2 層 G-buffer GI |
+| S42 | Deep G-Buffers for Stable Global Illumination Approximation | Mara et al. | 2016 | I3D | https://casual-effects.com/research/Mara2016DeepGBuffer/Mara2016DeepGBuffer.pdf | `_papers/S42_Mara_DeepGBuffer_2016.pdf` | 2 層 G-buffer GI |
 
 ### ポストプロセス
 
@@ -79,7 +79,7 @@
 
 | ID | タイトル | 著者 | 年 | 種別 | URL | ローカル | 重要箇所 |
 |----|--------|-----|----|----|-----|--------|--------|
-| S60 | A Scalable and Production Ready Sky and Atmosphere Rendering Technique | Hillaire (Epic) | 2020 | EGSR | https://sebh.github.io/publications/egsr2020.pdf | （未取得） | LUT ベース散乱 |
+| S60 | A Scalable and Production Ready Sky and Atmosphere Rendering Technique | Hillaire (Epic) | 2020 | EGSR | https://sebh.github.io/publications/egsr2020.pdf | `_papers/S60_Hillaire_SkyAtmosphere_2020.pdf` | LUT ベース散乱 |
 | S61 | The Real-Time Volumetric Cloudscapes of Horizon: Zero Dawn | Schneider | 2015 | SIGGRAPH course | https://d3d3g8mu99pzk9.cloudfront.net/AndrewSchneider/The-Real-time-Volumetric-Cloudscapes-of-Horizon-Zero-Dawn.pdf | `_papers/S61_Schneider_Clouds_2015.pdf` | Worley Noise 雲, レイマーチ |
 | S62 | Physically Based and Unified Volumetric Rendering in Frostbite | Hillaire (DICE) | 2015 | SIGGRAPH course | https://www.ea.com/frostbite/news/physically-based-unified-volumetric-rendering-in-frostbite | （RAR アーカイブ URL 失効 / 要再調査） | Volumetric Fog の体積積分 |
 
@@ -87,7 +87,7 @@
 
 | ID | タイトル | 著者 | 年 | 種別 | URL | ローカル | 重要箇所 |
 |----|--------|-----|----|----|-----|--------|--------|
-| S70 | Separable Subsurface Scattering | Jimenez | 2015 | EGSR | https://www.iryoku.com/separable-sss/ | （直リンク 404 / ページからの取得待ち） | カーネル分離 |
+| S70 | Separable Subsurface Scattering | Jimenez et al. | 2015 | EGSR / CGF | https://users.cg.tuwien.ac.at/zsolnai/wp/wp-content/uploads/2014/12/ssss.pdf | `_papers/S70_Jimenez_SeparableSSS_2015.pdf` | カーネル分離 |
 
 ---
 
