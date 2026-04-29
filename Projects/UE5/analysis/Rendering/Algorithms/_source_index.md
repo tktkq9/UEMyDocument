@@ -22,18 +22,18 @@
 | S03 | Physically-Based Shading at Disney | Burley | 2012 | SIGGRAPH course | https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf | `_papers/S03_Burley_PBS_Disney_2012.pdf` | §5.3 Disney Diffuse, §5.4 GGX 採用根拠 |
 | S03b | Approximate Reflectance Profiles for Efficient SSS | Burley, Christensen | 2015 | Disney SIGGRAPH | （要 URL 確定） | `_papers/S03_Burley_NormalizedSSS_2015.pdf` | Burley Normalized SSS（[[sss_burley]] 参照） |
 | S03c | Physically Based Hair Shading in Unreal | Karis (Epic) | 2016 | SIGGRAPH course | https://blog.selfshadow.com/publications/s2016-shading-course/karis/ | `_papers/S03_Karis_HairShading_2016.pdf` | 異方性 GGX 拡張（[[brdf_ggx_aniso]] 参照） |
-| S04 | Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs | Heitz | 2014 | JCGT | https://jcgt.org/published/0003/02/03/ | `_papers/S04_Heitz_MaskingShadowing_2014.pdf`（HTML 配信） | §5 Smith G2, Joint vs Separable |
+| S04 | Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs | Heitz | 2014 | JCGT | https://jcgt.org/published/0003/02/03/paper.pdf | `_papers/S04_Heitz_MaskingShadowing_2014.pdf` | §5 Smith G2, Joint vs Separable |
 | S05 | An Inexpensive BRDF Model for Physically-Based Rendering | Schlick | 1994 | Eurographics | https://onlinelibrary.wiley.com/doi/10.1111/1467-8659.1330233 | `_papers/S05_Schlick_1994.pdf`（PDF不可・要旨のみ） | Fresnel 5乗近似 |
 | S06 | Getting More Physical in Call of Duty: Black Ops II | Lazarov | 2013 | SIGGRAPH course | https://blog.selfshadow.com/publications/s2013-shading-course/lazarov/s2013_pbs_black_ops_2_notes.pdf | `_papers/S06_Lazarov_BlackOps2_2013.pdf` | EnvBRDF 多項式近似 |
 | S07 | A Microfacet Based Coupled Specular-Matte BRDF Model with Importance Sampling | Kelemen | 2001 | Eurographics short | （要検索） | `_papers/S07_Kelemen_2001.pdf` | Vis_Kelemen 簡略化 G |
-| S08 | Real-Time Polygonal-Light Shading with Linearly Transformed Cosines | Heitz et al. | 2016 | SIGGRAPH | https://eheitzresearch.wordpress.com/415-2/ | `_papers/S08_Heitz_LTC_2016.pdf` | LTC 行列の構築方法 |
+| S08 | Real-Time Polygonal-Light Shading with Linearly Transformed Cosines | Heitz et al. | 2016 | SIGGRAPH | https://eheitzresearch.wordpress.com/415-2/ | （Google Drive 配信のため curl 不適 / 手動取得要） | LTC 行列の構築方法 |
 
 ### グローバルイルミネーション
 
 | ID | タイトル | 著者 | 年 | 種別 | URL | ローカル | 重要箇所 |
 |----|--------|-----|----|----|-----|--------|--------|
 | S10 | Lumen: Real-time Global Illumination in Unreal Engine 5 | Wright, Heitz, Hillaire (Epic) | 2022 | SIGGRAPH course | https://advances.realtimerendering.com/s2022/SIGGRAPH2022-Advances-Lumen-Wright%20et%20al.pdf | `_papers/S10_Wright_Lumen_2022.pdf` | Surface Cache 章, Final Gather 章 |
-| S11 | ReSTIR GI: Path Resampling for Real-Time Path Tracing | Ouyang et al. | 2021 | EGSR | https://research.nvidia.com/publication/2021-06_restir-gi-path-resampling-real-time-path-tracing | （未取得） | Spatiotemporal reservoir resampling |
+| S11 | ReSTIR GI: Path Resampling for Real-Time Path Tracing | Ouyang et al. | 2021 | EGSR | https://d1qx31qr3h6wln.cloudfront.net/publications/ReSTIR%20GI.pdf | `_papers/S11_Ouyang_ReSTIR_GI_2021.pdf`（158MB） | Spatiotemporal reservoir resampling |
 
 ### ジオメトリ
 
@@ -46,7 +46,7 @@
 | ID | タイトル | 著者 | 年 | 種別 | URL | ローカル | 重要箇所 |
 |----|--------|-----|----|----|-----|--------|--------|
 | S21 | Virtual Shadow Maps in Fortnite Battle Royale Chapter 4 | Karis (Epic) | 2023 | Unreal Fest / SIGGRAPH | https://advances.realtimerendering.com/s2023/index.html | （未取得） | Sparse Page allocation, Per-page caching |
-| S22 | Percentage-Closer Soft Shadows | Fernando | 2005 | SIGGRAPH sketch | （要検索） | （未取得） | Blocker search → Penumbra 推定 |
+| S22 | Percentage-Closer Soft Shadows | Fernando | 2005 | SIGGRAPH sketch | http://developer.download.nvidia.com/shaderlibrary/docs/shadow_PCSS.pdf | `_papers/S22_Fernando_PCSS_2005.pdf` | Blocker search → Penumbra 推定 |
 
 ### アンチエイリアス / 解像度
 
@@ -59,9 +59,9 @@
 
 | ID | タイトル | 著者 | 年 | 種別 | URL | ローカル | 重要箇所 |
 |----|--------|-----|----|----|-----|--------|--------|
-| S40 | Scalable Ambient Obscurance | McGuire et al. | 2012 | HPG | https://research.nvidia.com/publication/scalable-ambient-obscurance | （未取得） | HBAO の派生 |
-| S41 | Stochastic Screen-Space Reflections | Stachowiak (DICE) | 2015 | SIGGRAPH course | https://www.ea.com/frostbite/news/stochastic-screen-space-reflections | （未取得） | レイマーチ + リサンプル |
-| S42 | Screen Space Global Illumination | Mara et al. | 2016 | I3D | https://research.nvidia.com/publication/2016-03_deep-g-buffers-stable-global-illumination | （未取得） | 2 層 G-buffer GI |
+| S40 | Scalable Ambient Obscurance | McGuire et al. | 2012 | HPG | https://research.nvidia.com/sites/default/files/pubs/2012-06_Scalable-Ambient-Obscurance/McGuire12SAO.pdf | `_papers/S40_McGuire_SAO_2012.pdf` | HBAO の派生 |
+| S41 | Stochastic Screen-Space Reflections | Stachowiak (DICE) | 2015 | SIGGRAPH course | https://advances.realtimerendering.com/s2015/ | （advances 2015 は PPT 58MB のみ / PDF 配信なし） | レイマーチ + リサンプル |
+| S42 | Screen Space Global Illumination | Mara et al. | 2016 | I3D | https://research.nvidia.com/publication/2016-03_deep-g-buffers-stable-global-illumination | （研究公開ページ 404 / 要再調査） | 2 層 G-buffer GI |
 
 ### ポストプロセス
 
@@ -72,15 +72,15 @@
 | S52 | Next Generation Post Processing in Call of Duty: Advanced Warfare | Jimenez | 2014 | SIGGRAPH course | https://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare/ | （PPTX のみ・407MB / PDF 配信なし） | Mip-pyramid Bloom 詳細 |
 | S53 | Practical Real-Time Strategies for Accurate Indirect Occlusion | Jimenez | 2016 | SIGGRAPH course | https://blog.selfshadow.com/publications/s2016-shading-course/activision/s2016_pbs_activision_occlusion.pdf | `_papers/S53_Jimenez_GTAO_2016.pdf` | GTAO（FFT Bloom 別資料） |
 | S54 | A Life of a Bokeh | Abadie (DICE) | 2018 | SIGGRAPH course | https://advances.realtimerendering.com/s2018/2018-08-13-SIGGRAPH-A-Life-of-a-Bokeh.pptx | （PPTX のみ・150MB / PDF 配信なし） | DOF カーネル |
-| S55 | A Reconstruction Filter for Plausible Motion Blur | McGuire et al. | 2012 | I3D | https://research.nvidia.com/publication/reconstruction-filter-plausible-motion-blur | `_papers/S55_McGuire_MotionBlur_2012.pdf` | Tile-based scatter-as-gather |
+| S55 | A Reconstruction Filter for Plausible Motion Blur | McGuire et al. | 2012 | I3D | https://casual-effects.com/research/McGuire2012Blur/McGuire12Blur.pdf | `_papers/S55_McGuire_MotionBlur_2012.pdf` | Tile-based scatter-as-gather |
 
 ### 大気・体積
 
 | ID | タイトル | 著者 | 年 | 種別 | URL | ローカル | 重要箇所 |
 |----|--------|-----|----|----|-----|--------|--------|
 | S60 | A Scalable and Production Ready Sky and Atmosphere Rendering Technique | Hillaire (Epic) | 2020 | EGSR | https://sebh.github.io/publications/egsr2020.pdf | （未取得） | LUT ベース散乱 |
-| S61 | The Real-Time Volumetric Cloudscapes of Horizon: Zero Dawn | Schneider | 2015 | SIGGRAPH course | https://www.guerrilla-games.com/read/the-real-time-volumetric-cloudscapes-of-horizon-zero-dawn | （未取得） | Worley Noise 雲, レイマーチ |
-| S62 | Physically Based and Unified Volumetric Rendering in Frostbite | Hillaire (DICE) | 2015 | SIGGRAPH course | https://www.ea.com/frostbite/news/physically-based-unified-volumetric-rendering-in-frostbite | `_papers/S62_Frostbite_Volumetric.pdf` | Volumetric Fog の体積積分 |
+| S61 | The Real-Time Volumetric Cloudscapes of Horizon: Zero Dawn | Schneider | 2015 | SIGGRAPH course | https://d3d3g8mu99pzk9.cloudfront.net/AndrewSchneider/The-Real-time-Volumetric-Cloudscapes-of-Horizon-Zero-Dawn.pdf | `_papers/S61_Schneider_Clouds_2015.pdf` | Worley Noise 雲, レイマーチ |
+| S62 | Physically Based and Unified Volumetric Rendering in Frostbite | Hillaire (DICE) | 2015 | SIGGRAPH course | https://www.ea.com/frostbite/news/physically-based-unified-volumetric-rendering-in-frostbite | （RAR アーカイブ URL 失効 / 要再調査） | Volumetric Fog の体積積分 |
 
 ### SSS
 
