@@ -3,7 +3,7 @@
 外部資料（論文・SIGGRAPH course notes・公式記事）のメタデータと UE 実装インデックス。
 
 - 上位: [[_algorithm_index]]
-- 更新日: 2026-04-27
+- 更新日: 2026-04-29
 - ダウンロード補助: [[_papers/_download.sh]]
 
 ---
@@ -32,7 +32,7 @@
 
 | ID | タイトル | 著者 | 年 | 種別 | URL | ローカル | 重要箇所 |
 |----|--------|-----|----|----|-----|--------|--------|
-| S10 | Lumen: Real-time Global Illumination in Unreal Engine 5 | Wright, Heitz, Hillaire (Epic) | 2022 | SIGGRAPH course | https://advances.realtimerendering.com/s2022/index.html#Lumen | （未取得） | Surface Cache 章, Final Gather 章 |
+| S10 | Lumen: Real-time Global Illumination in Unreal Engine 5 | Wright, Heitz, Hillaire (Epic) | 2022 | SIGGRAPH course | https://advances.realtimerendering.com/s2022/SIGGRAPH2022-Advances-Lumen-Wright%20et%20al.pdf | `_papers/S10_Wright_Lumen_2022.pdf` | Surface Cache 章, Final Gather 章 |
 | S11 | ReSTIR GI: Path Resampling for Real-Time Path Tracing | Ouyang et al. | 2021 | EGSR | https://research.nvidia.com/publication/2021-06_restir-gi-path-resampling-real-time-path-tracing | （未取得） | Spatiotemporal reservoir resampling |
 
 ### ジオメトリ
@@ -52,8 +52,8 @@
 
 | ID | タイトル | 著者 | 年 | 種別 | URL | ローカル | 重要箇所 |
 |----|--------|-----|----|----|-----|--------|--------|
-| S30 | High Quality Temporal Supersampling | Karis (Epic) | 2014 | SIGGRAPH course | https://de45xmedrsdbp.cloudfront.net/Resources/files/TemporalAA_small-71938269.pdf | （未取得） | Variance Clipping, YCoCg |
-| S31 | Temporal Super Resolution in Unreal Engine 5 | Epic | 2022 | Unreal Fest | https://advances.realtimerendering.com/s2022/index.html | （未取得） | History rectification, dilation |
+| S30 | High Quality Temporal Supersampling | Karis (Epic) | 2014 | SIGGRAPH course | https://advances.realtimerendering.com/s2014/epic/TemporalAA.pptx | （PPTX のみ・27MB / 旧 PDF CDN は 403） | Variance Clipping, YCoCg |
+| S31 | Temporal Super Resolution in Unreal Engine 5 | Epic | 2022 | Unreal Fest | https://assets-unreal2-epic-prod-us2.s3.dualstack.us-east-1.amazonaws.com/original/4X/6/6/d/66dab26619dbce6c73ad3cf02722e1b1787f0cc9.pdf | `_papers/S31_Epic_TSR_2022.pdf` | History rectification, dilation |
 
 ### スクリーンスペース
 
@@ -69,9 +69,9 @@
 |----|--------|-----|----|----|-----|--------|--------|
 | S50 | Academy Color Encoding System | AMPAS | 2014- | 規格 | https://acescentral.com/ | （未取得） | RRT + ODT, 公式 CTL |
 | S51 | Filmic Tonemapping with Piecewise Power Curves | Hable | 2017 | ブログ | http://filmicworlds.com/blog/filmic-tonemapping-with-piecewise-power-curves/ | （未取得） | Hable Filmic 形式 |
-| S52 | Next Generation Post Processing in Call of Duty: Advanced Warfare | Jimenez | 2014 | SIGGRAPH course | https://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare/ | （未取得） | Mip-pyramid Bloom 詳細 |
-| S53 | Practical Real-Time Strategies for Accurate Indirect Occlusion | Jimenez | 2016 | SIGGRAPH course | （要検索） | （未取得） | FFT Bloom |
-| S54 | A Life of a Bokeh | Abadie (DICE) | 2018 | SIGGRAPH course | https://advances.realtimerendering.com/s2018/index.html | `_papers/S54_Abadie_DiaphragmDOF_2018.pdf` | DOF カーネル |
+| S52 | Next Generation Post Processing in Call of Duty: Advanced Warfare | Jimenez | 2014 | SIGGRAPH course | https://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare/ | （PPTX のみ・407MB / PDF 配信なし） | Mip-pyramid Bloom 詳細 |
+| S53 | Practical Real-Time Strategies for Accurate Indirect Occlusion | Jimenez | 2016 | SIGGRAPH course | https://blog.selfshadow.com/publications/s2016-shading-course/activision/s2016_pbs_activision_occlusion.pdf | `_papers/S53_Jimenez_GTAO_2016.pdf` | GTAO（FFT Bloom 別資料） |
+| S54 | A Life of a Bokeh | Abadie (DICE) | 2018 | SIGGRAPH course | https://advances.realtimerendering.com/s2018/2018-08-13-SIGGRAPH-A-Life-of-a-Bokeh.pptx | （PPTX のみ・150MB / PDF 配信なし） | DOF カーネル |
 | S55 | A Reconstruction Filter for Plausible Motion Blur | McGuire et al. | 2012 | I3D | https://research.nvidia.com/publication/reconstruction-filter-plausible-motion-blur | `_papers/S55_McGuire_MotionBlur_2012.pdf` | Tile-based scatter-as-gather |
 
 ### 大気・体積
@@ -86,7 +86,7 @@
 
 | ID | タイトル | 著者 | 年 | 種別 | URL | ローカル | 重要箇所 |
 |----|--------|-----|----|----|-----|--------|--------|
-| S70 | Separable Subsurface Scattering | Jimenez | 2015 | EGSR | https://www.iryoku.com/separable-sss/ | `_papers/S70_Jimenez_SeparableSSS_2015.pdf` | カーネル分離 |
+| S70 | Separable Subsurface Scattering | Jimenez | 2015 | EGSR | https://www.iryoku.com/separable-sss/ | （直リンク 404 / ページからの取得待ち） | カーネル分離 |
 
 ---
 
