@@ -21,7 +21,7 @@
 | S02 | Microfacet Models for Refraction through Rough Surfaces | Walter et al. | 2007 | EGSR | https://www.graphics.cornell.edu/~bjw/microfacetbsdf.pdf | `_papers/S02_Walter_Microfacet_2007.pdf` | Eq.33 GGX NDF, Eq.34 Smith G |
 | S03 | Physically-Based Shading at Disney | Burley | 2012 | SIGGRAPH course | https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf | `_papers/S03_Burley_PBS_Disney_2012.pdf` | §5.3 Disney Diffuse, §5.4 GGX 採用根拠 |
 | S03b | Approximate Reflectance Profiles for Efficient SSS | Burley, Christensen | 2015 | Disney SIGGRAPH | （要 URL 確定） | `_papers/S03_Burley_NormalizedSSS_2015.pdf` | Burley Normalized SSS（[[sss_burley]] 参照） |
-| S03c | Physically Based Hair Shading in Unreal | Karis (Epic) | 2016 | SIGGRAPH course | https://blog.selfshadow.com/publications/s2016-shading-course/karis/ | `_papers/S03_Karis_HairShading_2016.pdf` | 異方性 GGX 拡張（[[brdf_ggx_aniso]] 参照） |
+| S03c | Physically Based Hair Shading in Unreal | Karis (Epic) | 2016 | SIGGRAPH course | https://blog.selfshadow.com/publications/s2016-shading-course/karis/s2016_pbs_epic_hair.pdf | `_papers/S03_Karis_HairShading_2016.pdf` | 異方性 GGX 拡張（[[brdf_ggx_aniso]] 参照） |
 | S04 | Understanding the Masking-Shadowing Function in Microfacet-Based BRDFs | Heitz | 2014 | JCGT | https://jcgt.org/published/0003/02/03/paper.pdf | `_papers/S04_Heitz_MaskingShadowing_2014.pdf` | §5 Smith G2, Joint vs Separable |
 | S05 | An Inexpensive BRDF Model for Physically-Based Rendering | Schlick | 1994 | Eurographics | https://onlinelibrary.wiley.com/doi/10.1111/1467-8659.1330233 | `_papers/S05_Schlick_1994.pdf`（PDF不可・要旨のみ） | Fresnel 5乗近似 |
 | S06 | Getting More Physical in Call of Duty: Black Ops II | Lazarov | 2013 | SIGGRAPH course | https://blog.selfshadow.com/publications/s2013-shading-course/lazarov/s2013_pbs_black_ops_2_notes.pdf | `_papers/S06_Lazarov_BlackOps2_2013.pdf` | EnvBRDF 多項式近似 |
@@ -68,7 +68,8 @@
 | ID | タイトル | 著者 | 年 | 種別 | URL | ローカル | 重要箇所 |
 |----|--------|-----|----|----|-----|--------|--------|
 | S50 | Academy Color Encoding System | AMPAS | 2014- | 規格 | https://acescentral.com/ | （未取得） | RRT + ODT, 公式 CTL |
-| S51 | Filmic Tonemapping with Piecewise Power Curves | Hable | 2017 | ブログ | http://filmicworlds.com/blog/filmic-tonemapping-with-piecewise-power-curves/ | （未取得） | Hable Filmic 形式 |
+| S51 | Photographic Tone Reproduction for Digital Images | Reinhard et al. | 2002 | SIGGRAPH | https://www-old.cs.utah.edu/docs/techreports/2002/pdf/UUCS-02-001.pdf | `_papers/S51_Reinhard_PhotographicTone_2002.pdf` | Reinhard tone curve 原典 |
+| S51b | Filmic Tonemapping with Piecewise Power Curves | Hable | 2017 | ブログ | http://filmicworlds.com/blog/filmic-tonemapping-with-piecewise-power-curves/ | （ブログ記事 / PDF 配信なし） | Hable Filmic 形式 |
 | S52 | Next Generation Post Processing in Call of Duty: Advanced Warfare | Jimenez | 2014 | SIGGRAPH course | https://www.iryoku.com/next-generation-post-processing-in-call-of-duty-advanced-warfare/ | （PPTX のみ・407MB / PDF 配信なし） | Mip-pyramid Bloom 詳細 |
 | S53 | Practical Real-Time Strategies for Accurate Indirect Occlusion | Jimenez | 2016 | SIGGRAPH course | https://blog.selfshadow.com/publications/s2016-shading-course/activision/s2016_pbs_activision_occlusion.pdf | `_papers/S53_Jimenez_GTAO_2016.pdf` | GTAO（FFT Bloom 別資料） |
 | S54 | A Life of a Bokeh | Abadie (DICE) | 2018 | SIGGRAPH course | https://advances.realtimerendering.com/s2018/2018-08-13-SIGGRAPH-A-Life-of-a-Bokeh.pptx | （PPTX のみ・150MB / PDF 配信なし） | DOF カーネル |
