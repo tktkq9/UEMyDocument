@@ -7,7 +7,7 @@ type: project
 # Linearly Transformed Cosines（LTC）
 
 - 出典 ID: **S08**（[[_source_index]]）
-- UE 実装: `Engine/Shaders/Private/RectLight.ush:334` `RectApproxLTC`, `RectGGXApproxLTC`, `Engine/Shaders/Private/RectLightIntegrate.ush`
+- UE 実装: `Engine/Shaders/Private/RectLight.ush:335` `RectApproxLTC`（旧記載 `:334` はコメント行 / 関数定義は 335 行）, `:403` `RectGGXApproxLTC`, `Engine/Shaders/Private/RectLightIntegrate.ush`
 - ステータス: **完了 (2026-04-27)**
 - 上位: [[_algorithm_index]] / [[../01_rendering_overview]]
 
@@ -79,7 +79,7 @@ UE では `MonteCarlo.ush` 系の `PolygonIrradiance` 関数で同等処理。
 
 ### 3.2 RectApproxLTC（コア積分）
 
-`RectLight.ush:334-400`:
+`RectLight.ush:335-400`（旧記載 `:334` はコメント行 / 関数定義は 335 行）:
 
 ```hlsl
 // [Heitz et al. 2016, "Real-Time Polygonal-Light Shading with Linearly Transformed Cosines"]

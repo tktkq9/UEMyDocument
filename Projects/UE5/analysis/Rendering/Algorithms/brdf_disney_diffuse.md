@@ -64,7 +64,7 @@ F_{D90} = 0.5 + 2 \cdot \mathrm{Roughness} \cdot (\mathbf{v} \cdot \mathbf{h})^2
 
 ### 3.1 標準実装
 
-`Engine/Shaders/Private/BRDF.ush:182`
+`Engine/Shaders/Private/BRDF.ush:183`（旧記載 `:182` はコメント行を指していた / 関数定義は 183 行）
 
 ```hlsl
 // [Burley 2012, "Physically-Based Shading at Disney"]

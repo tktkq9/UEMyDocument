@@ -97,19 +97,28 @@
 
 ### BRDF.ush（`Engine/Shaders/Private/BRDF.ush`）
 
+行番号は UE5 現行ソース（`D:\UnrealEngine\` クローン時点）で確認済み。
+**※ 補足**: 過去の本表記載値からのズレは以下の通り（元資料 → 実コード）。リネーム/挿入によりエンジン更新で行番号が動いた箇所を反映。
+- `Diffuse_Lambert` 161 → 177（+16）
+- `Vis_SmithJointApprox` 392 → 393（+1）
+- `Vis_SmithJoint` (full) 401 → 402（+1）
+- Karis Split-Sum 関数特定の修正: 旧記載「611 `EnvBRDFApprox`」は **誤り** — Karis Split-Sum 実装は `EnvBRDF`（612 行、PreIntegratedGF をテクスチャサンプルする版）。`EnvBRDFApprox`（642 行）は内部で `EnvBRDFApproxLazarov` を呼ぶ Lazarov 多項式版で別アルゴリズム。
+
 | 行 | 関数 | アルゴリズム ID |
 |----|------|---------------|
-| 161 | `Diffuse_Lambert` | （古典） |
+| 177 | `Diffuse_Lambert` | （古典） |
 | 183 | `Diffuse_Burley` | S03 |
 | 331 | `D_GGX` | S02 |
 | 339 | `D_GGXaniso` | S03 |
 | 366 | `Vis_Kelemen` | S07 |
 | 374 | `Vis_Schlick` | S05 |
-| 392 | `Vis_SmithJointApprox` | S04 |
-| 401 | `Vis_SmithJoint` (full) | S04 |
+| 393 | `Vis_SmithJointApprox` | S04 |
+| 402 | `Vis_SmithJoint` (full) | S04 |
+| 410 | `Vis_SmithJointAniso` | S04 |
 | 423 | `F_Schlick` | S05 |
-| 611 | `EnvBRDFApprox` (Karis Split-Sum) | S01 |
+| 612 | `EnvBRDF` (Karis Split-Sum / PreIntegratedGF テクスチャ参照版) | S01 |
 | 630 | `EnvBRDFApproxLazarov` | S06 |
+| 642 | `EnvBRDFApprox` (Lazarov 多項式経由の近似) | S06 |
 | 705 | `D_InvGGX` (Cloth) | （Epic 独自） |
 | 792 | `ConvertRoughnessGGXToBeckmann` | （変換式） |
 

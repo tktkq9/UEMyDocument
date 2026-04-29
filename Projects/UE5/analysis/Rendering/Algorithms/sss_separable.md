@@ -56,7 +56,7 @@ float3 profile = float3(0.233, 0.455, 0.649) * exp(dd / 0.0064) +
                  float3(0.078, 0.0,   0.0)   * exp(dd / 7.41);
 ```
 
-カーネル全体は CPU 側 `ComputeMirroredBSSSKernel`（`SubsurfaceProfile.cpp:530-540`）で 3 段サイズ（13/9/6 サンプル）として事前計算される。
+カーネル全体は CPU 側 `ComputeMirroredBSSSKernel`（`SubsurfaceProfile.cpp:532-540`、関数本体は `BurleyNormalizedSSS.cpp:134`）で 3 段サイズ（13/9/6 サンプル）として事前計算される（旧記載 `:530-540` の開始行は -2 ズレで現状 532）。
 
 ### 2.2 分離可能性（Separability）
 
@@ -174,7 +174,7 @@ graph LR
 
 ## 8. 相談用フック（不確かなポイント）
 
-- **6 ガウシアンの係数**（`0.233, 0.455, 0.649` …）は Jimenez 論文の Caucasian skin 計測値。皮膚以外（蝋・葉・大理石）に流用しても合わないので、UE 内では Subsurface Profile アセットの `FalloffColor`/`SurfaceAlbedo` から `ComputeMirroredBSSSKernel` で動的フィッティング（`SubsurfaceProfile.cpp:530`）。
+- **6 ガウシアンの係数**（`0.233, 0.455, 0.649` …）は Jimenez 論文の Caucasian skin 計測値。皮膚以外（蝋・葉・大理石）に流用しても合わないので、UE 内では Subsurface Profile アセットの `FalloffColor`/`SurfaceAlbedo` から `ComputeMirroredBSSSKernel` で動的フィッティング（`SubsurfaceProfile.cpp:532`、旧記載 `:530` から -2 ズレ修正）。
 - **`scale = 8.25 * (1 - translucency) / sssWidth`** の `8.25` は Jimenez のデモコードのマジック値。UE のシーンスケール（cm）依存。
 - **`SSSS_FOLLOW_SURFACE` の `12000/400000` 重み**（`SeparableSSS.ush:335`）も経験則。
 - **Separable Approximation の限界**: 高曲率・薄膜では分離性が破綻し、Reference Path Tracer と比較するとリングアーティファクトが出る場合がある（耳の輪郭で顕著）。Burley 推奨。
